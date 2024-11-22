@@ -12,11 +12,6 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
     //
 }
 
-GaussianGI::~GaussianGI()
-{
-    //
-}
-
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
     //

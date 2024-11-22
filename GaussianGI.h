@@ -4,11 +4,11 @@
 
 using namespace Falcor;
 
-class GaussianGI : public SampleApp
+class GaussianGI final : public SampleApp
 {
 public:
-    GaussianGI(const SampleAppConfig& config);
-    ~GaussianGI();
+    explicit GaussianGI(const SampleAppConfig& config);
+    ~GaussianGI() override = default;
 
     void onLoad(RenderContext* pRenderContext) override;
     void onShutdown() override;
