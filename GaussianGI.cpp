@@ -1,11 +1,11 @@
 #include "GaussianGI.h"
 
+#include "Scene/GMeshLoader.hpp"
+
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
-uint32_t mSampleGuiWidth = 250;
-uint32_t mSampleGuiHeight = 200;
-uint32_t mSampleGuiPositionX = 20;
-uint32_t mSampleGuiPositionY = 40;
+namespace GSGI
+{
 
 GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 {
@@ -36,11 +36,26 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
 void GaussianGI::onGuiRender(Gui* pGui)
 {
     Gui::Window w(pGui, "Falcor", {250, 200});
-    renderGlobalUI(pGui);
     w.text("Hello from GaussianGI");
     if (w.button("Click Here"))
     {
         msgBox("Info", "Now why would you do that?");
+    }
+    if (w.button("Open File"))
+    {
+        std::filesystem::path path;
+        if (openFileDialog({}, path))
+        {
+            auto optMesh = GMeshLoader::load(path);
+            if (optMesh)
+            {
+                fmt::println("{}", optMesh->name);
+                for (const auto& texPath : optMesh->texturePaths)
+                {
+                    fmt::println("{}", texPath.string());
+                }
+            }
+        }
     }
 }
 
@@ -59,13 +74,18 @@ void GaussianGI::onHotReload(HotReloadFlags reloaded)
     //
 }
 
+} // namespace GSGI
+
 int runMain(int argc, char** argv)
 {
     SampleAppConfig config;
-    config.windowDesc.title = "Falcor Project Template";
-    config.windowDesc.resizableWindow = true;
+    config.windowDesc.title = "GaussianGI";
+    config.windowDesc.resizableWindow = false;
+    config.windowDesc.width = 1280;
+    config.windowDesc.height = 720;
+    config.deviceDesc.type = Device::Vulkan;
 
-    GaussianGI project(config);
+    GSGI::GaussianGI project(config);
     return project.run();
 }
 

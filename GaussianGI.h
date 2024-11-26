@@ -4,6 +4,9 @@
 
 using namespace Falcor;
 
+namespace GSGI
+{
+
 class GaussianGI final : public SampleApp
 {
 public:
@@ -21,3 +24,5 @@ public:
 
 private:
 };
+
+} // namespace GSGI
