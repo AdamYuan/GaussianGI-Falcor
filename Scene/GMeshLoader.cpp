@@ -5,7 +5,6 @@
 #include "GMeshLoader.hpp"
 
 #include <unordered_map>
-
 #include <Utils/Timing/TimeReport.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -61,6 +60,7 @@ struct GMeshLoaderContext
                 gVertex.texcoord = {aiTexcoord.x, aiTexcoord.y};
             }
             this->mesh.vertices.push_back(gVertex);
+            this->mesh.bound.merge(gVertex.position);
         }
         // process texture
         if (pAiMesh->mMaterialIndex >= pAiScene->mNumMaterials)
@@ -85,7 +85,11 @@ struct GMeshLoaderContext
     std::optional<GMesh::TextureID> registerTexture(aiMaterial* pAiMat)
     {
         aiString aiPath;
-        pAiMat->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath);
+        if (pAiMat->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath) != aiReturn_SUCCESS)
+        {
+            logError("Missing texture.");
+            return std::nullopt;
+        }
         std::filesystem::path path = aiPath.C_Str();
 
         auto it = textureIDMap.find(path);
@@ -121,7 +125,7 @@ std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
             logError("Expected absolute path.");
             return std::nullopt;
         }
-        pScene = importer.ReadFile(filename.string().c_str(), aiProcess_Triangulate | aiProcess_FlipUVs);
+        pScene = importer.ReadFile(filename.string().c_str(), aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_FlipUVs);
     }
     if (!pScene)
     {
@@ -133,14 +137,29 @@ std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
     // Create mesh
     GMeshLoaderContext ctx = {
         .basePath = filename.parent_path(),
-        .mesh = {.name = filename.filename()},
+        .mesh =
+            {
+                .path = filename,
+                .bound = GBound{},
+            },
     };
-    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.empty())
+    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.isEmpty())
     {
         logError("Failed to create mesh for: {}", importer.GetErrorString());
         return std::nullopt;
     }
     timeReport.measure("Creating mesh");
+
+    // Normalize mesh through Y direction
+    float3 center = ctx.mesh.bound.getCenter();
+    float3 halfExtent = ctx.mesh.bound.getExtent() * 0.5f;
+    float invHalfExtentY = 1.0f / halfExtent.y;
+    const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtentY; };
+    for (auto& vertex : ctx.mesh.vertices)
+        normalizeFloat3(vertex.position);
+    normalizeFloat3(ctx.mesh.bound.bMin);
+    normalizeFloat3(ctx.mesh.bound.bMax);
+    timeReport.measure("Normalizing mesh");
 
     timeReport.printToLog();
 

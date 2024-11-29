@@ -2,6 +2,8 @@
 #include "Falcor.h"
 #include "Core/SampleApp.h"
 
+#include "Scene/GScene.hpp"
+
 using namespace Falcor;
 
 namespace GSGI
@@ -23,6 +25,7 @@ public:
     void onHotReload(HotReloadFlags reloaded) override;
 
 private:
+    ref<GScene> mpScene;
 };
 
 } // namespace GSGI

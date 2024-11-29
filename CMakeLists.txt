@@ -4,7 +4,6 @@ target_sources(GaussianGI PRIVATE
         GaussianGI.cpp
         GaussianGI.h
 
-        Scene/GMesh.cpp
         Scene/GScene.cpp
         Scene/GMeshLoader.cpp
 )

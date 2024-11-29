@@ -14,7 +14,7 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
-    //
+    mpScene = make_ref<GScene>(getDevice());
 }
 
 void GaussianGI::onShutdown()
@@ -29,6 +29,8 @@ void GaussianGI::onResize(uint32_t width, uint32_t height)
 
 void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {
+    mpScene->update();
+
     const float4 clearColor(0.38f, 0.52f, 0.10f, 1);
     pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
 }
@@ -41,22 +43,8 @@ void GaussianGI::onGuiRender(Gui* pGui)
     {
         msgBox("Info", "Now why would you do that?");
     }
-    if (w.button("Open File"))
-    {
-        std::filesystem::path path;
-        if (openFileDialog({}, path))
-        {
-            auto optMesh = GMeshLoader::load(path);
-            if (optMesh)
-            {
-                fmt::println("{}", optMesh->name);
-                for (const auto& texPath : optMesh->texturePaths)
-                {
-                    fmt::println("{}", texPath.string());
-                }
-            }
-        }
-    }
+
+    mpScene->renderUI(w);
 }
 
 bool GaussianGI::onKeyEvent(const KeyboardEvent& keyEvent)
