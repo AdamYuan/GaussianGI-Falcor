@@ -58,6 +58,7 @@ private:
 
 public:
     explicit GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
+    ~GScene() override = default;
     GScene(ref<Device> pDevice, std::vector<Entry>&& entries) : GDeviceObject(std::move(pDevice)), mEntries{std::move(entries)} {}
 
     const auto& getEntries() const { return mEntries; }

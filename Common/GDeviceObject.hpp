@@ -21,7 +21,7 @@ private:
 
 public:
     explicit GDeviceObject(ref<Device> pDevice) : mpDevice{std::move(pDevice)} {}
-    virtual ~GDeviceObject() = default;
+    ~GDeviceObject() override = default;
 
     const ref<Device>& getDevice() const { return mpDevice; }
 
@@ -30,6 +30,11 @@ public:
         ImGui::PushID(this);
         static_cast<Derived_T*>(this)->renderUIImpl(widget);
         ImGui::PopID();
+    }
+
+    void prepareProgram(const ref<Program>& pProgram, const ShaderVar& var)
+    {
+        static_cast<Derived_T*>(this)->prepareProgramImpl(pProgram, var);
     }
 };
 
