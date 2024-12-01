@@ -16,7 +16,7 @@ PSIn vsMain(GMeshVSIn vIn, uint instanceID : SV_InstanceID)
     PSIn o;
     o.texcoord = vIn.texcoord;
     o.normal = vIn.normal;
-    o.worldPos = gGScene.getTransform(instanceID).apply(vIn.position);
+    o.worldPos = gGScene.transform.apply(vIn.position);
     o.clipPos = mul(gGScene.camera.getViewProj(), float4(o.worldPos, 1));
 
     return o;

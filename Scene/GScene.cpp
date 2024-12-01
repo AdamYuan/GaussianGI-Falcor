@@ -18,6 +18,7 @@ GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
     RasterizerState::Desc rasterStateDesc = {};
     rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
     mpRasterState = RasterizerState::create(rasterStateDesc);
+    mpDefaultRasterPass->getState()->setRasterizerState(mpRasterState);
 }
 
 static void removeVectorIndices(auto& vector, auto& indexSet)
@@ -243,20 +244,20 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
     mpCamera->bindShaderData(var["camera"]);
 
     pRasterPass->getState()->setFbo(pFbo);
-    pRasterPass->getState()->setRasterizerState(mpRasterState);
 
     for (const auto& entry : mEntries)
     {
         for (uint i = 0; i < entry.pTextures.size(); ++i)
             var["textures"][i] = entry.pTextures[i];
-        for (uint i = 0; i < entry.instances.size(); ++i)
-            entry.instances[i].transform.bindShaderData(var["transforms"][i]);
         var["textureIDs"] = entry.pTextureIDBuffer;
 
         pRasterPass->getState()->setVao(entry.pVao);
-        pRenderContext->drawIndexedInstanced(
-            pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.mesh.getIndexCount(), entry.instances.size(), 0, 0, 0
-        );
+
+        for (const auto& instance : entry.instances)
+        {
+            instance.transform.bindShaderData(var["transform"]);
+            pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.mesh.getIndexCount(), 0, 0);
+        }
     }
 }
 

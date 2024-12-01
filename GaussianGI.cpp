@@ -84,6 +84,7 @@ int runMain(int argc, char** argv)
     config.windowDesc.width = 1280;
     config.windowDesc.height = 720;
     config.deviceDesc.type = Device::Vulkan;
+    config.generateShaderDebugInfo = true;
 
     GSGI::GaussianGI project(config);
     return project.run();
