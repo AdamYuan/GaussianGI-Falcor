@@ -27,6 +27,7 @@ struct GMesh
 
     using TextureID = uint8_t;
     static constexpr TextureID kMaxTextureID = std::numeric_limits<TextureID>::max();
+    static_assert(kMaxTextureID == GMESH_MAX_TEXTURE_COUNT - 1);
     using Index = uint32_t;
 
     std::filesystem::path path;

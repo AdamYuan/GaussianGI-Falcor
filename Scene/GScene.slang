@@ -5,7 +5,7 @@ __exported import Scene.Camera.Camera;
 
 public struct GScene
 {
-    Texture2D<float4> textures[256];
+    Texture2D<float4> textures[GMESH_MAX_TEXTURE_COUNT];
     Buffer<uint> textureIDs;
 
     public Camera camera;
