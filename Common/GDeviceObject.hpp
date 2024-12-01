@@ -32,10 +32,10 @@ public:
         ImGui::PopID();
     }
 
-    void prepareProgram(const ref<Program>& pProgram, const ShaderVar& var)
+    /* void prepareProgram(const ref<Program>& pProgram, const ShaderVar& var)
     {
         static_cast<Derived_T*>(this)->prepareProgramImpl(pProgram, var);
-    }
+    } */
 };
 
 } // namespace GSGI

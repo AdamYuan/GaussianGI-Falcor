@@ -5,7 +5,11 @@ target_sources(GaussianGI PRIVATE
         GaussianGI.h
 
         Scene/GScene.cpp
+        Scene/GScene.slang
+        Scene/GScene.3d.slang
+        Scene/GMesh.slangh
         Scene/GMeshLoader.cpp
+        Scene/GTransform.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 

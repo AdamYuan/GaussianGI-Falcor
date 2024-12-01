@@ -1,6 +1,7 @@
 #include "GaussianGI.h"
 
 #include "Scene/GMeshLoader.hpp"
+#include "Common/ShaderUtil.hpp"
 
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
@@ -14,7 +15,10 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
+    auto camera = Camera::create("Main Camera");
+    mpCameraController = std::make_unique<FirstPersonCameraController>(camera);
     mpScene = make_ref<GScene>(getDevice());
+    mpScene->setCamera(camera);
 }
 
 void GaussianGI::onShutdown()
@@ -29,31 +33,39 @@ void GaussianGI::onResize(uint32_t width, uint32_t height)
 
 void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {
+    mpCameraController->update();
+    mpScene->getCamera()->beginFrame();
     mpScene->update();
 
     const float4 clearColor(0.38f, 0.52f, 0.10f, 1);
     pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
+
+    mpScene->draw(pRenderContext, pTargetFbo);
 }
 
 void GaussianGI::onGuiRender(Gui* pGui)
 {
     Gui::Window w(pGui, "Falcor", {250, 200});
-    w.text("Hello from GaussianGI");
-    if (w.button("Click Here"))
-    {
-        msgBox("Info", "Now why would you do that?");
-    }
 
-    mpScene->renderUI(w);
+    if (auto g = w.group("Camera"))
+        mpScene->getCamera()->renderUI(g);
+    if (auto g = w.group("Scene"))
+        mpScene->renderUI(g);
 }
 
 bool GaussianGI::onKeyEvent(const KeyboardEvent& keyEvent)
 {
+    if (mpCameraController->onKeyEvent(keyEvent))
+        return true;
+
     return false;
 }
 
 bool GaussianGI::onMouseEvent(const MouseEvent& mouseEvent)
 {
+    if (mpCameraController->onMouseEvent(mouseEvent))
+        return true;
+
     return false;
 }
 

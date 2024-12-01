@@ -8,9 +8,8 @@
 
 #include <Falcor.h>
 
-#include <unordered_map>
-#include <unordered_set>
 #include "GBound.hpp"
+#include "GMesh.slangh"
 
 using namespace Falcor;
 
@@ -48,9 +47,11 @@ struct GMesh
     static ref<VertexLayout> createVertexLayout()
     {
         auto vertexBufferLayout = VertexBufferLayout::create();
-        vertexBufferLayout->addElement("position", 0, ResourceFormat::RGB32Float, 1, 0);
-        vertexBufferLayout->addElement("normal", 3 * sizeof(float), ResourceFormat::RGB32Float, 1, 1);
-        vertexBufferLayout->addElement("texcoord", 6 * sizeof(float), ResourceFormat::RG32Float, 1, 2);
+        vertexBufferLayout->addElement(GMESH_VERTEX_POSITION_NAME, 0, ResourceFormat::RGB32Float, 1, GMESH_VERTEX_POSITION_LOC);
+        vertexBufferLayout->addElement(GMESH_VERTEX_NORMAL_NAME, 3 * sizeof(float), ResourceFormat::RGB32Float, 1, GMESH_VERTEX_NORMAL_LOC);
+        vertexBufferLayout->addElement(
+            GMESH_VERTEX_TEXCOORD_NAME, 6 * sizeof(float), ResourceFormat::RG32Float, 1, GMESH_VERTEX_TEXCOORD_LOC
+        );
         auto vertexLayout = VertexLayout::create();
         vertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
         return vertexLayout;

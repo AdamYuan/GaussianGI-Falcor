@@ -1,0 +1,23 @@
+#ifndef GSGI_GMESH_SLANGH
+#define GSGI_GMESH_SLANGH
+
+#define GMESH_VERTEX_POSITION_LOC 0
+#define GMESH_VERTEX_NORMAL_LOC 1
+#define GMESH_VERTEX_TEXCOORD_LOC 2
+
+#define GMESH_VERTEX_POSITION_NAME "GMESH_POSITION"
+#define GMESH_VERTEX_NORMAL_NAME "GMESH_NORMAL"
+#define GMESH_VERTEX_TEXCOORD_NAME "GMESH_TEXCOORD"
+
+#ifndef __cplusplus
+
+struct GMeshVSIn
+{
+    float3 position : GMESH_POSITION;
+    float3 normal : GMESH_NORMAL;
+    float2 texcoord : GMESH_TEXCOORD;
+};
+
+#endif
+
+#endif

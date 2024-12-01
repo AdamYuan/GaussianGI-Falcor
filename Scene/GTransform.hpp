@@ -43,7 +43,7 @@ struct GTransform
         p.x = pXZ[0];
         p.z = pXZ[1];
         p *= this->scale;
-        p += center;
+        p += this->center;
         return p;
     }
     GBound apply(GBound b) const
@@ -67,8 +67,8 @@ struct GTransform
         b.bMax *= this->scale;
         b.bMin *= this->scale;
 
-        b.bMax += center;
-        b.bMin += center;
+        b.bMax += this->center;
+        b.bMin += this->center;
 
         return b;
     }
@@ -80,6 +80,14 @@ struct GTransform
         float rotY = getRotYAngle();
         if (widget.var("Y-Rotate", rotY))
             setRotYAngle(rotY);
+    }
+
+    void bindShaderData(const ShaderVar &var) const
+    {
+        var["center"] = this->center;
+        var["scale"] = this->scale;
+        var["cosRotateY"] = this->cosRotY;
+        var["sinRotateY"] = this->sinRotY;
     }
 };
 

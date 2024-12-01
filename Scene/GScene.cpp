@@ -11,6 +11,15 @@
 namespace GSGI
 {
 
+GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+{
+    mpDefaultRasterPass = RasterPass::create(getDevice(), "GaussianGI/Scene/GScene.3d.slang", "vsMain", "psMain");
+    mpSampler = getDevice()->getDefaultSampler();
+    RasterizerState::Desc rasterStateDesc = {};
+    rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
+    mpRasterState = RasterizerState::create(rasterStateDesc);
+}
+
 static void removeVectorIndices(auto& vector, auto& indexSet)
 {
     if (!indexSet.empty())
@@ -77,9 +86,9 @@ void GScene::update_loadTexture()
         if (!entry.mesh.isLoaded())
             continue;
 
-        if (entry.textures.empty())
+        if (entry.pTextures.empty())
         {
-            entry.textures.reserve(entry.mesh.texturePaths.size());
+            entry.pTextures.reserve(entry.mesh.texturePaths.size());
             for (const auto& texPath : entry.mesh.texturePaths)
             {
                 auto tex = Texture::createFromFile(getDevice(), texPath, true, false);
@@ -95,7 +104,7 @@ void GScene::update_loadTexture()
                 }
                 else
                     logInfo("Loaded texture {}", texPath);
-                entry.textures.push_back(std::move(tex));
+                entry.pTextures.push_back(std::move(tex));
             }
         }
     }
@@ -108,10 +117,10 @@ void GScene::update_createBuffer()
         if (!entry.mesh.isLoaded())
             continue;
 
-        if (entry.indexBuffer == nullptr)
+        if (entry.pIndexBuffer == nullptr)
         {
             static_assert(std::same_as<GMesh::Index, uint32_t>);
-            entry.indexBuffer = getDevice()->createStructuredBuffer(
+            entry.pIndexBuffer = getDevice()->createStructuredBuffer(
                 sizeof(GMesh::Index), //
                 entry.mesh.getIndexCount(),
                 ResourceBindFlags::Index,
@@ -119,9 +128,9 @@ void GScene::update_createBuffer()
                 entry.mesh.indices.data()
             );
         }
-        if (entry.vertexBuffer == nullptr)
+        if (entry.pVertexBuffer == nullptr)
         {
-            entry.vertexBuffer = getDevice()->createStructuredBuffer(
+            entry.pVertexBuffer = getDevice()->createStructuredBuffer(
                 sizeof(GMesh::Vertex), //
                 entry.mesh.getVertexCount(),
                 ResourceBindFlags::Vertex,
@@ -129,10 +138,10 @@ void GScene::update_createBuffer()
                 entry.mesh.vertices.data()
             );
         }
-        if (entry.textureIDBuffer == nullptr)
+        if (entry.pTextureIDBuffer == nullptr)
         {
             static_assert(std::same_as<GMesh::TextureID, uint8_t>);
-            entry.textureIDBuffer = getDevice()->createTypedBuffer(
+            entry.pTextureIDBuffer = getDevice()->createTypedBuffer(
                 ResourceFormat::R8Uint,
                 entry.mesh.getPrimitiveCount(),
                 ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
@@ -140,17 +149,17 @@ void GScene::update_createBuffer()
                 entry.mesh.textureIDs.data()
             );
         }
-        if (entry.vao == nullptr)
+        if (entry.pVao == nullptr)
         {
             if (mpVertexLayout == nullptr)
                 mpVertexLayout = GMesh::createVertexLayout();
-            entry.vao =
-                Vao::create(Vao::Topology::TriangleList, mpVertexLayout, {entry.vertexBuffer}, entry.indexBuffer, ResourceFormat::R32Uint);
+            entry.pVao = Vao::create(
+                Vao::Topology::TriangleList, mpVertexLayout, {entry.pVertexBuffer}, entry.pIndexBuffer, ResourceFormat::R32Uint
+            );
         }
     }
 }
-
-void GScene::renderUIImpl(Gui::Widgets& widget)
+void GScene::renderUI_entry(Gui::Widgets& widget)
 {
     if (widget.button("Add Mesh"))
     {
@@ -168,7 +177,7 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
     for (std::size_t entryID = 0; entryID < mEntries.size(); ++entryID)
     {
         auto& entry = mEntries[entryID];
-        ImGui::PushID(entryID);
+        ImGui::PushID((int)entryID);
 
         if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.mesh.path.filename()), true))
         {
@@ -190,7 +199,7 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
             for (std::size_t instanceID = 0; instanceID < entry.instances.size(); ++instanceID)
             {
                 auto& instance = entry.instances[instanceID];
-                ImGui::PushID(instanceID);
+                ImGui::PushID((int)instanceID);
 
                 if (auto instGrp = meshGrp.group(fmt::format("Instance {}", instance.name), true))
                 {
@@ -212,12 +221,43 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
     removeVectorIndices(mEntries, entryRemoveIndexSet);
 }
 
+void GScene::renderUIImpl(Gui::Widgets& widget)
+{
+    /* if (auto g = widget.group("Entry", true))
+        renderUI_entry(g); */
+    renderUI_entry(widget);
+}
+
 void GScene::update()
 {
     update_makeUnique();
     update_loadMesh();
     update_loadTexture();
     update_createBuffer();
+}
+
+void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const
+{
+    const auto& var = pRasterPass->getRootVar()["gGScene"];
+    var["sampler"] = mpSampler;
+    mpCamera->bindShaderData(var["camera"]);
+
+    pRasterPass->getState()->setFbo(pFbo);
+    pRasterPass->getState()->setRasterizerState(mpRasterState);
+
+    for (const auto& entry : mEntries)
+    {
+        for (uint i = 0; i < entry.pTextures.size(); ++i)
+            var["textures"][i] = entry.pTextures[i];
+        for (uint i = 0; i < entry.instances.size(); ++i)
+            entry.instances[i].transform.bindShaderData(var["transforms"][i]);
+        var["textureIDs"] = entry.pTextureIDBuffer;
+
+        pRasterPass->getState()->setVao(entry.pVao);
+        pRenderContext->drawIndexedInstanced(
+            pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.mesh.getIndexCount(), entry.instances.size(), 0, 0, 0
+        );
+    }
 }
 
 /* ref<GScene> GScene::create(const ref<Device>& pDevice, const GSceneData& data)
