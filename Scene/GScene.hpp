@@ -50,7 +50,6 @@ public:
 private:
     ref<VertexLayout> mpVertexLayout;
     ref<Texture> mpDefaultTexture;
-    ref<Sampler> mpSampler;
     ref<RasterPass> mpDefaultRasterPass;
     ref<RasterizerState> mpRasterState;
 

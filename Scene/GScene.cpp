@@ -14,7 +14,6 @@ namespace GSGI
 GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
     mpDefaultRasterPass = RasterPass::create(getDevice(), "GaussianGI/Scene/GScene.3d.slang", "vsMain", "psMain");
-    mpSampler = getDevice()->getDefaultSampler();
     RasterizerState::Desc rasterStateDesc = {};
     rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
     mpRasterState = RasterizerState::create(rasterStateDesc);
@@ -240,7 +239,7 @@ void GScene::update()
 void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const
 {
     const auto& var = pRasterPass->getRootVar()["gGScene"];
-    var["sampler"] = mpSampler;
+    var["sampler"] = getDevice()->getDefaultSampler();
     mpCamera->bindShaderData(var["camera"]);
 
     pRasterPass->getState()->setFbo(pFbo);
