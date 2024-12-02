@@ -3,37 +3,60 @@
 
 import GaussianGI.Scene.GScene;
 
-struct PSIn
+struct GSIn
 {
-    linear float2 texcoord : TEXCOORD;
-    linear float3 normal : NORMAL;
-    linear float3 worldPos : WORLD_POS;
-
-    float4 clipPos : SV_POSITION;
+    float2 texcoord;
+    float3 worldPos;
+    float3 normal;
+    float4 clipPos;
 }
 
-PSIn vsMain(GMeshVSIn vIn, uint instanceID: SV_InstanceID)
+struct PSIn
 {
-    PSIn o;
+    linear float2 texcoord;
+    linear float3 worldPos;
+    linear float3 normal;
+    linear float4 clipPos : SV_Position;
+    nointerpolation uint textureID;
+}
+
+GSIn vsMain(GMeshVSIn vIn, uint instanceID: SV_InstanceID)
+{
+    GSIn o;
     o.texcoord = vIn.texcoord;
-    o.normal = vIn.normal;
     o.worldPos = gGScene.transform.apply(vIn.position);
+    o.normal = vIn.normal;
     o.clipPos = mul(gGScene.camera.getViewProj(), float4(o.worldPos, 1));
 
     return o;
 }
 
-float4 psMain(PSIn pIn, uint primitiveID: SV_PrimitiveID)
+[maxvertexcount(3)]
+void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout TriangleStream<PSIn> output)
 {
-    var texture = gGScene.getTexture(primitiveID);
-    var normal = normalize(pIn.normal);
-    if (dot(normal, gGScene.camera.getPosition() - pIn.worldPos) < 0)
-        normal = -normal;
-    float4 color = texture.Sample(gGScene.sampler, pIn.texcoord);
-    if (color.a < 0.5)
+    PSIn o;
+    o.textureID = gGScene.getTextureID(primitiveID);
+
+    [ForceUnroll]
+    for (int i = 0; i < 3; ++i)
+    {
+        o.texcoord = gIn[i].texcoord;
+        o.worldPos = gIn[i].worldPos;
+        o.normal = gIn[i].normal;
+        o.clipPos = gIn[i].clipPos;
+        output.Append(o);
+    }
+}
+
+float4 psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
+{
+    float3 normal = normalize(pIn.normal);
+    normal = select(isFrontFace, normal, -normal);
+    float4 texColor = gGScene.textures[pIn.textureID].Sample(gGScene.sampler, pIn.texcoord);
+    if (texColor.a < 0.5)
         discard;
 
-    float3 brdf = color.rgb * M_1_PI;
+    float3 brdf = texColor.rgb * M_1_PI;
     float3 radiance = brdf * gGScene.lighting.evaluateIrradiance(normal);
 
     return float4(radiance, 1);

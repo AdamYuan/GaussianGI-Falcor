@@ -13,7 +13,9 @@ namespace GSGI
 
 GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
-    mpDefaultRasterPass = RasterPass::create(getDevice(), "GaussianGI/Scene/GScene.3d.slang", "vsMain", "psMain");
+    ProgramDesc defaultRasterDesc;
+    defaultRasterDesc.addShaderLibrary("GaussianGI/Scene/GScene.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
+    mpDefaultRasterPass = RasterPass::create(getDevice(), defaultRasterDesc);
     RasterizerState::Desc rasterStateDesc = {};
     rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
     mpRasterState = RasterizerState::create(rasterStateDesc);
