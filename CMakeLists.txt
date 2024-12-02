@@ -10,6 +10,9 @@ target_sources(GaussianGI PRIVATE
         Scene/GMesh.slangh
         Scene/GMeshLoader.cpp
         Scene/GTransform.slang
+        Scene/GStaticScene.cpp
+        Scene/GLighting.cpp
+        Scene/GLighting.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 

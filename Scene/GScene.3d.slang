@@ -1,4 +1,5 @@
 #include "GaussianGI/Scene/GMesh.slangh"
+#include "Utils/Math/MathConstants.slangh"
 
 import GaussianGI.Scene.GScene;
 
@@ -11,7 +12,7 @@ struct PSIn
     float4 clipPos : SV_POSITION;
 }
 
-PSIn vsMain(GMeshVSIn vIn, uint instanceID : SV_InstanceID)
+PSIn vsMain(GMeshVSIn vIn, uint instanceID: SV_InstanceID)
 {
     PSIn o;
     o.texcoord = vIn.texcoord;
@@ -22,11 +23,18 @@ PSIn vsMain(GMeshVSIn vIn, uint instanceID : SV_InstanceID)
     return o;
 }
 
-float4 psMain(PSIn pIn, uint primitiveID : SV_PrimitiveID) {
+float4 psMain(PSIn pIn, uint primitiveID: SV_PrimitiveID)
+{
     var texture = gGScene.getTexture(primitiveID);
     var normal = normalize(pIn.normal);
+    if (dot(normal, gGScene.camera.getPosition() - pIn.worldPos) < 0)
+        normal = -normal;
     float4 color = texture.Sample(gGScene.sampler, pIn.texcoord);
     if (color.a < 0.5)
         discard;
-    return float4(color.xyz, 1);
+
+    float3 brdf = color.rgb * M_1_PI;
+    float3 radiance = brdf * gGScene.lighting.evaluateIrradiance(normal);
+
+    return float4(radiance, 1);
 }

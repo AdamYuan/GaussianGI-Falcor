@@ -17,8 +17,10 @@ void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
     auto camera = Camera::create("Main Camera");
     mpCameraController = std::make_unique<FirstPersonCameraController>(camera);
+    auto lighting = make_ref<GLighting>(getDevice());
     mpScene = make_ref<GScene>(getDevice());
     mpScene->setCamera(camera);
+    mpScene->setLighting(lighting);
 }
 
 void GaussianGI::onShutdown()
@@ -49,6 +51,8 @@ void GaussianGI::onGuiRender(Gui* pGui)
 
     if (auto g = w.group("Camera"))
         mpScene->getCamera()->renderUI(g);
+    if (auto g = w.group("Lighting"))
+        mpScene->getLighting()->renderUI(g);
     if (auto g = w.group("Scene"))
         mpScene->renderUI(g);
 }

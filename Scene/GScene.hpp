@@ -11,6 +11,7 @@
 #include <Core/Pass/RasterPass.h>
 #include "GMesh.hpp"
 #include "GTransform.hpp"
+#include "GLighting.hpp"
 #include "../Common/GDeviceObject.hpp"
 
 using namespace Falcor;
@@ -56,6 +57,7 @@ private:
     std::vector<Entry> mEntries;
 
     ref<Camera> mpCamera;
+    ref<GLighting> mpLighting;
 
     void update_makeUnique();
     void update_loadMesh();
@@ -74,6 +76,9 @@ public:
 
     void setCamera(ref<Camera> pCamera) { mpCamera = std::move(pCamera); }
     const auto& getCamera() const { return mpCamera; }
+
+    void setLighting(ref<GLighting> pLighting) { mpLighting = std::move(pLighting); }
+    const auto& getLighting() const { return mpLighting; }
 
     void renderUIImpl(Gui::Widgets& widget);
 

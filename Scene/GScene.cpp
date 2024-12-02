@@ -241,6 +241,7 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
     const auto& var = pRasterPass->getRootVar()["gGScene"];
     var["sampler"] = getDevice()->getDefaultSampler();
     mpCamera->bindShaderData(var["camera"]);
+    mpLighting->bindShaderData(var["lighting"]);
 
     pRasterPass->getState()->setFbo(pFbo);
 

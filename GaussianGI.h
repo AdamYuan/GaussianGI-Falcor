@@ -1,7 +1,6 @@
 #pragma once
 #include <Falcor.h>
 #include <Core/SampleApp.h>
-#include <Scene/Camera/Camera.h>
 #include <Scene/Camera/CameraController.h>
 
 #include "Scene/GScene.hpp"
