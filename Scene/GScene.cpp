@@ -30,6 +30,13 @@ static void removeVectorIndices(auto& vector, auto& indexSet)
         );
 }
 
+void GScene::update_countInstance()
+{
+    mInstanceCount = 0;
+    for (const auto& entry : mEntries)
+        mInstanceCount += entry.instances.size();
+}
+
 void GScene::update_makeUnique()
 {
     std::unordered_map<std::filesystem::path, std::size_t> meshPathIndexMap;
@@ -161,9 +168,11 @@ void GScene::update_createBuffer()
         }
     }
 }
+
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
     widget.text(fmt::format("Version: {}", mEntryVersion));
+    widget.text(fmt::format("Instance Count: {}", mInstanceCount));
 
     if (widget.button("Add Mesh"))
     {
@@ -251,6 +260,7 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
 
 void GScene::update()
 {
+    update_countInstance();
     update_makeUnique();
     update_loadMesh();
     update_loadTexture();

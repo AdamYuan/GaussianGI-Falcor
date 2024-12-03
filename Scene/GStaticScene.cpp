@@ -16,8 +16,7 @@ std::vector<GStaticScene::ImportEntry> GStaticScene::getImportEntriesFromScene()
     std::vector<ImportEntry> importEntries;
     for (const auto& entry : mpScene->getEntries())
     {
-        if (!entry.mesh.isLoaded())
-            continue;
+        FALCOR_CHECK(entry.mesh.isLoaded(), "must be called after GScene::update()");
         auto pInstances = entry.instances | std::views::transform([](const GScene::Instance& inst) { return &inst.transform; });
         importEntries.push_back({
             .pMesh = &entry.mesh,

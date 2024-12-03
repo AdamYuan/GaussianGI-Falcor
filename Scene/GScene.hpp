@@ -46,6 +46,7 @@ private:
 
     std::vector<Entry> mEntries;
     EntryVersion mEntryVersion{};
+    std::size_t mInstanceCount{};
 
     ref<Camera> mpCamera;
     ref<GLighting> mpLighting;
@@ -60,6 +61,7 @@ private:
         };
     }
 
+    void update_countInstance();
     void update_makeUnique();
     void update_loadMesh();
     void update_loadTexture();
@@ -79,6 +81,9 @@ public:
     }
     const auto& getEntries() const { return mEntries; }
     EntryVersion getEntryVersion() const { return mEntryVersion; }
+
+    std::size_t getInstanceCount() const { return mInstanceCount; }
+    bool hasInstance() const { return mInstanceCount > 0; }
 
     void setCamera(ref<Camera> pCamera) { mpCamera = std::move(pCamera); }
     const auto& getCamera() const { return mpCamera; }

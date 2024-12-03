@@ -35,24 +35,29 @@ private:
     std::vector<ImportEntry> getImportEntriesFromScene() const;
     void import(std::span<const ImportEntry> importEntries);
 
+    ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTransformBuffer, mpTextureIDBuffer;
+    std::vector<ref<Texture>> mpTextures;
+
 public:
     GStaticScene(ref<Device> pDevice, ref<GScene> pScene) : GDeviceObject(std::move(pDevice)), mpScene{std::move(pScene)} {}
     ~GStaticScene() override = default;
 
     const auto& getScene() const { return mpScene; }
 
+    // Must be called after GScene::update()
     void update()
     {
-        if (mSceneEntryVersion == mpScene->getEntryVersion() && mpCustomizer == nullptr)
+        if (!mpScene->hasInstance() && mSceneEntryVersion == mpScene->getEntryVersion() && mpCustomizer == nullptr)
             return;
-        import(getImportEntriesFromScene());
+        auto importEntries = getImportEntriesFromScene();
+        import(importEntries);
         mSceneEntryVersion = mpScene->getEntryVersion();
         mpCustomizer = nullptr;
     }
     void update(const void* pCustomizer, std::invocable<std::size_t, const GMesh*> auto&& customizeMesh)
     {
         FALCOR_CHECK(pCustomizer != nullptr, "Customized import must have a valid customizer pointer");
-        if (mSceneEntryVersion == mpScene->getEntryVersion() && mpCustomizer == pCustomizer)
+        if (!mpScene->hasInstance() && mSceneEntryVersion == mpScene->getEntryVersion() && mpCustomizer == pCustomizer)
             return;
         auto importEntries = getImportEntriesFromScene();
         for (std::size_t i = 0; i < importEntries.size(); ++i)
