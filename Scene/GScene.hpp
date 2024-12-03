@@ -35,17 +35,6 @@ public:
         ref<Vao> pVao;
         ref<Buffer> pVertexBuffer, pIndexBuffer, pTextureIDBuffer;
         std::vector<ref<Texture>> pTextures;
-
-        void markReload()
-        {
-            auto path = std::move(this->mesh.path);
-            auto instances = std::move(this->instances);
-            *this = {
-                .mesh = {.path = std::move(path)},
-                .instances = std::move(instances),
-            };
-        }
-        // bool isReady() const { return vao && vertexBuffer && indexBuffer && textureIDBuffer && !textures.empty(); }
     };
     using EntryVersion = uint64_t;
 
@@ -60,6 +49,16 @@ private:
 
     ref<Camera> mpCamera;
     ref<GLighting> mpLighting;
+
+    static void entry_markReload(Entry& entry)
+    {
+        auto path = std::move(entry.mesh.path);
+        auto instances = std::move(entry.instances);
+        entry = {
+            .mesh = {.path = std::move(path)},
+            .instances = std::move(instances),
+        };
+    }
 
     void update_makeUnique();
     void update_loadMesh();

@@ -195,7 +195,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             if (meshGrp.button("Reload"))
             {
                 modified = true;
-                entry.markReload();
+                entry_markReload(entry);
             }
 
             meshGrp.text(fmt::format("Path: {}", entry.mesh.path.string()));
