@@ -16,6 +16,8 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
     auto camera = Camera::create("Main Camera");
+    camera->setNearPlane(0.001f);
+    camera->setFarPlane(10.0f);
     mpCameraController = std::make_unique<FirstPersonCameraController>(camera);
     auto lighting = make_ref<GLighting>(getDevice());
     mpScene = make_ref<GScene>(getDevice());
