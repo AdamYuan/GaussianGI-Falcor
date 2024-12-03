@@ -47,6 +47,7 @@ public:
         }
         // bool isReady() const { return vao && vertexBuffer && indexBuffer && textureIDBuffer && !textures.empty(); }
     };
+    using EntryVersion = uint64_t;
 
 private:
     ref<VertexLayout> mpVertexLayout;
@@ -55,6 +56,7 @@ private:
     ref<RasterizerState> mpRasterState;
 
     std::vector<Entry> mEntries;
+    EntryVersion mEntryVersion{};
 
     ref<Camera> mpCamera;
     ref<GLighting> mpLighting;
@@ -64,15 +66,20 @@ private:
     void update_loadTexture();
     void update_createBuffer();
 
-    void renderUI_entry(Gui::Widgets& widget);
+    void renderUI_entry(Gui::Widgets& widget, bool& modified);
 
 public:
     explicit GScene(ref<Device> pDevice);
     ~GScene() override = default;
     GScene(ref<Device> pDevice, std::vector<Entry>&& entries) : GDeviceObject(std::move(pDevice)), mEntries{std::move(entries)} {}
 
+    void setEntries(std::vector<Entry>&& entries)
+    {
+        mEntries = std::move(entries);
+        ++mEntryVersion;
+    }
     const auto& getEntries() const { return mEntries; }
-    auto& getEntries() { return mEntries; }
+    EntryVersion getEntryVersion() const { return mEntryVersion; }
 
     void setCamera(ref<Camera> pCamera) { mpCamera = std::move(pCamera); }
     const auto& getCamera() const { return mpCamera; }

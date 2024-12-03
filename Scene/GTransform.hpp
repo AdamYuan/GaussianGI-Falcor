@@ -73,16 +73,23 @@ struct GTransform
         return b;
     }
 
-    void renderUI(Gui::Widgets& widget)
+    bool renderUI(Gui::Widgets& widget)
     {
-        widget.var("Center", center);
-        widget.var("Scale", scale, 0.0f);
+        bool changed = false;
+        if (widget.var("Center", center))
+            changed = true;
+        if (widget.var("Scale", scale, 0.0f))
+            changed = true;
         float rotY = getRotYAngle();
         if (widget.var("Y-Rotate", rotY))
+        {
+            changed = true;
             setRotYAngle(rotY);
+        }
+        return changed;
     }
 
-    void bindShaderData(const ShaderVar &var) const
+    void bindShaderData(const ShaderVar& var) const
     {
         var["center"] = this->center;
         var["scale"] = this->scale;

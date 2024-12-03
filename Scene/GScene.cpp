@@ -161,13 +161,16 @@ void GScene::update_createBuffer()
         }
     }
 }
-void GScene::renderUI_entry(Gui::Widgets& widget)
+void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
+    widget.text(fmt::format("Version: {}", mEntryVersion));
+
     if (widget.button("Add Mesh"))
     {
         std::filesystem::path path;
         if (openFileDialog({}, path))
         {
+            modified = true;
             mEntries.push_back({
                 .mesh = GMesh{.path = path},
                 .instances = {GScene::Instance{.name = "new"}},
@@ -184,10 +187,16 @@ void GScene::renderUI_entry(Gui::Widgets& widget)
         if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.mesh.path.filename()), true))
         {
             if (meshGrp.button("Delete"))
+            {
+                modified = true;
                 entryRemoveIndexSet.insert(entryID);
+            }
             ImGui::SameLine();
             if (meshGrp.button("Reload"))
+            {
+                modified = true;
                 entry.markReload();
+            }
 
             meshGrp.text(fmt::format("Path: {}", entry.mesh.path.string()));
             meshGrp.text(fmt::format("Vertex Count: {}", entry.mesh.getVertexCount()));
@@ -195,7 +204,10 @@ void GScene::renderUI_entry(Gui::Widgets& widget)
             meshGrp.text(fmt::format("Texture Count: {}", entry.mesh.getTextureCount()));
 
             if (meshGrp.button("Add Instance"))
+            {
+                modified = true;
                 entry.instances.push_back({.name = "new"});
+            }
 
             std::unordered_set<std::size_t> instanceRemoveIndexSet;
             for (std::size_t instanceID = 0; instanceID < entry.instances.size(); ++instanceID)
@@ -203,13 +215,17 @@ void GScene::renderUI_entry(Gui::Widgets& widget)
                 auto& instance = entry.instances[instanceID];
                 ImGui::PushID((int)instanceID);
 
-                if (auto instGrp = meshGrp.group(fmt::format("Instance {}", instance.name), true))
+                if (auto instGrp = meshGrp.group(fmt::format("Instance #{}", instanceID), true))
                 {
                     if (instGrp.button("Delete"))
+                    {
+                        modified = true;
                         instanceRemoveIndexSet.insert(instanceID);
+                    }
 
                     instGrp.textbox("Name", instance.name);
-                    instance.transform.renderUI(instGrp);
+                    if (instance.transform.renderUI(instGrp))
+                        modified = true;
                 }
 
                 ImGui::PopID();
@@ -227,7 +243,10 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
 {
     /* if (auto g = widget.group("Entry", true))
         renderUI_entry(g); */
-    renderUI_entry(widget);
+    bool entryModified = false;
+    renderUI_entry(widget, entryModified);
+    if (entryModified)
+        ++mEntryVersion;
 }
 
 void GScene::update()
