@@ -110,7 +110,7 @@ struct GMeshLoaderContext
 
 } // namespace
 
-std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
+GMesh::Ptr GMeshLoader::load(const std::filesystem::path& filename)
 {
     TimeReport timeReport;
 
@@ -123,14 +123,14 @@ std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
         if (!filename.is_absolute())
         {
             logError("Expected absolute path.");
-            return std::nullopt;
+            return nullptr;
         }
         pScene = importer.ReadFile(filename.string().c_str(), aiProcess_Triangulate | aiProcess_GenNormals | aiProcess_FlipUVs);
     }
     if (!pScene)
     {
         logError("Failed to open scene: {}", importer.GetErrorString());
-        return std::nullopt;
+        return nullptr;
     }
     timeReport.measure("Loading scene");
 
@@ -143,10 +143,10 @@ std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
                 .bound = GBound{},
             },
     };
-    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.isEmpty())
+    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.indices.empty())
     {
         logError("Failed to create mesh for: {}", importer.GetErrorString());
-        return std::nullopt;
+        return nullptr;
     }
     timeReport.measure("Creating mesh");
 
@@ -163,7 +163,7 @@ std::optional<GMesh> GMeshLoader::load(const std::filesystem::path& filename)
 
     timeReport.printToLog();
 
-    return ctx.mesh;
+    return std::make_shared<const GMesh>(std::move(ctx.mesh));
 }
 
 } // namespace GSGI

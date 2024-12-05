@@ -44,10 +44,10 @@ void GScene::update_makeUnique()
     for (std::size_t i = 0; i < mEntries.size(); ++i)
     {
         auto& entry = mEntries[i];
-        auto mapIt = meshPathIndexMap.find(entry.mesh.path);
+        auto mapIt = meshPathIndexMap.find(entry.pMesh->path);
         if (mapIt == meshPathIndexMap.end())
         {
-            meshPathIndexMap[entry.mesh.path] = i;
+            meshPathIndexMap[entry.pMesh->path] = i;
             continue;
         }
         auto& uniqueEntry = mEntries[mapIt->second];
@@ -63,42 +63,15 @@ void GScene::update_makeUnique()
     removeVectorIndices(mEntries, removeIndexSet);
 }
 
-void GScene::update_loadMesh()
-{
-    std::unordered_set<std::size_t> removeIndexSet;
-    for (std::size_t i = 0; i < mEntries.size(); ++i)
-    {
-        auto& entry = mEntries[i];
-        if (entry.mesh.isLoaded())
-            continue;
-
-        std::optional<GMesh> optMesh = GMeshLoader::load(entry.mesh.path);
-        if (!optMesh)
-        {
-            logWarning("Failed to load mesh {}", entry.mesh.path);
-            removeIndexSet.insert(i);
-        }
-        else
-        {
-            logInfo("Loaded mesh {}", entry.mesh.path);
-            entry.mesh = std::move(*optMesh);
-        }
-    }
-
-    removeVectorIndices(mEntries, removeIndexSet);
-}
-
 void GScene::update_loadTexture()
 {
     for (auto& entry : mEntries)
     {
-        if (!entry.mesh.isLoaded())
-            continue;
-
+        const auto& pMesh = entry.pMesh;
         if (entry.pTextures.empty())
         {
-            entry.pTextures.reserve(entry.mesh.texturePaths.size());
-            for (const auto& texPath : entry.mesh.texturePaths)
+            entry.pTextures.reserve(pMesh->texturePaths.size());
+            for (const auto& texPath : pMesh->texturePaths)
             {
                 auto tex = Texture::createFromFile(getDevice(), texPath, true, false);
                 if (tex == nullptr)
@@ -123,28 +96,27 @@ void GScene::update_createBuffer()
 {
     for (auto& entry : mEntries)
     {
-        if (!entry.mesh.isLoaded())
-            continue;
+        const auto& pMesh = entry.pMesh;
 
         if (entry.pIndexBuffer == nullptr)
         {
             static_assert(std::same_as<GMesh::Index, uint32_t>);
             entry.pIndexBuffer = getDevice()->createStructuredBuffer(
                 sizeof(GMesh::Index), //
-                entry.mesh.getIndexCount(),
+                pMesh->getIndexCount(),
                 ResourceBindFlags::Index,
                 MemoryType::DeviceLocal,
-                entry.mesh.indices.data()
+                pMesh->indices.data()
             );
         }
         if (entry.pVertexBuffer == nullptr)
         {
             entry.pVertexBuffer = getDevice()->createStructuredBuffer(
                 sizeof(GMesh::Vertex), //
-                entry.mesh.getVertexCount(),
+                pMesh->getVertexCount(),
                 ResourceBindFlags::Vertex,
                 MemoryType::DeviceLocal,
-                entry.mesh.vertices.data()
+                pMesh->vertices.data()
             );
         }
         if (entry.pTextureIDBuffer == nullptr)
@@ -152,10 +124,10 @@ void GScene::update_createBuffer()
             static_assert(std::same_as<GMesh::TextureID, uint8_t>);
             entry.pTextureIDBuffer = getDevice()->createTypedBuffer(
                 ResourceFormat::R8Uint,
-                entry.mesh.getPrimitiveCount(),
+                pMesh->getPrimitiveCount(),
                 ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
                 MemoryType::DeviceLocal,
-                entry.mesh.textureIDs.data()
+                pMesh->textureIDs.data()
             );
         }
         if (entry.pVao == nullptr)
@@ -171,7 +143,19 @@ void GScene::update_createBuffer()
 
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
-    widget.text(fmt::format("Version: {}", mEntryVersion));
+    const auto loadMesh = [](const std::filesystem::path& path, std::invocable<GMesh::Ptr&&> auto&& onSuccess)
+    {
+        auto pMesh = GMeshLoader::load(path);
+        if (pMesh == nullptr)
+            logWarning("Failed to load mesh {}", path);
+        else
+        {
+            logInfo("Loaded mesh {}", path);
+            onSuccess(std::move(pMesh));
+        }
+    };
+
+    widget.text(fmt::format("Version: {}", mVersion));
     widget.text(fmt::format("Instance Count: {}", mInstanceCount));
 
     if (widget.button("Add Mesh"))
@@ -180,10 +164,16 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
         if (openFileDialog({}, path))
         {
             modified = true;
-            mEntries.push_back({
-                .mesh = GMesh{.path = path},
-                .instances = {GScene::Instance{.name = "new"}},
-            });
+            loadMesh(
+                path,
+                [&](GMesh::Ptr&& pMesh)
+                {
+                    mEntries.push_back({
+                        .pMesh = std::move(pMesh),
+                        .instances = {{.name = "new"}},
+                    });
+                }
+            );
         }
     }
 
@@ -193,7 +183,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
         auto& entry = mEntries[entryID];
         ImGui::PushID((int)entryID);
 
-        if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.mesh.path.filename()), true))
+        if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.pMesh->path.filename()), true))
         {
             if (meshGrp.button("Delete"))
             {
@@ -204,13 +194,13 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             if (meshGrp.button("Reload"))
             {
                 modified = true;
-                entry_markReload(entry);
+                loadMesh(entry.pMesh->path, [&](GMesh::Ptr&& pMesh) { entry.pMesh = std::move(pMesh); });
             }
 
-            meshGrp.text(fmt::format("Path: {}", entry.mesh.path.string()));
-            meshGrp.text(fmt::format("Vertex Count: {}", entry.mesh.getVertexCount()));
-            meshGrp.text(fmt::format("Index Count: {}", entry.mesh.getIndexCount()));
-            meshGrp.text(fmt::format("Texture Count: {}", entry.mesh.getTextureCount()));
+            meshGrp.text(fmt::format("Path: {}", entry.pMesh->path.string()));
+            meshGrp.text(fmt::format("Vertex Count: {}", entry.pMesh->getVertexCount()));
+            meshGrp.text(fmt::format("Index Count: {}", entry.pMesh->getIndexCount()));
+            meshGrp.text(fmt::format("Texture Count: {}", entry.pMesh->getTextureCount()));
 
             if (meshGrp.button("Add Instance"))
             {
@@ -255,14 +245,13 @@ void GScene::renderUIImpl(Gui::Widgets& widget)
     bool entryModified = false;
     renderUI_entry(widget, entryModified);
     if (entryModified)
-        ++mEntryVersion;
+        ++mVersion;
 }
 
 void GScene::update()
 {
     update_countInstance();
     update_makeUnique();
-    update_loadMesh();
     update_loadTexture();
     update_createBuffer();
 }
@@ -287,7 +276,7 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
         for (const auto& instance : entry.instances)
         {
             instance.transform.bindShaderData(var["transform"]);
-            pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.mesh.getIndexCount(), 0, 0);
+            pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.pMesh->getIndexCount(), 0, 0);
         }
     }
 }

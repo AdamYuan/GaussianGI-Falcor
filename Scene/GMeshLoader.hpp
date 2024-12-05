@@ -16,7 +16,7 @@ namespace GSGI
 
 struct GMeshLoader
 {
-    static std::optional<GMesh> load(const std::filesystem::path &filename);
+    static GMesh::Ptr load(const std::filesystem::path& filename);
 };
 
 } // namespace GSGI

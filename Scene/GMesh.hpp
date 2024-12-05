@@ -18,6 +18,8 @@ namespace GSGI
 
 struct GMesh
 {
+    using Ptr = std::shared_ptr<const GMesh>;
+
     struct Vertex
     {
         float3 position;
@@ -38,8 +40,6 @@ struct GMesh
     std::vector<TextureID> textureIDs; // per-triangle
     std::vector<std::filesystem::path> texturePaths;
 
-    bool isEmpty() const { return indices.empty(); }
-    bool isLoaded() const { return !isEmpty(); }
     uint getIndexCount() const { return indices.size(); }
     uint getPrimitiveCount() const { return indices.size() / 3; }
     uint getVertexCount() const { return vertices.size(); }

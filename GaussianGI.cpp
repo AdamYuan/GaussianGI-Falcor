@@ -23,6 +23,8 @@ void GaussianGI::onLoad(RenderContext* pRenderContext)
     mpScene = make_ref<GScene>(getDevice());
     mpScene->setCamera(camera);
     mpScene->setLighting(lighting);
+
+    mpRenderer = make_ref<GRenderer>(mpScene);
 }
 
 void GaussianGI::onShutdown()
@@ -45,6 +47,8 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
     pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
 
     mpScene->draw(pRenderContext, pTargetFbo);
+
+    mpRenderer->update(pRenderContext, pTargetFbo);
 }
 
 void GaussianGI::onGuiRender(Gui* pGui)

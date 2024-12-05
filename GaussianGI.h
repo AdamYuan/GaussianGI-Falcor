@@ -4,6 +4,7 @@
 #include <Scene/Camera/CameraController.h>
 
 #include "Scene/GScene.hpp"
+#include "Renderer/GRenderer.hpp"
 
 using namespace Falcor;
 
@@ -27,6 +28,7 @@ public:
 
 private:
     ref<GScene> mpScene;
+    ref<GRenderer> mpRenderer;
     std::unique_ptr<CameraController> mpCameraController;
 };
 

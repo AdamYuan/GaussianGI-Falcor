@@ -29,14 +29,14 @@ public:
     };
     struct Entry
     {
-        GMesh mesh;
+        GMesh::Ptr pMesh;
         std::vector<Instance> instances;
 
         ref<Vao> pVao;
         ref<Buffer> pVertexBuffer, pIndexBuffer, pTextureIDBuffer;
         std::vector<ref<Texture>> pTextures;
     };
-    using EntryVersion = uint64_t;
+    using Version = uint64_t;
 
 private:
     ref<VertexLayout> mpVertexLayout;
@@ -45,25 +45,14 @@ private:
     ref<RasterizerState> mpRasterState;
 
     std::vector<Entry> mEntries;
-    EntryVersion mEntryVersion{};
+    Version mVersion{};
     std::size_t mInstanceCount{};
 
     ref<Camera> mpCamera;
     ref<GLighting> mpLighting;
 
-    static void entry_markReload(Entry& entry)
-    {
-        auto path = std::move(entry.mesh.path);
-        auto instances = std::move(entry.instances);
-        entry = {
-            .mesh = {.path = std::move(path)},
-            .instances = std::move(instances),
-        };
-    }
-
     void update_countInstance();
     void update_makeUnique();
-    void update_loadMesh();
     void update_loadTexture();
     void update_createBuffer();
 
@@ -72,15 +61,15 @@ private:
 public:
     explicit GScene(ref<Device> pDevice);
     ~GScene() override = default;
-    GScene(ref<Device> pDevice, std::vector<Entry>&& entries) : GScene(std::move(pDevice)) { setEntries(std::move(entries)); }
+    // GScene(ref<Device> pDevice, std::vector<Entry>&& entries) : GScene(std::move(pDevice)) { setEntries(std::move(entries)); }
 
-    void setEntries(std::vector<Entry>&& entries)
+    /* void setEntries(std::vector<Entry>&& entries)
     {
         mEntries = std::move(entries);
-        ++mEntryVersion;
-    }
+        ++mVersion;
+    } */
     const auto& getEntries() const { return mEntries; }
-    EntryVersion getEntryVersion() const { return mEntryVersion; }
+    Version getVersion() const { return mVersion; }
 
     std::size_t getInstanceCount() const { return mInstanceCount; }
     bool hasInstance() const { return mInstanceCount > 0; }

@@ -9,22 +9,26 @@
 namespace GSGI
 {
 
-void GStaticScene::import(std::span<const ImportEntry> importEntries) {}
-
-std::vector<GStaticScene::ImportEntry> GStaticScene::getImportEntriesFromScene() const
+void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pMeshes)
 {
-    std::vector<ImportEntry> importEntries;
-    for (const auto& entry : mpScene->getEntries())
+    FALCOR_CHECK(pScene->getEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getEntries()");
+
+    mMeshViews.resize(pMeshes.size());
+    for (std::size_t meshID = 0; meshID < pMeshes.size(); ++meshID)
     {
-        FALCOR_CHECK(entry.mesh.isLoaded(), "must be called after GScene::update()");
-        auto pInstances = entry.instances | std::views::transform([](const GScene::Instance& inst) { return &inst.transform; });
-        importEntries.push_back({
-            .pMesh = &entry.mesh,
-            .pInstances = {pInstances.begin(), pInstances.end()},
-            .pTextures = entry.pTextures,
-        });
+        mMeshViews[meshID] = {
+            .pMesh = pMeshes[meshID],
+        };
     }
-    return importEntries;
+}
+
+std::vector<GMesh::Ptr> GStaticScene::getSceneMeshes(const ref<GScene>& pScene)
+{
+    std::vector<GMesh::Ptr> meshes;
+    meshes.reserve(pScene->getEntries().size());
+    for (const auto& entry : pScene->getEntries())
+        meshes.push_back(entry.pMesh);
+    return meshes;
 }
 
 } // namespace GSGI

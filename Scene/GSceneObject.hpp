@@ -8,70 +8,53 @@
 
 #include <Falcor.h>
 #include "../Common/GDeviceObject.hpp"
-#include "GStaticScene.hpp"
+#include "GScene.hpp"
 
 using namespace Falcor;
 
 namespace GSGI
 {
 
-template<typename Derived_T, bool IsMeshCustomized = false>
+template<typename Derived_T>
 class GSceneObject : public GDeviceObject<Derived_T>
 {
 private:
-    ref<GStaticScene> mpStaticScene;
     ref<GScene> mpScene;
 
-    GScene::EntryVersion mSceneEntryVersion{};
-
-    std::conditional_t<IsMeshCustomized, std::vector<GMesh>, std::monostate> mCustomizeMeshes;
-
-protected:
-    void setCustomizedMesh(std::size_t idx, GMesh&& mesh)
-        requires IsMeshCustomized
-    {
-        mCustomizeMeshes[idx] = std::move(mesh);
-    }
+    GScene::Version mSceneVersion{};
 
 public:
-    explicit GSceneObject(const ref<GStaticScene>& pStaticScene)
-        : GDeviceObject<Derived_T>(pStaticScene->getDevice()), mpStaticScene{pStaticScene}, mpScene{pStaticScene->getScene()}
-    {}
+    explicit GSceneObject(const ref<GScene>& pScene) : GDeviceObject<Derived_T>(pScene->getDevice()), mpScene{pScene} {}
+    ~GSceneObject() override = default;
 
     const auto& getScene() const { return mpScene; }
-    const auto& getStaticScene() const { return mpStaticScene; }
 
-    // Only one GSceneObject belonging to a GStaticScene should be updated per-frame
     template<typename... Args>
     void update(Args&&... args)
     {
-        // Reload when GScene changed
-        if (mSceneEntryVersion != mpScene->getEntryVersion())
+        static constexpr bool hasUpdateImpl = requires(Derived_T& t) { t.updateImpl(false, std::forward<Args>(args)...); };
+        static constexpr bool hasUpdateHasInstanceImpl =
+            requires(Derived_T& t) { t.updateHasInstanceImpl(false, std::forward<Args>(args)...); };
+
+        static_assert(hasUpdateImpl != hasUpdateHasInstanceImpl); // Only one should be true
+
+        if constexpr (hasUpdateHasInstanceImpl)
         {
-            if constexpr (IsMeshCustomized)
-            {
-                mCustomizeMeshes.clear();
-                mCustomizeMeshes.resize(mpScene->getEntries().size());
-            }
-            static_cast<Derived_T*>(this)->reloadImpl();
-            mSceneEntryVersion = mpScene->getEntryVersion();
+            if (!mpScene->hasInstance())
+                return;
         }
 
-        // Update GStaticScene
-        if constexpr (IsMeshCustomized)
-            mpStaticScene->update(
-                this,
-                [this](std::size_t idx, const GMesh* pMesh)
-                {
-                    if (mCustomizeMeshes[idx].isLoaded())
-                        return mCustomizeMeshes.data() + idx;
-                    return pMesh;
-                }
-            );
-        else
-            mpStaticScene->update();
+        bool isSceneChanged = false;
+        if (mSceneVersion != mpScene->getVersion())
+            isSceneChanged = true;
 
-        static_cast<Derived_T*>(this)->updateImpl(std::forward<Args>(args)...);
+        mSceneVersion = mpScene->getVersion();
+
+        if constexpr (hasUpdateImpl)
+            static_cast<Derived_T*>(this)->updateImpl(isSceneChanged, std::forward<Args>(args)...);
+
+        if constexpr (hasUpdateHasInstanceImpl)
+            static_cast<Derived_T*>(this)->updateHasInstanceImpl(isSceneChanged, std::forward<Args>(args)...);
     }
 };
 

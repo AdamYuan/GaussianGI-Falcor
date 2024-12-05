@@ -21,6 +21,9 @@ target_sources(GaussianGI PRIVATE
         Scene/GLighting.cpp
         Scene/GLighting.slang
         Scene/GSceneObject.hpp
+
+        Renderer/GRenderer.hpp
+        Renderer/GRenderer.cpp
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 
