@@ -26,7 +26,7 @@ GSIn vsMain(GMesh::VSIn vIn)
     GSIn o;
     o.texcoord = vIn.texcoord;
     o.worldPos = gGScene.transform.apply(vIn.position);
-    o.normal = vIn.normal;
+    o.normal = gGScene.transform.applyRotation(vIn.normal);
     o.clipPos = mul(gGScene.camera.getViewProj(), float4(o.worldPos, 1));
 
     return o;
