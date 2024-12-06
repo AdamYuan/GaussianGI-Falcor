@@ -72,7 +72,7 @@ PSOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace, float3 barycentrics: SV
 
     PSOut o;
     o.albedo = float4(texColor.rgb, 1);
-    uint backFaceFlag = select(isFrontFace, 0, 1 << 31);
+    uint backFaceFlag = select(isFrontFace, 0, 0x80000000);
     o.primitive = uint4(pIn.meshPrimitiveID | backFaceFlag, pIn.meshIDInstanceID, asuint(barycentrics.xy));
     return o;
 }
