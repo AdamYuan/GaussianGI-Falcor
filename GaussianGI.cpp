@@ -43,13 +43,13 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
     mpScene->getCamera()->beginFrame();
     mpScene->update();
 
-    const float4 clearColor(0.38f, 0.52f, 0.10f, 1);
-    pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
-
     if (mConfig.enableRender)
+    {
         mpRenderer->update(pRenderContext, pTargetFbo);
+    }
     else
     {
+        pRenderContext->clearFbo(pTargetFbo.get(), float4{0.38f, 0.52f, 0.10f, 1}, 1.0f, 0, FboAttachmentType::All);
         mpScene->draw(pRenderContext, pTargetFbo);
     }
 }

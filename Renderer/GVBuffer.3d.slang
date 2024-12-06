@@ -10,7 +10,7 @@ struct GSIn
     float2 texcoord;
     float3 worldPos;
     float4 clipPos;
-    uint meshInstanceID;
+    uint meshIDInstanceID;
     uint meshFirstIndex;
 }
 
@@ -21,7 +21,7 @@ struct PSIn
     linear float4 clipPos : SV_Position;
     nointerpolation uint textureID;
     nointerpolation uint meshPrimitiveID;
-    nointerpolation uint meshInstanceID;
+    nointerpolation uint meshIDInstanceID;
 }
 
 GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
@@ -33,7 +33,7 @@ GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
     o.texcoord = vIn.texcoord;
     o.worldPos = instanceInfo.transform.apply(vIn.position);
     o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(o.worldPos, 1));
-    o.meshInstanceID = GVBuffer::encodeMeshInstanceID(instanceInfo.meshID, instanceID);
+    o.meshIDInstanceID = instanceInfo.meshID << 16 | instanceID;
     o.meshFirstIndex = meshInfo.firstIndex;
 
     return o;
@@ -43,7 +43,7 @@ GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
 void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout TriangleStream<PSIn> output)
 {
     PSIn o;
-    o.meshInstanceID = gIn[0].meshInstanceID;
+    o.meshIDInstanceID = gIn[0].meshIDInstanceID;
     o.meshPrimitiveID = primitiveID;
     uint globalPrimitiveID = GStaticScene::getGlobalPrimitiveID(gIn[0].meshFirstIndex, primitiveID);
     o.textureID = gGStaticScene.getPrimitiveTextureID(globalPrimitiveID);
@@ -58,11 +58,21 @@ void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout Triang
     }
 }
 
-float4 psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
+struct PSOut
+{
+    float4 albedo : SV_Target0;
+    uint4 primitive : SV_Target0;
+};
+
+PSOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace, float3 barycentrics: SV_Barycentrics)
 {
     float4 texColor = gGStaticScene.textures[pIn.textureID].Sample(gGStaticScene.sampler, pIn.texcoord);
     if (texColor.a < 0.5)
         discard;
 
-    return float4(texColor.rgb, 1);
+    PSOut o;
+    o.albedo = float4(texColor.rgb, 1);
+    uint backFaceFlag = select(isFrontFace, 0, 1 << 31);
+    o.primitive = uint4(pIn.meshPrimitiveID | backFaceFlag, pIn.meshIDInstanceID, asuint(barycentrics.xy));
+    return o;
 }

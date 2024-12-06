@@ -36,14 +36,14 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         }
     );
     updateTextureSize(
-        mpIDTexture,
+        mpPrimitiveTexture,
         resolution,
         [this](uint width, uint height)
         {
             return getDevice()->createTexture2D(
                 width,
                 height,
-                ResourceFormat::RG32Uint, //
+                ResourceFormat::RGBA32Uint, //
                 1,
                 1,
                 nullptr,
@@ -55,11 +55,15 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         mpFbo,
         resolution,
         [&](uint width, uint height)
-        { return Fbo::create(getDevice(), {mpAlbedoTexture, mpIDTexture}, pScreenFbo->getDepthStencilTexture()); }
+        { return Fbo::create(getDevice(), {mpAlbedoTexture, mpPrimitiveTexture}, pScreenFbo->getDepthStencilTexture()); }
     );
 
     mpRasterPass->getState()->setRasterizerState(pStaticScene->getScene()->getDefaultRasterState());
-    pStaticScene->draw(pRenderContext, pScreenFbo, mpRasterPass);
+
+    pRenderContext->clearRtv(mpAlbedoTexture->getRTV().get(), float4{0.0f});
+    pRenderContext->clearRtv(mpPrimitiveTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});
+    pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
+    pStaticScene->draw(pRenderContext, mpFbo, mpRasterPass);
 }
 
 } // namespace GSGI

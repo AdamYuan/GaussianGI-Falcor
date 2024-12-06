@@ -21,12 +21,15 @@ class GVBuffer final : public GDeviceObject<GVBuffer>
 private:
     ref<RasterPass> mpRasterPass;
     ref<Fbo> mpFbo;
-    ref<Texture> mpAlbedoTexture, mpIDTexture;
+    ref<Texture> mpAlbedoTexture, mpPrimitiveTexture;
 
 public:
     explicit GVBuffer(ref<Device> pDevice);
 
-    void draw(RenderContext* pRenderContext, const ref<Fbo> &pScreenFbo, const ref<GStaticScene> &pStaticScene);
+    const auto& getAlbedoTexture() const { return mpAlbedoTexture; }
+    const auto& getPrimitiveTexture() const { return mpPrimitiveTexture; }
+
+    void draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene);
 };
 
 } // namespace GSGI

@@ -20,6 +20,7 @@ void GRenderer::updateHasInstanceImpl(bool isSceneChanged, RenderContext* pRende
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
     mpVBuffer->draw(pRenderContext, pTargetFbo, mpDefaultStaticScene);
+    pRenderContext->blit(mpVBuffer->getAlbedoTexture()->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 } // namespace GSGI
