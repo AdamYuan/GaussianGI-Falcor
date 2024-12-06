@@ -9,6 +9,7 @@
 #include <Falcor.h>
 #include "../Scene/GSceneObject.hpp"
 #include "../Scene/GStaticScene.hpp"
+#include "GVBuffer.hpp"
 
 using namespace Falcor;
 
@@ -19,9 +20,10 @@ class GRenderer final : public GSceneObject<GRenderer>
 {
 private:
     ref<GStaticScene> mpDefaultStaticScene;
+    ref<GVBuffer> mpVBuffer;
 
 public:
-    explicit GRenderer(const ref<GScene>& pScene) : GSceneObject(pScene) {}
+    explicit GRenderer(const ref<GScene>& pScene);
     ~GRenderer() override = default;
 
     void updateHasInstanceImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);

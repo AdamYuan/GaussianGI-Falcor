@@ -18,53 +18,55 @@ namespace GSGI
 
 class GStaticScene final : public GDeviceObject<GStaticScene>
 {
-private:
-    void import(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pMeshes);
-
+public:
+    struct MeshInfo
+    {
+        uint indexCount;
+        uint instanceCount;
+        uint firstIndex;
+        uint firstInstance;
+    };
+    struct InstanceInfo
+    {
+        GTransform transform;
+        uint meshID{};
+    };
     struct MeshView
     {
         GMesh::Ptr pMesh;
+        MeshInfo info;
     };
+
+private:
+    void import(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pMeshes);
+
     std::vector<MeshView> mMeshViews;
-    ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTransformBuffer, mpTextureIDBuffer;
+    ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTextureIDBuffer, mpDrawCmdBuffer, mpInstanceInfoBuffer, mpMeshInfoBuffer;
     std::vector<ref<Texture>> mpTextures;
+    ref<Vao> mpVao;
+
+    ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
 
     static std::vector<GMesh::Ptr> getSceneMeshes(const ref<GScene>& pScene);
 
 public:
-    GStaticScene(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pAlternateMeshes) : GDeviceObject(pScene->getDevice())
+    GStaticScene(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pAlternateMeshes)
+        : GDeviceObject(pScene->getDevice()), mpScene{pScene}
     {
         import(pScene, pAlternateMeshes);
     }
     explicit GStaticScene(const ref<GScene>& pScene) : GStaticScene(pScene, getSceneMeshes(pScene)) {}
     ~GStaticScene() override = default;
 
+    const auto& getScene() const { return mpScene; }
+
     uint getMeshCount() const { return mMeshViews.size(); }
     const auto& getMeshViews() const { return mMeshViews; }
     const MeshView& getMeshView(std::size_t meshID) const { return mMeshViews[meshID]; }
 
-    // GStaticScene::update() must be called after GScene::update()
-    /* void updateImpl(bool isSceneChanged)
-    {
-        FALCOR_CHECK(getScene()->hasInstance(), "GScene::hasInstance() must be true");
-        if (!isSceneChanged && mOwnerTag == nullptr)
-            return;
-        auto importEntries = getImportEntriesFromScene();
-        import(importEntries);
-        mOwnerTag = nullptr;
-    }
-    void updateImpl(bool isSceneChanged, const void* pOwner, std::invocable<std::size_t, const GMesh*> auto&& customizeMesh)
-    {
-        FALCOR_CHECK(getScene()->hasInstance(), "GScene::hasInstance() must be true");
-        FALCOR_CHECK(pOwner != nullptr, "Customized import must have a valid customizer pointer");
-        if (!isSceneChanged && mOwnerTag == pOwner)
-            return;
-        auto importEntries = getImportEntriesFromScene();
-        for (std::size_t i = 0; i < importEntries.size(); ++i)
-            importEntries[i].pMesh = customizeMesh(i, importEntries[i].pMesh);
-        import(importEntries);
-        mOwnerTag = pOwner;
-    } */
+    void bindRootShaderData(const ShaderVar& rootVar) const;
+
+    void draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const;
 };
 
 } // namespace GSGI

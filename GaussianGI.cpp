@@ -46,21 +46,45 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
     const float4 clearColor(0.38f, 0.52f, 0.10f, 1);
     pRenderContext->clearFbo(pTargetFbo.get(), clearColor, 1.0f, 0, FboAttachmentType::All);
 
-    mpScene->draw(pRenderContext, pTargetFbo);
-
-    mpRenderer->update(pRenderContext, pTargetFbo);
+    if (mConfig.enableRender)
+        mpRenderer->update(pRenderContext, pTargetFbo);
+    else
+    {
+        mpScene->draw(pRenderContext, pTargetFbo);
+    }
 }
 
 void GaussianGI::onGuiRender(Gui* pGui)
 {
     Gui::Window w(pGui, "Falcor", {250, 200});
 
+    bool disableSceneEdit = false;
+
+    if (mConfig.enableRender)
+    {
+        disableSceneEdit = true;
+        if (w.button("Stop Renderer"))
+            mConfig.enableRender = false;
+    }
+    else
+    {
+        ImGui::BeginDisabled(!mpScene->hasInstance());
+        if (w.button("Start Renderer"))
+            mConfig.enableRender = true;
+        ImGui::EndDisabled();
+    }
+
     if (auto g = w.group("Camera"))
         mpScene->getCamera()->renderUI(g);
     if (auto g = w.group("Lighting"))
         mpScene->getLighting()->renderUI(g);
+
     if (auto g = w.group("Scene"))
+    {
+        ImGui::BeginDisabled(disableSceneEdit);
         mpScene->renderUI(g);
+        ImGui::EndDisabled();
+    }
 }
 
 bool GaussianGI::onKeyEvent(const KeyboardEvent& keyEvent)

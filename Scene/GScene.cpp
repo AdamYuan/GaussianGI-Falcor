@@ -18,8 +18,8 @@ GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
     mpDefaultRasterPass = RasterPass::create(getDevice(), defaultRasterDesc);
     RasterizerState::Desc rasterStateDesc = {};
     rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
-    mpRasterState = RasterizerState::create(rasterStateDesc);
-    mpDefaultRasterPass->getState()->setRasterizerState(mpRasterState);
+    mpDefaultRasterState = RasterizerState::create(rasterStateDesc);
+    mpDefaultRasterPass->getState()->setRasterizerState(mpDefaultRasterState);
 }
 
 static void removeVectorIndices(auto& vector, auto& indexSet)
@@ -33,7 +33,7 @@ static void removeVectorIndices(auto& vector, auto& indexSet)
 void GScene::update_countInstance()
 {
     mInstanceCount = 0;
-    for (const auto& entry : mEntries)
+    for (const auto& entry : mMeshEntries)
         mInstanceCount += entry.instances.size();
 }
 
@@ -41,16 +41,16 @@ void GScene::update_makeUnique()
 {
     std::unordered_map<std::filesystem::path, std::size_t> meshPathIndexMap;
     std::unordered_set<std::size_t> removeIndexSet;
-    for (std::size_t i = 0; i < mEntries.size(); ++i)
+    for (std::size_t i = 0; i < mMeshEntries.size(); ++i)
     {
-        auto& entry = mEntries[i];
+        auto& entry = mMeshEntries[i];
         auto mapIt = meshPathIndexMap.find(entry.pMesh->path);
         if (mapIt == meshPathIndexMap.end())
         {
             meshPathIndexMap[entry.pMesh->path] = i;
             continue;
         }
-        auto& uniqueEntry = mEntries[mapIt->second];
+        auto& uniqueEntry = mMeshEntries[mapIt->second];
         // Move instances to unique entry
         uniqueEntry.instances.insert(
             uniqueEntry.instances.end(), //
@@ -60,12 +60,12 @@ void GScene::update_makeUnique()
         removeIndexSet.insert(i);
     }
 
-    removeVectorIndices(mEntries, removeIndexSet);
+    removeVectorIndices(mMeshEntries, removeIndexSet);
 }
 
 void GScene::update_loadTexture()
 {
-    for (auto& entry : mEntries)
+    for (auto& entry : mMeshEntries)
     {
         const auto& pMesh = entry.pMesh;
         if (entry.pTextures.empty())
@@ -94,7 +94,7 @@ void GScene::update_loadTexture()
 
 void GScene::update_createBuffer()
 {
-    for (auto& entry : mEntries)
+    for (auto& entry : mMeshEntries)
     {
         const auto& pMesh = entry.pMesh;
 
@@ -125,7 +125,7 @@ void GScene::update_createBuffer()
             entry.pTextureIDBuffer = getDevice()->createTypedBuffer(
                 ResourceFormat::R8Uint,
                 pMesh->getPrimitiveCount(),
-                ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess,
+                ResourceBindFlags::ShaderResource,
                 MemoryType::DeviceLocal,
                 pMesh->textureIDs.data()
             );
@@ -168,7 +168,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
                 path,
                 [&](GMesh::Ptr&& pMesh)
                 {
-                    mEntries.push_back({
+                    mMeshEntries.push_back({
                         .pMesh = std::move(pMesh),
                         .instances = {{.name = "new"}},
                     });
@@ -178,9 +178,9 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
     }
 
     std::unordered_set<std::size_t> entryRemoveIndexSet;
-    for (std::size_t entryID = 0; entryID < mEntries.size(); ++entryID)
+    for (std::size_t entryID = 0; entryID < mMeshEntries.size(); ++entryID)
     {
-        auto& entry = mEntries[entryID];
+        auto& entry = mMeshEntries[entryID];
         ImGui::PushID((int)entryID);
 
         if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.pMesh->path.filename()), true))
@@ -235,7 +235,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
         ImGui::PopID();
     }
 
-    removeVectorIndices(mEntries, entryRemoveIndexSet);
+    removeVectorIndices(mMeshEntries, entryRemoveIndexSet);
 }
 
 void GScene::renderUIImpl(Gui::Widgets& widget)
@@ -265,7 +265,7 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
 
     pRasterPass->getState()->setFbo(pFbo);
 
-    for (const auto& entry : mEntries)
+    for (const auto& entry : mMeshEntries)
     {
         for (uint i = 0; i < entry.pTextures.size(); ++i)
             var["textures"][i] = entry.pTextures[i];
@@ -280,52 +280,5 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
         }
     }
 }
-
-/* ref<GScene> GScene::create(const ref<Device>& pDevice, const GSceneData& data)
-{
-    std::vector<MeshView> meshViews;
-
-    std::vector<GMesh::Vertex> vertices;
-    std::vector<GMesh::Index> indices;
-    std::vector<GMesh::TextureID> textureIDs;
-    std::vector<GTransform> transforms;
-    std::vector<std::filesystem::path> texturePaths;
-
-    GBound bound{};
-
-    for (const auto& entry : data.entries)
-    {
-        MeshView meshView = {
-            .indexCount = entry.mesh.getIndexCount(),
-            .instanceCount = (uint)entry.instances.size(),
-            .startIndexLocation = (uint)indices.size(),
-            .startInstanceLocation = (uint)transforms.size(),
-            .baseIndex = (uint)vertices.size(),
-            .basePrimitive = (uint)indices.size() / 3u,
-            .baseTextureID = (uint)texturePaths.size(),
-        };
-        meshViews.push_back(meshView);
-
-        vertices.insert(vertices.end(), entry.mesh.vertices.begin(), entry.mesh.vertices.end());
-        auto meshIndices =
-            entry.mesh.indices | std::views::transform([=](GMesh::Index x) -> GMesh::Index { return x + meshView.baseIndex; });
-        indices.insert(indices.end(), meshIndices.begin(), meshIndices.end());
-        auto meshTextureIDs = entry.mesh.textureIDs |
-                              std::views::transform([=](GMesh::TextureID x) -> GMesh::TextureID { return x + meshView.baseTextureID; });
-        textureIDs.insert(textureIDs.end(), meshTextureIDs.begin(), meshTextureIDs.end());
-        texturePaths.insert(texturePaths.end(), entry.mesh.texturePaths.begin(), entry.mesh.texturePaths.end());
-        for (const auto& instance : entry.instances)
-        {
-            bound.merge(instance.transform.apply(entry.mesh.bound));
-            transforms.push_back(instance.transform);
-        }
-    }
-
-    if (texturePaths.size() > GMesh::kMaxTextureID + 1)
-    {
-        logError("Too many textures.");
-        return nullptr;
-    }
-} */
 
 } // namespace GSGI

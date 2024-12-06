@@ -2,6 +2,7 @@
 #include "Utils/Math/MathConstants.slangh"
 
 import GaussianGI.Scene.GScene;
+import GaussianGI.Scene.GMesh;
 
 struct GSIn
 {
@@ -20,7 +21,7 @@ struct PSIn
     nointerpolation uint textureID;
 }
 
-GSIn vsMain(GMeshVSIn vIn, uint instanceID: SV_InstanceID)
+GSIn vsMain(GMesh::VSIn vIn)
 {
     GSIn o;
     o.texcoord = vIn.texcoord;

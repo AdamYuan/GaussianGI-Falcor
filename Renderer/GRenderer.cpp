@@ -7,6 +7,11 @@
 namespace GSGI
 {
 
+GRenderer::GRenderer(const ref<GScene>& pScene) : GSceneObject(pScene)
+{
+    mpVBuffer = make_ref<GVBuffer>(getDevice());
+}
+
 void GRenderer::updateHasInstanceImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {
     if (isSceneChanged)
@@ -14,6 +19,7 @@ void GRenderer::updateHasInstanceImpl(bool isSceneChanged, RenderContext* pRende
         mpDefaultStaticScene = make_ref<GStaticScene>(getScene());
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
+    mpVBuffer->draw(pRenderContext, pTargetFbo, mpDefaultStaticScene);
 }
 
 } // namespace GSGI

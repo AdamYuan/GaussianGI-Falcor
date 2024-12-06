@@ -15,7 +15,7 @@ namespace GSGI
 {
 
 template<typename Pass_T>
-std::tuple<const ref<Program>&, const ShaderVar&> getShaderProgVar(const ref<Pass_T>& pass)
+inline std::tuple<const ref<Program>&, const ShaderVar&> getShaderProgVar(const ref<Pass_T>& pass)
 {
     return {pass->getProgram(), pass->getRootVar()};
 }

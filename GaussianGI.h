@@ -27,6 +27,11 @@ public:
     void onHotReload(HotReloadFlags reloaded) override;
 
 private:
+    struct
+    {
+        bool enableRender = false;
+    } mConfig;
+
     ref<GScene> mpScene;
     ref<GRenderer> mpRenderer;
     std::unique_ptr<CameraController> mpCameraController;

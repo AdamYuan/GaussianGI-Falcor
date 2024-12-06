@@ -11,15 +11,4 @@
 #define GMESH_VERTEX_NORMAL_NAME "GMESH_NORMAL"
 #define GMESH_VERTEX_TEXCOORD_NAME "GMESH_TEXCOORD"
 
-#ifndef __cplusplus
-
-struct GMeshVSIn
-{
-    float3 position : GMESH_POSITION;
-    float3 normal : GMESH_NORMAL;
-    float2 texcoord : GMESH_TEXCOORD;
-};
-
-#endif
-
 #endif

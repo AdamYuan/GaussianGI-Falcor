@@ -4,12 +4,17 @@ target_sources(GaussianGI PRIVATE
         GaussianGI.cpp
         GaussianGI.h
 
+        Common/GDeviceObject.hpp
+        Common/ShaderUtil.hpp
+        Common/TextureUtil.hpp
+
         Scene/GBound.hpp
         Scene/GScene.hpp
         Scene/GScene.cpp
         Scene/GScene.slang
         Scene/GScene.3d.slang
         Scene/GMesh.hpp
+        Scene/GMesh.slang
         Scene/GMesh.slangh
         Scene/GMeshLoader.hpp
         Scene/GMeshLoader.cpp
@@ -17,6 +22,7 @@ target_sources(GaussianGI PRIVATE
         Scene/GTransform.slang
         Scene/GStaticScene.hpp
         Scene/GStaticScene.cpp
+        Scene/GStaticScene.slang
         Scene/GLighting.hpp
         Scene/GLighting.cpp
         Scene/GLighting.slang
@@ -24,6 +30,10 @@ target_sources(GaussianGI PRIVATE
 
         Renderer/GRenderer.hpp
         Renderer/GRenderer.cpp
+        Renderer/GVBuffer.hpp
+        Renderer/GVBuffer.cpp
+        Renderer/GVBuffer.slang
+        Renderer/GVBuffer.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 

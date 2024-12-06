@@ -27,7 +27,7 @@ public:
         std::string name;
         GTransform transform;
     };
-    struct Entry
+    struct MeshEntry
     {
         GMesh::Ptr pMesh;
         std::vector<Instance> instances;
@@ -42,9 +42,9 @@ private:
     ref<VertexLayout> mpVertexLayout;
     ref<Texture> mpDefaultTexture;
     ref<RasterPass> mpDefaultRasterPass;
-    ref<RasterizerState> mpRasterState;
+    ref<RasterizerState> mpDefaultRasterState;
 
-    std::vector<Entry> mEntries;
+    std::vector<MeshEntry> mMeshEntries;
     Version mVersion{};
     std::size_t mInstanceCount{};
 
@@ -61,14 +61,8 @@ private:
 public:
     explicit GScene(ref<Device> pDevice);
     ~GScene() override = default;
-    // GScene(ref<Device> pDevice, std::vector<Entry>&& entries) : GScene(std::move(pDevice)) { setEntries(std::move(entries)); }
 
-    /* void setEntries(std::vector<Entry>&& entries)
-    {
-        mEntries = std::move(entries);
-        ++mVersion;
-    } */
-    const auto& getEntries() const { return mEntries; }
+    const auto& getMeshEntries() const { return mMeshEntries; }
     Version getVersion() const { return mVersion; }
 
     std::size_t getInstanceCount() const { return mInstanceCount; }
@@ -79,6 +73,9 @@ public:
 
     void setLighting(ref<GLighting> pLighting) { mpLighting = std::move(pLighting); }
     const auto& getLighting() const { return mpLighting; }
+
+    const auto& getVertexLayout() const { return mpVertexLayout; }
+    const auto& getDefaultRasterState() const { return mpDefaultRasterState; }
 
     void renderUIImpl(Gui::Widgets& widget);
 
