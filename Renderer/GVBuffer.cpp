@@ -66,4 +66,11 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
     pStaticScene->draw(pRenderContext, mpFbo, mpRasterPass);
 }
 
+void GVBuffer::bindShaderData(const ShaderVar& var) const
+{
+    var["resolution"] = getTextureResolution2(mpAlbedoTexture);
+    var["albedoTexture"] = mpAlbedoTexture;
+    var["primitiveTexture"] = mpPrimitiveTexture;
+}
+
 } // namespace GSGI

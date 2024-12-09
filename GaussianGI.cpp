@@ -46,6 +46,7 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
     if (mConfig.enableRender)
     {
         mpRenderer->update(pRenderContext, pTargetFbo);
+        pRenderContext->blit(mpRenderer->getTexture()->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     }
     else
     {

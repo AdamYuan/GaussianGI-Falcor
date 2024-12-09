@@ -7,6 +7,7 @@ target_sources(GaussianGI PRIVATE
         Common/GDeviceObject.hpp
         Common/ShaderUtil.hpp
         Common/TextureUtil.hpp
+        Common/ThreadGroupTilingX.slang
 
         Scene/GBound.hpp
         Scene/GScene.hpp
@@ -30,6 +31,7 @@ target_sources(GaussianGI PRIVATE
 
         Renderer/GRenderer.hpp
         Renderer/GRenderer.cpp
+        Renderer/GRenderer.cs.slang
         Renderer/GVBuffer.hpp
         Renderer/GVBuffer.cpp
         Renderer/GVBuffer.slang

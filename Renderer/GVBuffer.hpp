@@ -30,6 +30,8 @@ public:
     const auto& getPrimitiveTexture() const { return mpPrimitiveTexture; }
 
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene);
+
+    void bindShaderData(const ShaderVar& var) const;
 };
 
 } // namespace GSGI

@@ -29,14 +29,24 @@ public struct GStaticScene
     public MeshInfo getMeshInfo(uint meshID) { return meshInfos[meshID]; }
     public InstanceInfo getInstanceInfo(uint instanceID) { return instanceInfos[instanceID]; }
 
-    public static uint getGlobalPrimitiveID(uint meshFirstIndex, uint meshPrimitiveID) { return meshFirstIndex / 3 + meshPrimitiveID; }
     public static uint getGlobalPrimitiveID(in const MeshInfo meshInfo, uint meshPrimitiveID)
     {
-        return getGlobalPrimitiveID(meshInfo.firstIndex, meshPrimitiveID);
+        return meshInfo.firstIndex / 3 + meshPrimitiveID;
     }
-    public uint3 getPrimitiveIndices(uint globalPrimitiveID)
+    public uint getGlobalPrimitiveID(uint meshID, uint meshPrimitiveID)
+    {
+        return getGlobalPrimitiveID(getMeshInfo(meshID), meshPrimitiveID);
+    }
+    /* public uint3 getPrimitiveIndices(uint globalPrimitiveID)
     {
         return uint3(indices[globalPrimitiveID * 3], indices[globalPrimitiveID * 3 + 1], indices[globalPrimitiveID * 3 + 2]);
+    } */
+    public void getPrimitiveVertices(uint globalPrimitiveID, out GMesh::Vertex o_primitiveVertices[3])
+    {
+        var primitiveIndices = uint3(indices[globalPrimitiveID * 3], indices[globalPrimitiveID * 3 + 1], indices[globalPrimitiveID * 3 + 2]);
+        o_primitiveVertices[0] = getVertex(primitiveIndices[0]);
+        o_primitiveVertices[1] = getVertex(primitiveIndices[1]);
+        o_primitiveVertices[2] = getVertex(primitiveIndices[2]);
     }
     public uint getPrimitiveTextureID(uint globalPrimitiveID) { return textureIDs[globalPrimitiveID]; }
 }

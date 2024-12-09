@@ -17,11 +17,15 @@ namespace GSGI
 template<typename Texture_T> // Texture_T can be Texture or Fbo
 inline uint2 getTextureResolution2(const ref<Texture_T>& pTexture)
 {
+    if (pTexture == nullptr)
+        return {};
     return {pTexture->getWidth(), pTexture->getHeight()};
 }
 
 inline uint3 getTextureResolution3(const ref<Texture>& pTexture)
 {
+    if (pTexture == nullptr)
+        return {};
     return {pTexture->getWidth(), pTexture->getHeight(), pTexture->getDepth()};
 }
 

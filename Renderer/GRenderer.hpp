@@ -22,11 +22,16 @@ private:
     ref<GStaticScene> mpDefaultStaticScene;
     ref<GVBuffer> mpVBuffer;
 
+    ref<ComputePass> mpPass;
+    ref<Texture> mpTexture;
+
 public:
     explicit GRenderer(const ref<GScene>& pScene);
     ~GRenderer() override = default;
 
-    void updateHasInstanceImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
+    const auto& getTexture() const { return mpTexture; }
+
+    void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
 };
 
 } // namespace GSGI
