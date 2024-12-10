@@ -3,6 +3,7 @@
 
 import GaussianGI.Scene.GScene;
 import GaussianGI.Scene.GMesh;
+import GaussianGI.Common.ShaderUtil;
 
 struct GSIn
 {
@@ -54,7 +55,7 @@ float4 psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
     float3 normal = normalize(pIn.normal);
     normal = select(isFrontFace, normal, -normal);
     float4 texColor = gGScene.textures[pIn.textureID].Sample(gGScene.sampler, pIn.texcoord);
-    if (texColor.a < 0.5)
+    if (alphaShouldDiscard(texColor.a))
         discard;
 
     float3 brdf = texColor.rgb * M_1_PI;

@@ -3,6 +3,7 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Scene.GMesh;
+import GaussianGI.Common.ShaderUtil;
 import GVBuffer;
 
 struct GSIn
@@ -67,7 +68,7 @@ struct PSOut
 PSOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace, float3 barycentrics: SV_Barycentrics)
 {
     float4 texColor = gGStaticScene.textures[pIn.textureID].Sample(gGStaticScene.sampler, pIn.texcoord);
-    if (texColor.a < 0.5)
+    if (alphaShouldDiscard(texColor.a))
         discard;
 
     PSOut o;

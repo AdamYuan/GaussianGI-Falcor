@@ -1,5 +1,5 @@
 #include "Utils/Math/MathConstants.slangh"
-import GaussianGI.Common.ThreadGroupTilingX;
+import GaussianGI.Common.ShaderUtil;
 import GaussianGI.Scene.GStaticScene;
 import GVBuffer;
 
@@ -12,7 +12,7 @@ RWTexture2D<unorm float4> gTarget;
 void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 {
     uint2 threadID =
-        ThreadGroupTilingX((gGVBuffer.resolution + GROUP_DIM - 1) / GROUP_DIM, uint2(GROUP_DIM), 8, groupThreadID.xy, groupID.xy);
+        threadGroupTilingX((gGVBuffer.resolution + GROUP_DIM - 1) / GROUP_DIM, uint2(GROUP_DIM), 8, groupThreadID.xy, groupID.xy);
 
     if (any(threadID >= gGVBuffer.resolution))
         return;

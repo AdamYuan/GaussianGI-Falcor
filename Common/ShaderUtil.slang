@@ -1,3 +1,8 @@
+public bool alphaShouldDiscard(float alpha)
+{
+    return alpha < 0.5;
+}
+
 /*
  * Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
  *
@@ -27,7 +32,7 @@
 
 // Divide the 2D-Dispatch_Grid into tiles of dimension [N, DipatchGridDim.y]
 // “CTA” (Cooperative Thread Array) == Thread Group in DirectX terminology
-public uint2 ThreadGroupTilingX(
+public uint2 threadGroupTilingX(
     const uint2 dipatchGridDim, // Arguments of the Dispatch call (typically from a ConstantBuffer)
     const uint2 ctaDim,         // Already known in HLSL, eg:[numthreads(8, 8, 1)] -> uint2(8, 8)
     const uint maxTileWidth,    // User parameter (N). Recommended values: 8, 16 or 32.

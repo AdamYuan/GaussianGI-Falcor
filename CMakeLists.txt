@@ -6,8 +6,8 @@ target_sources(GaussianGI PRIVATE
 
         Common/GDeviceObject.hpp
         Common/ShaderUtil.hpp
+        Common/ShaderUtil.slang
         Common/TextureUtil.hpp
-        Common/ThreadGroupTilingX.slang
 
         Scene/GBound.hpp
         Scene/GScene.hpp
