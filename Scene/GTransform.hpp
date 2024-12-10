@@ -72,6 +72,14 @@ struct GTransform
 
         return b;
     }
+    float3x4 getMatrix3x4() const
+    {
+        float3x4 mat{};
+        mat[0] = float4{scale * cosRotY, 0, -scale * sinRotY, center.x};
+        mat[1] = float4{0, scale, 0, center.y};
+        mat[2] = float4{scale * sinRotY, 0, scale * cosRotY, center.z};
+        return mat;
+    }
 
     bool renderUI(Gui::Widgets& widget)
     {

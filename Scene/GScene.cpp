@@ -135,7 +135,7 @@ void GScene::update_createBuffer()
             if (mpVertexLayout == nullptr)
                 mpVertexLayout = GMesh::createVertexLayout();
             entry.pVao = Vao::create(
-                Vao::Topology::TriangleList, mpVertexLayout, {entry.pVertexBuffer}, entry.pIndexBuffer, ResourceFormat::R32Uint
+                Vao::Topology::TriangleList, mpVertexLayout, {entry.pVertexBuffer}, entry.pIndexBuffer, GMesh::getIndexFormat()
             );
         }
     }

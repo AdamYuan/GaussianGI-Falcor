@@ -23,6 +23,7 @@ target_sources(GaussianGI PRIVATE
         Scene/GTransform.slang
         Scene/GStaticScene.hpp
         Scene/GStaticScene.cpp
+        Scene/GStaticSceneAS.cpp
         Scene/GStaticScene.slang
         Scene/GLighting.hpp
         Scene/GLighting.cpp

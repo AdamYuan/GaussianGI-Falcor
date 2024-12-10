@@ -39,11 +39,19 @@ public:
 
 private:
     void import(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pMeshes);
+    void buildBLAS(RenderContext* pRenderContext);
+    void buildTLAS(RenderContext* pRenderContext);
 
     std::vector<MeshView> mMeshViews;
+    std::vector<InstanceInfo> mInstanceInfos;
     ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTextureIDBuffer, mpDrawCmdBuffer, mpInstanceInfoBuffer, mpMeshInfoBuffer;
     std::vector<ref<Texture>> mpTextures;
     ref<Vao> mpVao;
+
+    bool isAccelStructBuilt = false;
+    ref<RtAccelerationStructure> mpTLAS;
+    std::vector<ref<RtAccelerationStructure>> mpMeshBLASs;
+    ref<Buffer> mpBLASBuffer, mpTLASBuffer;
 
     ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
 
@@ -66,6 +74,15 @@ public:
 
     void bindRootShaderData(const ShaderVar& rootVar) const;
 
+    void update(RenderContext* pRenderContext)
+    {
+        if (isAccelStructBuilt == false)
+        {
+            buildBLAS(pRenderContext);
+            buildTLAS(pRenderContext);
+            isAccelStructBuilt = true;
+        }
+    }
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const;
 };
 

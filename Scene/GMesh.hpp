@@ -57,6 +57,35 @@ struct GMesh
         vertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
         return vertexLayout;
     }
+    static ResourceFormat getIndexFormat() { return ResourceFormat::R32Uint; }
+    std::optional<RtGeometryDesc> getRTGeometryDesc(
+        RtGeometryFlags flag,
+        DeviceAddress transform3x4Addr,
+        DeviceAddress indexBufferAddr,
+        DeviceAddress vertexBufferAddr,
+        uint vertexCount
+    ) const
+    {
+        // TODO: Support non-opaque triangles
+        if (flag != RtGeometryFlags::Opaque)
+            return std::nullopt;
+
+        RtGeometryDesc geomDesc{};
+        geomDesc.type = RtGeometryType::Triangles;
+        geomDesc.flags = flag;
+        geomDesc.content.triangles = {
+            .transform3x4 = transform3x4Addr,
+            .indexFormat = ResourceFormat::R32Uint,
+            .vertexFormat = ResourceFormat::RGB32Float,
+            .indexCount = getIndexCount(),
+            .vertexCount = vertexCount,
+            .indexData = indexBufferAddr,
+            .vertexData = vertexBufferAddr,
+            .vertexStride = sizeof(Vertex),
+        };
+
+        return geomDesc;
+    }
 };
 
 } // namespace GSGI

@@ -16,7 +16,6 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
     std::vector<GMesh::Vertex> vertices;
     std::vector<GMesh::Index> indices;
     std::vector<GMesh::TextureID> textureIDs;
-    std::vector<InstanceInfo> instanceInfos;
     std::vector<MeshInfo> meshInfos;
     std::vector<gfx::IndirectDrawIndexedArguments> drawCommands;
 
@@ -24,7 +23,8 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
     mMeshViews.clear();
     mMeshViews.reserve(pMeshes.size());
     drawCommands.reserve(pMeshes.size());
-    instanceInfos.reserve(pScene->getInstanceCount());
+    mInstanceInfos.clear();
+    mInstanceInfos.reserve(pScene->getInstanceCount());
     for (std::size_t meshID = 0; meshID < pMeshes.size(); ++meshID)
     {
         const auto& entry = pScene->getMeshEntries()[meshID];
@@ -34,7 +34,7 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
             .indexCount = pMesh->getIndexCount(),
             .instanceCount = (uint)entry.instances.size(),
             .firstIndex = (uint)indices.size(),
-            .firstInstance = (uint)instanceInfos.size(),
+            .firstInstance = (uint)mInstanceInfos.size(),
         };
 
         gfx::IndirectDrawIndexedArguments drawCmd = {
@@ -74,7 +74,7 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
                 .transform = instance.transform,
                 .meshID = (uint)meshID,
             };
-            instanceInfos.push_back(instanceInfo);
+            mInstanceInfos.push_back(instanceInfo);
         }
     }
 
@@ -95,15 +95,11 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
         indices.data()
     );
 
-    mpVao = Vao::create(Vao::Topology::TriangleList, pScene->getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, ResourceFormat::R32Uint);
+    mpVao = Vao::create(Vao::Topology::TriangleList, pScene->getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, GMesh::getIndexFormat());
 
     static_assert(std::same_as<GMesh::TextureID, uint8_t>);
     mpTextureIDBuffer = getDevice()->createTypedBuffer(
-        ResourceFormat::R8Uint,
-        textureIDs.size(),
-        ResourceBindFlags::ShaderResource,
-        MemoryType::DeviceLocal,
-        textureIDs.data()
+        ResourceFormat::R8Uint, textureIDs.size(), ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal, textureIDs.data()
     );
 
     mpDrawCmdBuffer = getDevice()->createStructuredBuffer(
@@ -124,10 +120,10 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
 
     mpInstanceInfoBuffer = getDevice()->createStructuredBuffer(
         sizeof(InstanceInfo), //
-        instanceInfos.size(),
+        mInstanceInfos.size(),
         ResourceBindFlags::ShaderResource,
         MemoryType::DeviceLocal,
-        instanceInfos.data()
+        mInstanceInfos.data()
     );
 
     if (mpTextures.size() > GMESH_MAX_TEXTURE_COUNT)
