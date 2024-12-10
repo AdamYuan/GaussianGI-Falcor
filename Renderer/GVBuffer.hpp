@@ -21,13 +21,13 @@ class GVBuffer final : public GDeviceObject<GVBuffer>
 private:
     ref<RasterPass> mpRasterPass;
     ref<Fbo> mpFbo;
-    ref<Texture> mpAlbedoTexture, mpPrimitiveTexture;
+    ref<Texture> mpAlbedoTexture, mpHitTexture;
 
 public:
     explicit GVBuffer(ref<Device> pDevice);
 
     const auto& getAlbedoTexture() const { return mpAlbedoTexture; }
-    const auto& getPrimitiveTexture() const { return mpPrimitiveTexture; }
+    const auto& getPrimitiveTexture() const { return mpHitTexture; }
 
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene);
 

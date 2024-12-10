@@ -36,7 +36,7 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         }
     );
     updateTextureSize(
-        mpPrimitiveTexture,
+        mpHitTexture,
         resolution,
         [this](uint width, uint height)
         {
@@ -55,13 +55,13 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         mpFbo,
         resolution,
         [&](uint width, uint height)
-        { return Fbo::create(getDevice(), {mpAlbedoTexture, mpPrimitiveTexture}, pScreenFbo->getDepthStencilTexture()); }
+        { return Fbo::create(getDevice(), {mpAlbedoTexture, mpHitTexture}, pScreenFbo->getDepthStencilTexture()); }
     );
 
     mpRasterPass->getState()->setRasterizerState(pStaticScene->getScene()->getDefaultRasterState());
 
     pRenderContext->clearRtv(mpAlbedoTexture->getRTV().get(), float4{0.0f});
-    pRenderContext->clearRtv(mpPrimitiveTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});
+    pRenderContext->clearRtv(mpHitTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});
     pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
     pStaticScene->draw(pRenderContext, mpFbo, mpRasterPass);
 }
@@ -70,7 +70,7 @@ void GVBuffer::bindShaderData(const ShaderVar& var) const
 {
     var["resolution"] = getTextureResolution2(mpAlbedoTexture);
     var["albedoTexture"] = mpAlbedoTexture;
-    var["primitiveTexture"] = mpPrimitiveTexture;
+    var["hitTexture"] = mpHitTexture;
 }
 
 } // namespace GSGI
