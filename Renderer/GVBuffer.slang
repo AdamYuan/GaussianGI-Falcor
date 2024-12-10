@@ -2,17 +2,6 @@ import GaussianGI.Scene.GStaticScene;
 
 public struct GVBuffer
 {
-    public struct Texel
-    {
-        public float3 albedo;
-        public bool isHit;
-        public bool isFrontFace;
-        public uint meshPrimitiveID;
-        public uint meshID;
-        public uint instanceID;
-        public float2 barycentrics;
-    }
-
     public uint2 resolution;
     Texture2D<float4> albedoTexture;
     Texture2D<uint4> hitTexture;

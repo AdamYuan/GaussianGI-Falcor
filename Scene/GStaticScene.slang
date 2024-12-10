@@ -70,6 +70,9 @@ public struct GStaticScene
 
     public HitPoint getHitPoint(HitInfo hitInfo)
     {
+        if (!hitInfo.isHit)
+            return (HitPoint)0;
+
         uint globalPrimitiveID = getGlobalPrimitiveID(hitInfo.meshID, hitInfo.meshPrimitiveID);
         GMesh::Vertex vertices[3];
         getPrimitiveVertices(globalPrimitiveID, vertices);
