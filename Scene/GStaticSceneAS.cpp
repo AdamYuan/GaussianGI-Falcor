@@ -34,13 +34,11 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
         auto& meshBlasInfo = meshBlasInfos[meshID];
 
         // Geometry Desc
-        DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshView.info.firstIndex * sizeof(GMesh::Vertex);
-        auto optOpaqueGeomDesc = meshView.pMesh->getRTGeometryDesc(
-            RtGeometryFlags::Opaque, 0, indexBufferAddr, mpVertexBuffer->getGpuAddress(), mpVertexBuffer->getElementCount()
-        );
-        auto optNonOpaqueGeomDesc = meshView.pMesh->getRTGeometryDesc(
-            RtGeometryFlags::None, 0, indexBufferAddr, mpVertexBuffer->getGpuAddress(), mpVertexBuffer->getElementCount()
-        );
+        DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshView.info.firstIndex * sizeof(GMesh::Index);
+        auto optOpaqueGeomDesc =
+            meshView.pMesh->getRTGeometryDesc(RtGeometryFlags::Opaque, 0, indexBufferAddr, mpVertexBuffer->getGpuAddress());
+        auto optNonOpaqueGeomDesc =
+            meshView.pMesh->getRTGeometryDesc(RtGeometryFlags::None, 0, indexBufferAddr, mpVertexBuffer->getGpuAddress());
         if (optOpaqueGeomDesc)
             meshBlasInfo.geomDescs.push_back(*optOpaqueGeomDesc);
         if (optNonOpaqueGeomDesc)

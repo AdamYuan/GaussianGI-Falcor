@@ -62,8 +62,7 @@ struct GMesh
         RtGeometryFlags flag,
         DeviceAddress transform3x4Addr,
         DeviceAddress indexBufferAddr,
-        DeviceAddress vertexBufferAddr,
-        uint vertexCount
+        DeviceAddress vertexBufferAddr
     ) const
     {
         // TODO: Support non-opaque triangles
@@ -78,7 +77,7 @@ struct GMesh
             .indexFormat = ResourceFormat::R32Uint,
             .vertexFormat = ResourceFormat::RGB32Float,
             .indexCount = getIndexCount(),
-            .vertexCount = vertexCount,
+            .vertexCount = getVertexCount(),
             .indexData = indexBufferAddr,
             .vertexData = vertexBufferAddr,
             .vertexStride = sizeof(Vertex),
