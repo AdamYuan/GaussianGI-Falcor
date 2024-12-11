@@ -143,7 +143,6 @@ struct GMeshLoaderContext
 
             textureInfo.pTexture = createColorTexture(pDevice, rgba.data(), ResourceBindFlags::ShaderResource);
             textureKey = std::bit_cast<uint32_t>(rgba);
-            logInfo("textureKey = ({},{},{},{}) {}", (int)rgba[0], (int)rgba[1], (int)rgba[2], (int)rgba[3], std::bit_cast<uint32_t>(rgba));
         }
 
         auto it = textureIDMap.find(textureKey);
@@ -204,6 +203,8 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
         return nullptr;
     }
     timeReport.measure("Creating mesh");
+
+    // Reorder indices and textureIDs based on
 
     // Normalize mesh through Y direction
     float3 center = ctx.mesh.bound.getCenter();
