@@ -27,14 +27,12 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
 
     float3 brdf = gGVBuffer.LoadAlbedo(threadID) * M_1_PI;
-    float3 irradiance = gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal);
     Ray shadowRay;
     shadowRay.tMin = 0.0;
     shadowRay.tMax = FLT_MAX;
     shadowRay.origin = hitPoint.getRayOrigin();
     shadowRay.dir = gGStaticScene.lighting.direction;
-    float shadow = gGStaticScene.traceAnyHit(shadowRay, true) ? 0.0 : 1.0;
-    irradiance *= shadow;
+    float3 irradiance = gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal, gGStaticScene.traceAnyHit(shadowRay, true) ? 0.0 : 1.0);
     float3 radiance = brdf * irradiance;
 
     gTarget[threadID] = float4(radiance, 1);
