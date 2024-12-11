@@ -21,32 +21,46 @@ ref<VertexLayout> GMesh::createVertexLayout()
     return vertexLayout;
 }
 
-std::optional<RtGeometryDesc> GMesh::getRTGeometryDesc(
-    RtGeometryFlags flag,
+std::vector<RtGeometryDesc> GMesh::getRTGeometryDescs(
     DeviceAddress transform3x4Addr,
     DeviceAddress indexBufferAddr,
     DeviceAddress vertexBufferAddr
 ) const
 {
-    // TODO: Support non-opaque triangles
-    if (flag != RtGeometryFlags::Opaque)
-        return std::nullopt;
+    std::vector<RtGeometryDesc> geomDescs;
 
     RtGeometryDesc geomDesc{};
     geomDesc.type = RtGeometryType::Triangles;
-    geomDesc.flags = flag;
     geomDesc.content.triangles = {
         .transform3x4 = transform3x4Addr,
         .indexFormat = ResourceFormat::R32Uint,
         .vertexFormat = ResourceFormat::RGB32Float,
-        .indexCount = getIndexCount(),
+        .indexCount = 0,
         .vertexCount = 0, // Seems to work (at least on Vulkan)
         .indexData = indexBufferAddr,
         .vertexData = vertexBufferAddr,
         .vertexStride = sizeof(Vertex),
     };
 
-    return geomDesc;
+    for (uint primitiveCount = getPrimitiveCount(), primitiveID = 0; primitiveID < primitiveCount; ++primitiveID)
+    {
+        bool isOpaque = textures[textureIDs[primitiveID]].isOpaque;
+        bool restartGeomDesc = primitiveID == 0 || isOpaque != textures[textureIDs[primitiveID - 1]].isOpaque;
+        if (restartGeomDesc)
+        {
+            if (geomDesc.content.triangles.indexCount > 0)
+                geomDescs.push_back(geomDesc);
+            geomDesc.content.triangles.indexData += geomDesc.content.triangles.indexCount * sizeof(Index);
+            geomDesc.content.triangles.indexCount = 0;
+            geomDesc.flags = isOpaque ? RtGeometryFlags::Opaque : RtGeometryFlags::None;
+        }
+        geomDesc.content.triangles.indexCount += 3;
+    }
+
+    if (geomDesc.content.triangles.indexCount > 0)
+        geomDescs.push_back(geomDesc);
+
+    return geomDescs;
 }
 
 } // namespace GSGI

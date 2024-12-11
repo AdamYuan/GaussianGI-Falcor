@@ -52,8 +52,7 @@ struct GMesh
 
     static ref<VertexLayout> createVertexLayout();
     static ResourceFormat getIndexFormat() { return ResourceFormat::R32Uint; }
-    std::optional<RtGeometryDesc> getRTGeometryDesc(
-        RtGeometryFlags flag,
+    std::vector<RtGeometryDesc> getRTGeometryDescs(
         DeviceAddress transform3x4Addr,
         DeviceAddress indexBufferAddr,
         DeviceAddress vertexBufferAddr
