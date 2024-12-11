@@ -44,15 +44,15 @@ std::vector<RtGeometryDesc> GMesh::getRTGeometryDescs(
 
     for (uint primitiveCount = getPrimitiveCount(), primitiveID = 0; primitiveID < primitiveCount; ++primitiveID)
     {
-        bool isOpaque = textures[textureIDs[primitiveID]].isOpaque;
-        bool restartGeomDesc = primitiveID == 0 || isOpaque != textures[textureIDs[primitiveID - 1]].isOpaque;
+        RtGeometryFlags geomFlags = textures[textureIDs[primitiveID]].isOpaque ? RtGeometryFlags::Opaque : RtGeometryFlags::None;
+        bool restartGeomDesc = primitiveID == 0 || geomFlags != geomDesc.flags;
         if (restartGeomDesc)
         {
             if (geomDesc.content.triangles.indexCount > 0)
                 geomDescs.push_back(geomDesc);
             geomDesc.content.triangles.indexData += geomDesc.content.triangles.indexCount * sizeof(Index);
             geomDesc.content.triangles.indexCount = 0;
-            geomDesc.flags = isOpaque ? RtGeometryFlags::Opaque : RtGeometryFlags::None;
+            geomDesc.flags = geomFlags;
         }
         geomDesc.content.triangles.indexCount += 3;
     }
