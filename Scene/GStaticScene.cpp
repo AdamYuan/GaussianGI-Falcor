@@ -146,6 +146,7 @@ std::vector<GMesh::Ptr> GStaticScene::getSceneMeshes(const ref<GScene>& pScene)
 void GStaticScene::bindRootShaderData(const ShaderVar& rootVar) const
 {
     auto var = rootVar["gGStaticScene"];
+    var["rtAccel"].setAccelerationStructure(mpTLAS);
     var["vertices"] = mpVertexBuffer;
     var["indices"] = mpIndexBuffer;
     var["textureIDs"] = mpTextureIDBuffer;
