@@ -43,11 +43,9 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
 
     if (isSceneChanged)
     {
-        mpDefaultStaticScene = make_ref<GStaticScene>(getScene());
+        mpDefaultStaticScene = make_ref<GStaticScene>(getScene(), pRenderContext);
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
-
-    mpDefaultStaticScene->update(pRenderContext);
 
     mpVBuffer->draw(pRenderContext, pTargetFbo, mpDefaultStaticScene);
 

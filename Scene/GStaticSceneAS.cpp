@@ -12,7 +12,6 @@ struct MeshBLASInfo
 {
     std::vector<RtGeometryDesc> geomDescs;
     RtAccelerationStructureBuildInputs buildInputs{};
-    uint64_t scratchDataSize{};
     uint64_t uncompactedBlasDataSize{};
     ref<Buffer> uncompactedBlasBuffer;
     ref<RtAccelerationStructure> uncompactedBlas;
@@ -24,11 +23,11 @@ struct MeshBLASInfo
 
 void GStaticScene::buildBLAS(RenderContext* pRenderContext)
 {
-    std::vector<MeshBLASInfo> meshBlasInfos(mMeshViews.size());
+    std::vector<MeshBLASInfo> meshBlasInfos(getMeshCount());
     uint64_t maxScratchDataSize = 0;
 
     // Step 1. Prepare
-    for (uint meshID = 0; meshID < mMeshViews.size(); ++meshID)
+    for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
         const auto& meshView = mMeshViews[meshID];
         auto& meshBlasInfo = meshBlasInfos[meshID];
@@ -58,8 +57,8 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
                 RtAccelerationStructure::getPrebuildInfo(getDevice().get(), meshBlasInfo.buildInputs);
             FALCOR_ASSERT(preBuildInfo.resultDataMaxSize > 0);
             meshBlasInfo.uncompactedBlasDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.resultDataMaxSize);
-            meshBlasInfo.scratchDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.scratchDataSize);
-            maxScratchDataSize = math::max(maxScratchDataSize, meshBlasInfo.scratchDataSize);
+            auto scratchDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.scratchDataSize);
+            maxScratchDataSize = math::max(maxScratchDataSize, scratchDataSize);
         }
 
         // Uncompacted BLAS (not built yet)
@@ -79,7 +78,7 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
         getDevice().get(),
         {
             .queryType = RtAccelerationStructurePostBuildInfoQueryType::CompactedSize,
-            .elementCount = (uint32_t)meshBlasInfos.size(),
+            .elementCount = getMeshCount(),
         }
     );
     compactedSizeInfoPool->reset(pRenderContext);
@@ -87,7 +86,7 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
     // Step 2. Build
     uint64_t totalCompactedBlasDataSize = 0;
     auto scratchBuffer = getDevice()->createBuffer(maxScratchDataSize, ResourceBindFlags::UnorderedAccess, MemoryType::DeviceLocal);
-    for (uint meshID = 0; meshID < mMeshViews.size(); ++meshID)
+    for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
         auto& meshBlasInfo = meshBlasInfos[meshID];
 
@@ -114,8 +113,8 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
 
     // Step 3: Compact
     mpBLASBuffer = getDevice()->createBuffer(totalCompactedBlasDataSize, ResourceBindFlags::AccelerationStructure, MemoryType::DeviceLocal);
-    mpMeshBLASs.resize(meshBlasInfos.size());
-    for (uint meshID = 0; meshID < mMeshViews.size(); ++meshID)
+    mpMeshBLASs.resize(getMeshCount());
+    for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
         auto& meshBlasInfo = meshBlasInfos[meshID];
 
@@ -131,6 +130,77 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
     pRenderContext->submit(true);
 }
 
-void GStaticScene::buildTLAS(RenderContext* pRenderContext) {}
+void GStaticScene::buildTLAS(RenderContext* pRenderContext)
+{
+    // Step 1: Prepare
+    RtAccelerationStructureBuildInputs buildInputs = {
+        .kind = RtAccelerationStructureKind::TopLevel,
+        .flags = RtAccelerationStructureBuildFlags::PreferFastTrace,
+        .descCount = (uint)getScene()->getInstanceCount(),
+    };
+
+    // instance descriptors
+    {
+        std::vector<RtInstanceDesc> instanceDescs;
+        instanceDescs.reserve(getScene()->getInstanceCount());
+
+        for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
+        {
+            const auto& entry = mpScene->getMeshEntries()[meshID];
+
+            // Instance buffer
+            for (const auto& instance : entry.instances)
+            {
+                auto instanceDesc = RtInstanceDesc{
+                    .instanceID = meshID, // Custom InstanceID
+                    .instanceMask = 0xFF,
+                    .instanceContributionToHitGroupIndex = 0,
+                    .flags = RtGeometryInstanceFlags::TriangleFacingCullDisable,
+                    .accelerationStructure = mpMeshBLASs[meshID]->getGpuAddress(),
+                };
+                auto transform3x4 = instance.transform.getMatrix3x4();
+                std::memcpy(instanceDesc.transform, &transform3x4, sizeof(instanceDesc.transform));
+                static_assert(sizeof(instanceDesc.transform) == sizeof(transform3x4));
+                instanceDescs.push_back(instanceDesc);
+            }
+        }
+        GpuMemoryHeap::Allocation allocation =
+            getDevice()->getUploadHeap()->allocate(buildInputs.descCount * sizeof(RtInstanceDesc), sizeof(RtInstanceDesc));
+        std::copy(instanceDescs.begin(), instanceDescs.end(), reinterpret_cast<RtInstanceDesc*>(allocation.pData));
+        buildInputs.instanceDescs = allocation.getGpuAddress();
+        getDevice()->getUploadHeap()->release(allocation); // Deferred release
+    }
+
+    // query sizes
+    uint64_t tlasDataSize, scratchDataSize;
+    {
+        RtAccelerationStructurePrebuildInfo preBuildInfo = RtAccelerationStructure::getPrebuildInfo(getDevice().get(), buildInputs);
+        FALCOR_ASSERT(preBuildInfo.resultDataMaxSize > 0);
+        tlasDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.resultDataMaxSize);
+        scratchDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.scratchDataSize);
+    }
+
+    // create TLAS
+    mpTLASBuffer = getDevice()->createBuffer(tlasDataSize, ResourceBindFlags::AccelerationStructure, MemoryType::DeviceLocal);
+    {
+        RtAccelerationStructure::Desc desc{};
+        desc.setKind(RtAccelerationStructureKind::TopLevel);
+        desc.setBuffer(mpTLASBuffer, 0, tlasDataSize);
+        mpTLAS = RtAccelerationStructure::create(getDevice(), desc);
+    }
+
+    // scratch buffer
+    auto scratchBuffer = getDevice()->createBuffer(scratchDataSize, ResourceBindFlags::UnorderedAccess, MemoryType::DeviceLocal);
+
+    // Step 2: Build
+    RtAccelerationStructure::BuildDesc buildDesc = {
+        .inputs = buildInputs,
+        .source = nullptr,
+        .dest = mpTLAS.get(),
+        .scratchData = scratchBuffer->getGpuAddress(),
+    };
+    pRenderContext->buildAccelerationStructure(buildDesc, 0, nullptr);
+    pRenderContext->submit(true);
+}
 
 } // namespace GSGI

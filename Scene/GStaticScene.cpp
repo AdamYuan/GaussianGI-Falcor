@@ -9,32 +9,32 @@
 namespace GSGI
 {
 
-void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr> pMeshes)
+void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
 {
-    FALCOR_CHECK(pScene->getMeshEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getMeshEntries()");
+    FALCOR_CHECK(mpScene->getMeshEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getMeshEntries()");
 
     std::vector<GMesh::Vertex> vertices;
     std::vector<GMesh::Index> indices;
     std::vector<GMesh::TextureID> textureIDs;
     std::vector<MeshInfo> meshInfos;
+    std::vector<InstanceInfo> instanceInfos;
     std::vector<gfx::IndirectDrawIndexedArguments> drawCommands;
 
     mpTextures.clear();
     mMeshViews.clear();
     mMeshViews.reserve(pMeshes.size());
     drawCommands.reserve(pMeshes.size());
-    mInstanceInfos.clear();
-    mInstanceInfos.reserve(pScene->getInstanceCount());
+    instanceInfos.reserve(mpScene->getInstanceCount());
     for (std::size_t meshID = 0; meshID < pMeshes.size(); ++meshID)
     {
-        const auto& entry = pScene->getMeshEntries()[meshID];
+        const auto& entry = mpScene->getMeshEntries()[meshID];
         const auto& pMesh = pMeshes[meshID];
 
         MeshInfo meshInfo = {
             .indexCount = pMesh->getIndexCount(),
             .instanceCount = (uint)entry.instances.size(),
             .firstIndex = (uint)indices.size(),
-            .firstInstance = (uint)mInstanceInfos.size(),
+            .firstInstance = (uint)instanceInfos.size(),
         };
 
         gfx::IndirectDrawIndexedArguments drawCmd = {
@@ -74,7 +74,7 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
                 .transform = instance.transform,
                 .meshID = (uint)meshID,
             };
-            mInstanceInfos.push_back(instanceInfo);
+            instanceInfos.push_back(instanceInfo);
         }
     }
 
@@ -95,7 +95,7 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
         indices.data()
     );
 
-    mpVao = Vao::create(Vao::Topology::TriangleList, pScene->getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, GMesh::getIndexFormat());
+    mpVao = Vao::create(Vao::Topology::TriangleList, mpScene->getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, GMesh::getIndexFormat());
 
     static_assert(std::same_as<GMesh::TextureID, uint8_t>);
     mpTextureIDBuffer = getDevice()->createTypedBuffer(
@@ -120,10 +120,10 @@ void GStaticScene::import(const ref<GScene>& pScene, std::span<const GMesh::Ptr>
 
     mpInstanceInfoBuffer = getDevice()->createStructuredBuffer(
         sizeof(InstanceInfo), //
-        mInstanceInfos.size(),
+        instanceInfos.size(),
         ResourceBindFlags::ShaderResource,
         MemoryType::DeviceLocal,
-        mInstanceInfos.data()
+        instanceInfos.data()
     );
 
     if (mpTextures.size() > GMESH_MAX_TEXTURE_COUNT)
