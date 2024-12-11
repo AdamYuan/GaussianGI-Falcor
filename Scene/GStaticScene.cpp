@@ -66,7 +66,8 @@ void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
             pMesh->textureIDs | std::views::transform([&](GMesh::TextureID x) -> GMesh::TextureID { return x + baseTextureID; });
         textureIDs.insert(textureIDs.end(), paddedTextureIDs.begin(), paddedTextureIDs.end());
         // Textures
-        mpTextures.insert(mpTextures.end(), entry.pTextures.begin(), entry.pTextures.end());
+        auto textures = pMesh->textures | std::views::transform([&](const GMesh::TextureInfo& x) -> ref<Texture> { return x.pTexture; });
+        mpTextures.insert(mpTextures.end(), textures.begin(), textures.end());
         // Instance buffer
         for (const auto& instance : entry.instances)
         {
@@ -126,10 +127,10 @@ void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
         instanceInfos.data()
     );
 
-    if (mpTextures.size() > GMESH_MAX_TEXTURE_COUNT)
+    if (mpTextures.size() > GMesh::kMaxTextureCount)
     {
         logWarning("Too many textures in GStaticScene");
-        mpTextures.resize(GMESH_MAX_TEXTURE_COUNT);
+        mpTextures.resize(GMesh::kMaxTextureCount);
     }
 }
 

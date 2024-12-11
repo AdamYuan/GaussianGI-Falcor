@@ -34,7 +34,6 @@ public:
 
         ref<Vao> pVao;
         ref<Buffer> pVertexBuffer, pIndexBuffer, pTextureIDBuffer;
-        std::vector<ref<Texture>> pTextures;
     };
     using Version = uint64_t;
 
@@ -53,7 +52,6 @@ private:
 
     void update_countInstance();
     void update_makeUnique();
-    void update_loadTexture();
     void update_createBuffer();
 
     void renderUI_entry(Gui::Widgets& widget, bool& modified);

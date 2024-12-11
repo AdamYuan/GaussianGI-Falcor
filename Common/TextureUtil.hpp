@@ -50,6 +50,11 @@ inline bool updateTextureSize(ref<Texture>& pTexture, uint3 resolution, std::inv
     return false;
 }
 
+inline ref<Texture> createColorTexture(const ref<Device>& pDevice, const uint8_t rgba[4], ResourceBindFlags bindFlags)
+{
+    return pDevice->createTexture2D(1, 1, ResourceFormat::RGBA8Unorm, 1, 1, rgba, bindFlags);
+}
+
 } // namespace GSGI
 
 #endif // GSGI_TEXTUREUTIL_HPP

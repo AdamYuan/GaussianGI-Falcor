@@ -4,11 +4,16 @@
 
 #include "GMeshLoader.hpp"
 
+#include "../Common/TextureUtil.hpp"
 #include <unordered_map>
 #include <Utils/Timing/TimeReport.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 namespace GSGI
 {
@@ -18,9 +23,19 @@ namespace
 
 struct GMeshLoaderContext
 {
+    using TextureKey = std::variant<std::filesystem::path, uint32_t>;
+    struct TextureKeyHash
+    {
+        std::size_t operator()(const TextureKey& key) const
+        {
+            return std::visit([]<typename T>(const T& v) -> std::size_t { return std::hash<T>{}(v); }, key);
+        }
+    };
+
+    ref<Device> pDevice;
     std::filesystem::path basePath;
     GMesh mesh;
-    std::unordered_map<std::filesystem::path, GMesh::TextureID> textureIDMap;
+    std::unordered_map<TextureKey, GMesh::TextureID, TextureKeyHash> textureIDMap;
 
     bool processNode(const aiNode* pAiNode, const aiScene* pAiScene)
     {
@@ -84,33 +99,72 @@ struct GMeshLoaderContext
     }
     std::optional<GMesh::TextureID> registerTexture(aiMaterial* pAiMat)
     {
-        aiString aiPath;
-        if (pAiMat->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath) != aiReturn_SUCCESS)
-        {
-            logError("Missing texture.");
-            return std::nullopt;
-        }
-        std::filesystem::path path = aiPath.C_Str();
+        TextureKey textureKey;
+        GMesh::TextureInfo textureInfo{};
 
-        auto it = textureIDMap.find(path);
+        // Load texture from file
+        if (aiString aiPath; pAiMat->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath) == aiReturn_SUCCESS)
+        {
+            std::filesystem::path path = basePath / aiPath.C_Str();
+
+            int width, height, channels;
+            stbi_uc* data = stbi_load(path.string().c_str(), &width, &height, &channels, 4);
+            if (data)
+            {
+                // Check opaque or not
+                for (int size = width * height, i = 0; i < size; ++i)
+                    if (data[i * 4 + 3] < 255)
+                    {
+                        textureInfo.isOpaque = false;
+                        break;
+                    }
+                textureInfo.pTexture = pDevice->createTexture2D(
+                    width, height, ResourceFormat::RGBA8Unorm, 1, Resource::kMaxPossible, data, ResourceBindFlags::ShaderResource
+                );
+                textureInfo.pTexture->setSourcePath(path);
+                textureKey = path;
+                stbi_image_free(data);
+                logInfo("Loaded {} texture {}", textureInfo.isOpaque ? "opaque" : "non-opaque", path);
+            }
+            else
+                logWarning("Failed to load texture {}", path);
+        }
+        // Fallback to color
+        if (textureInfo.pTexture == nullptr)
+        {
+            std::array<uint8_t, 4> rgba = {255, 255, 255, 255};
+
+            if (aiColor4D aiColor; aiGetMaterialColor(pAiMat, AI_MATKEY_COLOR_DIFFUSE, &aiColor) == aiReturn_SUCCESS)
+            {
+                rgba[0] = (uint8_t)math::clamp(aiColor.r * 255.0f, 0.0f, 255.0f);
+                rgba[1] = (uint8_t)math::clamp(aiColor.g * 255.0f, 0.0f, 255.0f);
+                rgba[2] = (uint8_t)math::clamp(aiColor.b * 255.0f, 0.0f, 255.0f);
+            }
+
+            textureInfo.pTexture = createColorTexture(pDevice, rgba.data(), ResourceBindFlags::ShaderResource);
+            textureKey = std::bit_cast<uint32_t>(rgba);
+            logInfo("textureKey = ({},{},{},{}) {}", (int)rgba[0], (int)rgba[1], (int)rgba[2], (int)rgba[3], std::bit_cast<uint32_t>(rgba));
+        }
+
+        auto it = textureIDMap.find(textureKey);
         if (it != textureIDMap.end())
             return it->second;
-        uint uintTextureID = this->mesh.texturePaths.size();
+        uint uintTextureID = this->mesh.textures.size();
         if (uintTextureID > GMesh::kMaxTextureID)
         {
             logError("Too many textures.");
             return std::nullopt;
         }
-        this->mesh.texturePaths.push_back(basePath / path);
+        this->mesh.textures.push_back(std::move(textureInfo));
         GMesh::TextureID textureID = uintTextureID;
-        textureIDMap[path] = textureID;
+        textureIDMap[textureKey] = textureID;
         return textureID;
     }
 };
 
 } // namespace
 
-GMesh::Ptr GMeshLoader::load(const std::filesystem::path& filename)
+GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::path& filename)
 {
     TimeReport timeReport;
 
@@ -136,6 +190,7 @@ GMesh::Ptr GMeshLoader::load(const std::filesystem::path& filename)
 
     // Create mesh
     GMeshLoaderContext ctx = {
+        .pDevice = pDevice,
         .basePath = filename.parent_path(),
         .mesh =
             {

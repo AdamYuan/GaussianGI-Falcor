@@ -16,6 +16,7 @@ target_sources(GaussianGI PRIVATE
         Scene/GScene.slang
         Scene/GScene.3d.slang
         Scene/GMesh.hpp
+        Scene/GMesh.cpp
         Scene/GMesh.slang
         Scene/GMesh.slangh
         Scene/GMeshLoader.hpp

@@ -63,35 +63,6 @@ void GScene::update_makeUnique()
     removeVectorIndices(mMeshEntries, removeIndexSet);
 }
 
-void GScene::update_loadTexture()
-{
-    for (auto& entry : mMeshEntries)
-    {
-        const auto& pMesh = entry.pMesh;
-        if (entry.pTextures.empty())
-        {
-            entry.pTextures.reserve(pMesh->texturePaths.size());
-            for (const auto& texPath : pMesh->texturePaths)
-            {
-                auto tex = Texture::createFromFile(getDevice(), texPath, true, false);
-                if (tex == nullptr)
-                {
-                    logWarning("Failed to load texture {}", texPath);
-                    if (mpDefaultTexture == nullptr)
-                    {
-                        uint8_t color[] = {0xFF, 0x00, 0xFF, 0xFF};
-                        mpDefaultTexture = getDevice()->createTexture2D(1, 1, ResourceFormat::RGBA8Uint, 1, Resource::kMaxPossible, color);
-                    }
-                    tex = mpDefaultTexture;
-                }
-                else
-                    logInfo("Loaded texture {}", texPath);
-                entry.pTextures.push_back(std::move(tex));
-            }
-        }
-    }
-}
-
 void GScene::update_createBuffer()
 {
     for (auto& entry : mMeshEntries)
@@ -143,9 +114,9 @@ void GScene::update_createBuffer()
 
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
-    const auto loadMesh = [](const std::filesystem::path& path, std::invocable<GMesh::Ptr&&> auto&& onSuccess)
+    const auto loadMesh = [this](const std::filesystem::path& path, std::invocable<GMesh::Ptr&&> auto&& onSuccess)
     {
-        auto pMesh = GMeshLoader::load(path);
+        auto pMesh = GMeshLoader::load(getDevice(), path);
         if (pMesh == nullptr)
             logWarning("Failed to load mesh {}", path);
         else
@@ -252,7 +223,6 @@ void GScene::update()
 {
     update_countInstance();
     update_makeUnique();
-    update_loadTexture();
     update_createBuffer();
 }
 
@@ -267,8 +237,8 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
 
     for (const auto& entry : mMeshEntries)
     {
-        for (uint i = 0; i < entry.pTextures.size(); ++i)
-            var["textures"][i] = entry.pTextures[i];
+        for (uint i = 0; i < entry.pMesh->textures.size(); ++i)
+            var["textures"][i] = entry.pMesh->textures[i].pTexture;
         var["textureIDs"] = entry.pTextureIDBuffer;
 
         pRasterPass->getState()->setVao(entry.pVao);
