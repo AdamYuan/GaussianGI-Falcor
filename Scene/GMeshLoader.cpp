@@ -197,25 +197,48 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
                 .bound = GBound{},
             },
     };
-    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.indices.empty())
+    uint primitiveCount = 0;
+    if (!ctx.processNode(pScene->mRootNode, pScene) || (primitiveCount = ctx.mesh.getPrimitiveCount()) == 0)
     {
         logError("Failed to create mesh for: {}", importer.GetErrorString());
         return nullptr;
     }
     timeReport.measure("Creating mesh");
 
-    // Reorder indices and textureIDs based on
+    // Reorder indices and textureIDs based on isOpaque property
+    {
+        std::vector<std::pair<bool, uint32_t>> opaqueOrders(primitiveCount);
+        for (uint primitiveID = 0; primitiveID < primitiveCount; ++primitiveID)
+            opaqueOrders[primitiveID] = {ctx.mesh.textures[ctx.mesh.textureIDs[primitiveID]].isOpaque, primitiveID};
+        std::stable_sort(opaqueOrders.begin(), opaqueOrders.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+
+        std::vector<GMesh::Index> indices(primitiveCount * 3);
+        std::vector<GMesh::TextureID> textureIDs(primitiveCount);
+        for (uint dstPrimitiveID = 0; dstPrimitiveID < primitiveCount; ++dstPrimitiveID)
+        {
+            uint srcPrimitiveID = opaqueOrders[dstPrimitiveID].second;
+            textureIDs[dstPrimitiveID] = ctx.mesh.textureIDs[srcPrimitiveID];
+            indices[dstPrimitiveID * 3 + 0] = ctx.mesh.indices[srcPrimitiveID * 3 + 0];
+            indices[dstPrimitiveID * 3 + 1] = ctx.mesh.indices[srcPrimitiveID * 3 + 1];
+            indices[dstPrimitiveID * 3 + 2] = ctx.mesh.indices[srcPrimitiveID * 3 + 2];
+        }
+        ctx.mesh.indices = std::move(indices);
+        ctx.mesh.textureIDs = std::move(textureIDs);
+        timeReport.measure("Reorder primitives");
+    }
 
     // Normalize mesh through Y direction
-    float3 center = ctx.mesh.bound.getCenter();
-    float3 halfExtent = ctx.mesh.bound.getExtent() * 0.5f;
-    float invHalfExtentY = 1.0f / halfExtent.y;
-    const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtentY; };
-    for (auto& vertex : ctx.mesh.vertices)
-        normalizeFloat3(vertex.position);
-    normalizeFloat3(ctx.mesh.bound.bMin);
-    normalizeFloat3(ctx.mesh.bound.bMax);
-    timeReport.measure("Normalizing mesh");
+    {
+        float3 center = ctx.mesh.bound.getCenter();
+        float3 halfExtent = ctx.mesh.bound.getExtent() * 0.5f;
+        float invHalfExtentY = 1.0f / halfExtent.y;
+        const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtentY; };
+        for (auto& vertex : ctx.mesh.vertices)
+            normalizeFloat3(vertex.position);
+        normalizeFloat3(ctx.mesh.bound.bMin);
+        normalizeFloat3(ctx.mesh.bound.bMax);
+        timeReport.measure("Normalizing mesh");
+    }
 
     timeReport.printToLog();
 
