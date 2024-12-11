@@ -1,4 +1,5 @@
 add_falcor_executable(GaussianGI)
+set_target_properties(GaussianGI PROPERTIES CXX_STANDARD 20)
 
 target_sources(GaussianGI PRIVATE
         GaussianGI.cpp
