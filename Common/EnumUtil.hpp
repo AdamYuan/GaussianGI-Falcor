@@ -19,15 +19,15 @@ template<typename Enum_T, Enum_T Value>
 struct EnumInfo
 {};
 
-#define GSGI_ENUM_REGISTER_TYPE(ENUM_T, VALUE, NAME, TYPE) \
-    template<>                                             \
-    struct EnumInfo<ENUM_T, ENUM_T::VALUE>                 \
-    {                                                      \
-        static constexpr ENUM_T kValue = ENUM_T::VALUE;    \
-        static constexpr const char* kName = NAME;         \
-        using Type = TYPE;                                 \
+#define GSGI_ENUM_NAME_TYPE(ENUM_T, VALUE, NAME, TYPE)  \
+    template<>                                          \
+    struct EnumInfo<ENUM_T, ENUM_T::VALUE>              \
+    {                                                   \
+        static constexpr ENUM_T kValue = ENUM_T::VALUE; \
+        static constexpr const char* kName = NAME;      \
+        using Type = TYPE;                              \
     }
-#define GSGI_ENUM_REGISTER(ENUM_T, VALUE, NAME) GSGI_ENUM_REGISTER_TYPE(ENUM_T, VALUE, NAME, void)
+#define GSGI_ENUM_NAME(ENUM_T, VALUE, NAME) GSGI_ENUM_NAME_TYPE(ENUM_T, VALUE, NAME, void)
 
 template<typename Enum_T>
 inline void enumForEach(auto&& func)
