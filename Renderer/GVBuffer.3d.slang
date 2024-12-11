@@ -11,7 +11,7 @@ struct GSIn
     float2 texcoord;
     float3 worldPos;
     float4 clipPos;
-    uint meshIDInstanceID;
+    uint instanceID;
     uint meshFirstPrimitive;
 }
 
@@ -22,7 +22,7 @@ struct PSIn
     linear float4 clipPos : SV_Position;
     nointerpolation uint textureID;
     nointerpolation uint meshPrimitiveID;
-    nointerpolation uint meshIDInstanceID;
+    nointerpolation uint instanceID;
 }
 
 GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
@@ -34,7 +34,7 @@ GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
     o.texcoord = vIn.texcoord;
     o.worldPos = instanceInfo.transform.apply(vIn.position);
     o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(o.worldPos, 1));
-    o.meshIDInstanceID = instanceInfo.meshID << 16 | instanceID;
+    o.instanceID = instanceID;
     o.meshFirstPrimitive = meshInfo.firstIndex / 3;
 
     return o;
@@ -44,7 +44,7 @@ GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
 void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout TriangleStream<PSIn> output)
 {
     PSIn o;
-    o.meshIDInstanceID = gIn[0].meshIDInstanceID;
+    o.instanceID = gIn[0].instanceID;
     o.meshPrimitiveID = primitiveID;
     uint globalPrimitiveID = gIn[0].meshFirstPrimitive + primitiveID;
     o.textureID = gGStaticScene.getPrimitiveTextureID(globalPrimitiveID);
@@ -74,6 +74,6 @@ PSOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace, float3 barycentrics: SV
     PSOut o;
     o.albedo = float4(texColor.rgb, 1);
     uint backFaceFlag = select(isFrontFace, 0, 1 << 31);
-    o.primitive = uint4(pIn.meshPrimitiveID | backFaceFlag, pIn.meshIDInstanceID, asuint(barycentrics.yz));
+    o.primitive = uint4(pIn.meshPrimitiveID | backFaceFlag, pIn.instanceID, asuint(barycentrics.yz));
     return o;
 }

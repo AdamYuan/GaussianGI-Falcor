@@ -15,7 +15,6 @@ public struct GStaticScene
         public bool isHit;
         public bool isFrontFace;
         public uint meshPrimitiveID;
-        public uint meshID;
         public uint instanceID;
         public float2 barycentrics;
 
@@ -23,6 +22,11 @@ public struct GStaticScene
     };
     public struct HitPoint
     {
+        public MeshInfo meshInfo;
+        public InstanceInfo instanceInfo;
+        public float3 localPosition;
+        public float3 localNormal;
+        public float3 localGeomNormal;
         public float3 position;
         public float3 normal;
         public float3 geomNormal;
@@ -83,29 +87,35 @@ public struct GStaticScene
         if (!hitInfo.isHit)
             return (HitPoint)0;
 
-        uint globalPrimitiveID = getGlobalPrimitiveID(hitInfo.meshID, hitInfo.meshPrimitiveID);
+        var instanceInfo = getInstanceInfo(hitInfo.instanceID);
+        var meshInfo = getMeshInfo(instanceInfo.meshID);
+
+        uint globalPrimitiveID = getGlobalPrimitiveID(meshInfo, hitInfo.meshPrimitiveID);
         GMesh::Vertex vertices[3];
         getPrimitiveVertices(globalPrimitiveID, vertices);
 
         float3 baryWeights = float3(1 - hitInfo.barycentrics.x - hitInfo.barycentrics.y, hitInfo.barycentrics);
 
-        float3 position = mul(baryWeights, float3x3(vertices[0].position, vertices[1].position, vertices[2].position));
-
-        float3 normal = mul(baryWeights, float3x3(vertices[0].normal, vertices[1].normal, vertices[2].normal));
-        normal = normalize(normal);
-        normal = select(hitInfo.isFrontFace, normal, -normal);
-
-        float3 geomNormal = normalize(cross(vertices[1].position - vertices[0].position, vertices[2].position - vertices[0].position));
-        geomNormal = select(hitInfo.isFrontFace, geomNormal, -geomNormal);
+        float3 localPosition = mul(baryWeights, float3x3(vertices[0].position, vertices[1].position, vertices[2].position));
+        float3 localNormal = mul(baryWeights, float3x3(vertices[0].normal, vertices[1].normal, vertices[2].normal));
+        localNormal = normalize(localNormal);
+        localNormal = select(hitInfo.isFrontFace, localNormal, -localNormal);
+        float3 localGeomNormal = normalize(cross(vertices[1].position - vertices[0].position, vertices[2].position - vertices[0].position));
+        localGeomNormal = select(hitInfo.isFrontFace, localGeomNormal, -localGeomNormal);
 
         uint textureID = getPrimitiveTextureID(globalPrimitiveID);
 
         float2 texcoord = mul(baryWeights, float3x2(vertices[0].texcoord, vertices[1].texcoord, vertices[2].texcoord));
 
         HitPoint hitPoint;
-        hitPoint.position = position;
-        hitPoint.normal = normal;
-        hitPoint.geomNormal = geomNormal;
+        hitPoint.meshInfo = meshInfo;
+        hitPoint.instanceInfo = instanceInfo;
+        hitPoint.localPosition = localPosition;
+        hitPoint.localNormal = localNormal;
+        hitPoint.localGeomNormal = localGeomNormal;
+        hitPoint.position = instanceInfo.transform.apply(localPosition);
+        hitPoint.normal = instanceInfo.transform.applyRotation(localNormal);
+        hitPoint.geomNormal = instanceInfo.transform.applyRotation(localGeomNormal);
         hitPoint.textureID = textureID;
         hitPoint.texcoord = texcoord;
 
@@ -144,12 +154,11 @@ public struct GStaticScene
         }
     }
 
-    HitInfo getCandidateHitInfo<let Flags : int>(in const RayQuery<Flags> rayQuery)
+    HitInfo getNonOpaqueCandidateHitInfo<let Flags : int>(in const RayQuery<Flags> rayQuery)
     {
         HitInfo hitInfo;
         hitInfo.isHit = true;
         hitInfo.instanceID = rayQuery.CandidateInstanceIndex();
-        hitInfo.meshID = rayQuery.CandidateInstanceID();
         hitInfo.meshPrimitiveID = rayQuery.CandidatePrimitiveIndex();
         hitInfo.barycentrics = rayQuery.CandidateTriangleBarycentrics();
         hitInfo.isFrontFace = rayQuery.CandidateTriangleFrontFace();
@@ -160,8 +169,9 @@ public struct GStaticScene
         HitInfo hitInfo;
         hitInfo.isHit = true;
         hitInfo.instanceID = rayQuery.CommittedInstanceIndex();
-        hitInfo.meshID = rayQuery.CommittedInstanceID();
-        hitInfo.meshPrimitiveID = rayQuery.CommittedPrimitiveIndex();
+        uint firstOpaquePrimitiveID = rayQuery.CommittedInstanceID();
+        hitInfo.meshPrimitiveID =
+            select(rayQuery.CommittedGeometryIndex() == 0, 0, firstOpaquePrimitiveID) + rayQuery.CommittedPrimitiveIndex();
         hitInfo.barycentrics = rayQuery.CommittedTriangleBarycentrics();
         hitInfo.isFrontFace = rayQuery.CommittedTriangleFrontFace();
         return hitInfo;
@@ -179,7 +189,7 @@ public struct GStaticScene
         {
             if (UseAlphaDiscard && io_rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
             {
-                HitInfo hitInfo = getCandidateHitInfo(io_rayQuery);
+                HitInfo hitInfo = getNonOpaqueCandidateHitInfo(io_rayQuery);
                 HitPoint hitPoint = getHitPoint(hitInfo);
                 float alpha = textures[hitPoint.textureID].SampleLevel(sampler, hitPoint.texcoord, 0).a;
                 if (alphaShouldDiscard(alpha))
@@ -207,7 +217,7 @@ public struct GStaticScene
         {
             if (UseAlphaDiscard && io_rayQuery.CandidateType() == CANDIDATE_NON_OPAQUE_TRIANGLE)
             {
-                HitInfo hitInfo = getCandidateHitInfo(io_rayQuery);
+                HitInfo hitInfo = getNonOpaqueCandidateHitInfo(io_rayQuery);
                 HitPoint hitPoint = getHitPoint(hitInfo);
                 float alpha = textures[hitPoint.textureID].SampleLevel(sampler, hitPoint.texcoord, 0).a;
                 if (alphaShouldDiscard(alpha))

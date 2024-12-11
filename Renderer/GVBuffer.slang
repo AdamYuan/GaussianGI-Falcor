@@ -18,8 +18,7 @@ public struct GVBuffer
         t.isHit = texel.x != 0xFFFFFFFF;
         t.isFrontFace = (texel.x & 0x80000000) == 0;
         t.meshPrimitiveID = texel.x & 0x7FFFFFFF;
-        t.meshID = texel.y >> 16;
-        t.instanceID = texel.y & 0xFFFF;
+        t.instanceID = texel.y;
         t.barycentrics = asfloat(texel.zw);
 
         return t;

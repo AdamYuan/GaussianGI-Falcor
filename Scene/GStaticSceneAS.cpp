@@ -34,7 +34,16 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
 
         // Geometry Desc
         DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshView.info.firstIndex * sizeof(GMesh::Index);
-        meshBlasInfo.geomDescs = meshView.pMesh->getRTGeometryDescs(0, indexBufferAddr, mpVertexBuffer->getGpuAddress());
+
+        meshBlasInfo.geomDescs.reserve(2);
+        if (meshView.pMesh->hasNonOpaquePrimitive())
+            meshBlasInfo.geomDescs.push_back(
+                meshView.pMesh->getRTGeometryDesc<RtGeometryFlags::None>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
+            );
+        if (meshView.pMesh->hasOpaquePrimitive())
+            meshBlasInfo.geomDescs.push_back(
+                meshView.pMesh->getRTGeometryDesc<RtGeometryFlags::Opaque>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
+            );
 
         // Build Inputs
         meshBlasInfo.buildInputs = {
@@ -145,7 +154,7 @@ void GStaticScene::buildTLAS(RenderContext* pRenderContext)
             for (const auto& instance : entry.instances)
             {
                 auto instanceDesc = RtInstanceDesc{
-                    .instanceID = meshID, // Custom InstanceID
+                    .instanceID = entry.pMesh->firstOpaquePrimitiveID, // Custom InstanceID
                     .instanceMask = 0xFF,
                     .instanceContributionToHitGroupIndex = 0,
                     .flags = RtGeometryInstanceFlags::TriangleFacingCullDisable,

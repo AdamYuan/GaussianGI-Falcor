@@ -197,8 +197,7 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
                 .bound = GBound{},
             },
     };
-    uint primitiveCount = 0;
-    if (!ctx.processNode(pScene->mRootNode, pScene) || (primitiveCount = ctx.mesh.getPrimitiveCount()) == 0)
+    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.getPrimitiveCount() == 0)
     {
         logError("Failed to create mesh for: {}", importer.GetErrorString());
         return nullptr;
@@ -207,23 +206,7 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
 
     // Reorder indices and textureIDs based on isOpaque property
     {
-        std::vector<std::pair<bool, uint32_t>> opaqueOrders(primitiveCount);
-        for (uint primitiveID = 0; primitiveID < primitiveCount; ++primitiveID)
-            opaqueOrders[primitiveID] = {ctx.mesh.textures[ctx.mesh.textureIDs[primitiveID]].isOpaque, primitiveID};
-        std::stable_sort(opaqueOrders.begin(), opaqueOrders.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
-
-        std::vector<GMesh::Index> indices(primitiveCount * 3);
-        std::vector<GMesh::TextureID> textureIDs(primitiveCount);
-        for (uint dstPrimitiveID = 0; dstPrimitiveID < primitiveCount; ++dstPrimitiveID)
-        {
-            uint srcPrimitiveID = opaqueOrders[dstPrimitiveID].second;
-            textureIDs[dstPrimitiveID] = ctx.mesh.textureIDs[srcPrimitiveID];
-            indices[dstPrimitiveID * 3 + 0] = ctx.mesh.indices[srcPrimitiveID * 3 + 0];
-            indices[dstPrimitiveID * 3 + 1] = ctx.mesh.indices[srcPrimitiveID * 3 + 1];
-            indices[dstPrimitiveID * 3 + 2] = ctx.mesh.indices[srcPrimitiveID * 3 + 2];
-        }
-        ctx.mesh.indices = std::move(indices);
-        ctx.mesh.textureIDs = std::move(textureIDs);
+        ctx.mesh.reorderOpaque();
         timeReport.measure("Reorder primitives");
     }
 
@@ -242,7 +225,7 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
 
     timeReport.printToLog();
 
-    return std::make_shared<const GMesh>(std::move(ctx.mesh));
+    return GMesh::createPtr(std::move(ctx.mesh));
 }
 
 } // namespace GSGI

@@ -8,8 +8,6 @@ RWTexture2D<unorm float4> gTarget;
 
 #define GROUP_DIM 8
 
-#define DEBUG_RT_ACCEL 1
-
 [numthreads(GROUP_DIM, GROUP_DIM, 1)]
 void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 {
@@ -18,21 +16,6 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 
     if (any(threadID >= gGVBuffer.resolution))
         return;
-
-#if DEBUG_RT_ACCEL == 1
-    Ray ray = gGStaticScene.camera.computeRayPinhole(threadID, gGVBuffer.resolution, false);
-    var hitInfo = gGStaticScene.traceClosestHit(ray, true);
-    if (!hitInfo.isHit)
-    {
-        gTarget[threadID] = float4(0, 0, 0, 1);
-        return;
-    }
-    var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    float3 albedo = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0).rgb;
-    // gTarget[threadID] = float4(albedo, 1);
-    gTarget[threadID] = float4(hitPoint.normal * 0.5 + 0.5, 1);
-
-#else
 
     var hitInfo = gGVBuffer.LoadHitInfo(threadID);
     if (!hitInfo.isHit)
@@ -54,7 +37,6 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     irradiance *= shadow;
     float3 radiance = brdf * irradiance;
 
-    // gTarget[threadID] = float4(radiance, 1);
-    gTarget[threadID] = float4(hitPoint.normal * 0.5 + 0.5, 1);
-#endif
+    gTarget[threadID] = float4(radiance, 1);
+    // gTarget[threadID] = float4(hitPoint.normal * 0.5 + 0.5, 1);
 }
