@@ -10,6 +10,7 @@
 #include "../Scene/GSceneObject.hpp"
 #include "../Scene/GStaticScene.hpp"
 #include "GVBuffer.hpp"
+#include "Shadow/GShadow.hpp"
 
 using namespace Falcor;
 
@@ -20,10 +21,17 @@ class GRenderer final : public GSceneObject<GRenderer>
 {
 private:
     ref<GStaticScene> mpDefaultStaticScene;
+    ref<GShadow> mpShadow;
+
     ref<GVBuffer> mpVBuffer;
 
     ref<ComputePass> mpPass;
     ref<Texture> mpTexture;
+
+    struct
+    {
+        GShadowType shadowType = GShadowType::kNone;
+    } mConfig = {};
 
 public:
     explicit GRenderer(const ref<GScene>& pScene);
@@ -32,6 +40,7 @@ public:
     const auto& getTexture() const { return mpTexture; }
 
     void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
+    void renderUIImpl(Gui::Widgets& widget);
 };
 
 } // namespace GSGI

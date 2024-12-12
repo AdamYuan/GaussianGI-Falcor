@@ -40,6 +40,13 @@ void GMesh::reorderOpaque()
     logInfo("Non-Opaque: [{}, {}), Opaque: [{}, {})", 0, this->firstOpaquePrimitiveID, this->firstOpaquePrimitiveID, primitiveCount);
 }
 
+void GMesh::updateBound()
+{
+    this->bound = {};
+    for (const auto& vertex : this->vertices)
+        this->bound.merge(vertex.position);
+}
+
 ref<VertexLayout> GMesh::createVertexLayout()
 {
     auto vertexBufferLayout = VertexBufferLayout::create();

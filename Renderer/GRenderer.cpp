@@ -13,6 +13,7 @@ namespace GSGI
 GRenderer::GRenderer(const ref<GScene>& pScene) : GSceneObject(pScene)
 {
     mpVBuffer = make_ref<GVBuffer>(getDevice());
+    mpShadow = make_ref<GShadow>(getDevice());
     mpPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/GRenderer.cs.slang", "csMain");
 }
 
@@ -47,16 +48,24 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
 
+    mpShadow->update(mpDefaultStaticScene);
+
     mpVBuffer->draw(pRenderContext, pTargetFbo, mpDefaultStaticScene);
 
     {
         auto [prog, var] = getShaderProgVar(mpPass);
         mpVBuffer->bindShaderData(var["gGVBuffer"]);
+        mpShadow->prepareProgram(prog, var["gGShadow"], mConfig.shadowType);
         mpDefaultStaticScene->bindRootShaderData(var);
         var["gTarget"] = mpTexture;
 
         mpPass->execute(pRenderContext, resolution.x, resolution.y);
     }
+}
+
+void GRenderer::renderUIImpl(Gui::Widgets& widget)
+{
+    enumDropdown(widget, "Shadow Type", mConfig.shadowType);
 }
 
 } // namespace GSGI

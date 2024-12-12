@@ -27,6 +27,9 @@ public:
 
     void bindShaderData(const ShaderVar& var) const;
     void renderUIImpl(Gui::Widgets& w);
+
+    float3 getDirection() const;
+    float3 getRadiance() const;
 };
 
 } // namespace GSGI

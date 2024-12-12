@@ -57,6 +57,7 @@ struct GMesh
     uint getNonOpaquePrimitiveCount() const { return firstOpaquePrimitiveID; }
 
     void reorderOpaque();
+    void updateBound();
 
     static ref<VertexLayout> createVertexLayout();
     static ResourceFormat getIndexFormat() { return ResourceFormat::R32Uint; }
@@ -86,6 +87,8 @@ struct GMesh
     {
         if (mesh.firstOpaquePrimitiveID == -1)
             mesh.reorderOpaque();
+        if (mesh.bound.empty())
+            mesh.updateBound();
         return std::make_shared<const GMesh>(std::move(mesh));
     }
 };

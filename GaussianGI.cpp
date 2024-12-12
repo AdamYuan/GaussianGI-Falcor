@@ -1,8 +1,5 @@
 #include "GaussianGI.h"
 
-#include "Scene/GMeshLoader.hpp"
-#include "Common/ShaderUtil.hpp"
-
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
 namespace GSGI
@@ -66,6 +63,9 @@ void GaussianGI::onGuiRender(Gui* pGui)
         disableSceneEdit = true;
         if (w.button("Stop Renderer"))
             mConfig.enableRender = false;
+
+        if (auto g = w.group("Renderer"))
+            mpRenderer->renderUI(g);
     }
     else
     {
