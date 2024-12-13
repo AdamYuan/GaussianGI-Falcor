@@ -34,8 +34,9 @@ void GShadow::prepareProgram(const ref<Program>& pProgram, const ShaderVar& var,
         type,
         [&]<typename EnumInfo_T>(EnumInfo_T)
         {
-            pProgram->addDefine("GSHADOW_IDENTIFIER", EnumInfo_T::kIdentifier);
-            enumTupleGet<EnumInfo_T::kValue>(mpShadows)->bindShaderData(var[EnumInfo_T::kIdentifier]);
+            const auto& shaderName = EnumInfo_T::kProperty.shaderName;
+            pProgram->addDefine("GSHADOW_IDENTIFIER", shaderName);
+            enumTupleGet<EnumInfo_T::kValue>(mpShadows)->bindShaderData(var[shaderName]);
         }
     );
 }

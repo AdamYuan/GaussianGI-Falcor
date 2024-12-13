@@ -24,10 +24,15 @@ enum class GShadowType
     kEVSM,
     GSGI_ENUM_COUNT
 };
-GSGI_ENUM_REGISTER(GShadowType::kNone, StatelessShadow, "None", "noShadow");
-GSGI_ENUM_REGISTER(GShadowType::kRayTraced, StatelessShadow, "Ray-traced", "rtShadow");
-GSGI_ENUM_REGISTER(GShadowType::kPCF, PCFShadow, "PCF", "pcfShadow");
-GSGI_ENUM_REGISTER(GShadowType::kEVSM, EVSMShadow, "EVSM", "evsmShadow");
+struct GShadowTypeProperty
+{
+    const char* shaderName;
+    int id;
+};
+GSGI_ENUM_REGISTER(GShadowType::kNone, StatelessShadow, "None", GShadowTypeProperty, .shaderName = "noShadow");
+GSGI_ENUM_REGISTER(GShadowType::kRayTraced, StatelessShadow, "Ray-traced", GShadowTypeProperty, .shaderName = "rtShadow");
+GSGI_ENUM_REGISTER(GShadowType::kPCF, PCFShadow, "PCF", GShadowTypeProperty, .shaderName = "pcfShadow");
+GSGI_ENUM_REGISTER(GShadowType::kEVSM, EVSMShadow, "EVSM", GShadowTypeProperty, .shaderName = "evsmShadow");
 
 } // namespace GSGI
 

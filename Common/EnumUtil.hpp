@@ -18,15 +18,15 @@ template<auto Enum_V>
 struct EnumInfo
 {};
 
-#define GSGI_ENUM_REGISTER(ENUM_V, TYPE, GUI_TEXT, IDENTIFIER) \
-    template<>                                                 \
-    struct EnumInfo<ENUM_V>                                    \
-    {                                                          \
-        using Enum = decltype(ENUM_V);                         \
-        static constexpr Enum kValue = ENUM_V;                 \
-        using Type = TYPE;                                     \
-        static constexpr const char* kGuiLabel = GUI_TEXT;     \
-        static constexpr const char* kIdentifier = IDENTIFIER; \
+#define GSGI_ENUM_REGISTER(ENUM_V, TYPE, LABEL, PROPERTY_T, ...) \
+    template<>                                                   \
+    struct EnumInfo<ENUM_V>                                      \
+    {                                                            \
+        using Enum = decltype(ENUM_V);                           \
+        static constexpr Enum kValue = ENUM_V;                   \
+        using Type = TYPE;                                       \
+        static constexpr const char* kLabel = LABEL;             \
+        static constexpr PROPERTY_T kProperty = {__VA_ARGS__};   \
     }
 
 template<typename Enum_T>
@@ -66,7 +66,7 @@ inline bool enumDropdown(Gui::Widgets& widget, const char label[], Enum_T& var, 
     {
         Gui::DropdownList l;
         enumForEach<Enum_T>([&]<typename EnumInfo_T>(EnumInfo_T)
-                            { l.push_back({static_cast<uint32_t>(EnumInfo_T::kValue), EnumInfo_T::kGuiLabel}); });
+                            { l.push_back({static_cast<uint32_t>(EnumInfo_T::kValue), EnumInfo_T::kLabel}); });
         return l;
     }();
     auto i = static_cast<uint32_t>(var);
