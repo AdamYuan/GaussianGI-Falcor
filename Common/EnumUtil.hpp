@@ -45,16 +45,16 @@ inline void enumForEach(auto&& func)
 template<typename Enum_T>
 inline auto enumVisit(Enum_T value, auto&& func)
 {
+    static_assert(kEnumCount<Enum_T> != 0);
     const auto visitFuncImpl = [&]<std::size_t Index>(auto&& visitFunc)
     {
-        if constexpr (Index == kEnumCount<Enum_T>)
-            FALCOR_CHECK(false, "Invalid enum value");
-        else
-        {
-            if (value == static_cast<Enum_T>(Index))
-                return func(EnumInfo<static_cast<Enum_T>(Index)>{});
+        if (value == static_cast<Enum_T>(Index))
+            return func(EnumInfo<static_cast<Enum_T>(Index)>{});
+
+        if constexpr (Index < kEnumCount<Enum_T> - 1)
             return visitFunc.template operator()<Index + 1>(visitFunc);
-        }
+        else
+            FALCOR_CHECK(false, "Invalid enum value");
     };
     return visitFuncImpl.template operator()<0>(visitFuncImpl);
 }
