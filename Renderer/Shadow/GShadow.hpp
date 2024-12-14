@@ -18,7 +18,7 @@ namespace GSGI
 class GShadow final : public GDeviceObject<GShadow>
 {
 private:
-    EnumRefTuple<GShadowType> mpShadows;
+    EnumRefTuple<GShadowType> mpShadowTuple;
     ref<GStaticScene> mpStaticScene;
     float3 mLightDirection{};
 
@@ -26,7 +26,7 @@ public:
     explicit GShadow(ref<Device> pDevice);
     ~GShadow() override = default;
 
-    void update(const ref<GStaticScene>& pStaticScene);
+    void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
     void prepareProgram(const ref<Program>& pProgram, const ShaderVar& var, GShadowType type) const;
 };
 

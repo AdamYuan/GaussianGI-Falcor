@@ -27,7 +27,6 @@ enum class GShadowType
 struct GShadowTypeProperty
 {
     const char* shaderName;
-    int id;
 };
 GSGI_ENUM_REGISTER(GShadowType::kNone, StatelessShadow, "None", GShadowTypeProperty, .shaderName = "noShadow");
 GSGI_ENUM_REGISTER(GShadowType::kRayTraced, StatelessShadow, "Ray-traced", GShadowTypeProperty, .shaderName = "rtShadow");

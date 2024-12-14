@@ -20,7 +20,7 @@ public:
     explicit EVSMShadow(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
     ~EVSMShadow() override = default;
 
-    void update(bool sceneOrLightChanged, const ref<GStaticScene>& pStaticScene) {}
+    void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
     void bindShaderData(const ShaderVar& var) const {}
 };
 
