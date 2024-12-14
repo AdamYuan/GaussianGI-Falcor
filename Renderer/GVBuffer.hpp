@@ -26,6 +26,7 @@ private:
 public:
     explicit GVBuffer(ref<Device> pDevice);
 
+    uint2 getResolution() const;
     const auto& getAlbedoTexture() const { return mpAlbedoTexture; }
     const auto& getPrimitiveTexture() const { return mpHitTexture; }
 

@@ -45,6 +45,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/Shadow/GShadow.cpp
         Renderer/Shadow/GShadow.slang
         Renderer/Shadow/GShadowType.hpp
+        Renderer/Shadow/StatelessShadow.hpp
 
         Renderer/Shadow/RT/RTShadow.slang
 
@@ -53,6 +54,12 @@ target_sources(GaussianGI PRIVATE
 
         Renderer/Shadow/EVSM/EVSMShadow.hpp
         Renderer/Shadow/EVSM/EVSMShadow.cpp
+
+        Renderer/IndLight/GIndLight.hpp
+        Renderer/IndLight/GIndLight.cpp
+        Renderer/IndLight/GIndLightArgs.hpp
+        Renderer/IndLight/GIndLightType.hpp
+        Renderer/IndLight/NoIndLight.hpp
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 

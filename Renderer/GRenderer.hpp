@@ -11,6 +11,7 @@
 #include "../Scene/GStaticScene.hpp"
 #include "GVBuffer.hpp"
 #include "Shadow/GShadow.hpp"
+#include "IndLight/GIndLight.hpp"
 
 using namespace Falcor;
 
@@ -22,22 +23,25 @@ class GRenderer final : public GSceneObject<GRenderer>
 private:
     ref<GStaticScene> mpDefaultStaticScene;
     ref<GShadow> mpShadow;
+    ref<GIndLight> mpIndirectLight;
 
     ref<GVBuffer> mpVBuffer;
 
     ref<ComputePass> mpPass;
-    ref<Texture> mpTexture;
+    ref<Texture> mpTargetTexture, mpIndLightTexture;
 
     struct
     {
-        GShadowType shadowType = GShadowType::kNone;
+        GShadowType directShadowType = GShadowType::kRayTraced;
+        GShadowType indirectShadowType = GShadowType::kRayTraced;
+        GIndLightType indirectLightType = GIndLightType::kNone;
     } mConfig = {};
 
 public:
     explicit GRenderer(const ref<GScene>& pScene);
     ~GRenderer() override = default;
 
-    const auto& getTexture() const { return mpTexture; }
+    const auto& getTexture() const { return mpTargetTexture; }
 
     void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
     void renderUIImpl(Gui::Widgets& widget);

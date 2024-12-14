@@ -4,9 +4,10 @@ import GaussianGI.Scene.GStaticScene;
 import GVBuffer;
 import Shadow.GShadow;
 
-GVBuffer gGVBuffer;
-GShadow gGShadow;
+uniform GVBuffer gGVBuffer;
+uniform GShadow gGShadow;
 RWTexture2D<unorm float4> gTarget;
+Texture2D<float4> gIndLight;
 
 #define GROUP_DIM 8
 
@@ -30,8 +31,9 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 
     float3 brdf = gGVBuffer.LoadAlbedo(threadID) * M_1_PI;
     float shadow = gGShadow.evaluate(gGStaticScene, hitPoint);
-    float3 irradiance = gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal, shadow);
-    float3 radiance = brdf * irradiance;
+    float3 direct = brdf * gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal, shadow);
+    float3 indirect = gIndLight.Load(int3(threadID, 0)).rgb;
+    float3 radiance = direct + indirect;
 
     gTarget[threadID] = float4(radiance, 1);
     // gTarget[threadID] = float4(hitPoint.normal * 0.5 + 0.5, 1);

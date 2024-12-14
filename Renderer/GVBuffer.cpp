@@ -16,6 +16,11 @@ GVBuffer::GVBuffer(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
     mpRasterPass = RasterPass::create(getDevice(), rasterDesc);
 }
 
+uint2 GVBuffer::getResolution() const
+{
+    return getTextureResolution2(mpAlbedoTexture);
+}
+
 void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene)
 {
     uint2 resolution = getTextureResolution2(pScreenFbo);
