@@ -59,7 +59,7 @@ float4 psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
         discard;
 
     float3 brdf = texColor.rgb * M_1_PI;
-    float3 radiance = brdf * gGScene.lighting.evaluateIrradiance(normal);
+    float3 radiance = brdf * gGScene.lighting.evaluateSunIrradiance(normal);
 
     return float4(radiance, 1);
 }

@@ -49,7 +49,10 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 
         hitInfo = gGStaticScene.traceClosestHit(ray, true);
         if (!hitInfo.isHit)
+        {
+            indLight += accumulate * gGStaticScene.lighting.skyRadiance;
             break;
+        }
 
         hitPoint = gGStaticScene.getHitPoint(hitInfo);
         float3 albedo = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0).rgb;
@@ -57,7 +60,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         // outgoing radiance from light = (albedo / M_PI) * (n \dot w_l) * L_l * Vis
         accumulate *= albedo; // (albedo / M_PI) * L_i * (n \dot w_i) / ((n \dot w_i) / M_PI)
         indLight +=
-            accumulate * M_1_PI * gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene, hitPoint));
+            accumulate * M_1_PI * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene, hitPoint));
     }
 
     float3 prevIndLight = gIndLight[threadID].rgb;

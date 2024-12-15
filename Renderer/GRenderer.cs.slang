@@ -23,7 +23,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     var hitInfo = gGVBuffer.LoadHitInfo(threadID);
     if (!hitInfo.isHit)
     {
-        gTarget[threadID] = float4(gGStaticScene.lighting.radiance, 1);
+        gTarget[threadID] = float4(gGStaticScene.lighting.skyRadiance, 1);
         return;
     }
 
@@ -32,7 +32,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     float3 albedo = gGVBuffer.LoadAlbedo(threadID);
     float3 brdf = albedo * M_1_PI;
     float shadow = gGShadow.evaluate(gGStaticScene, hitPoint);
-    float3 direct = brdf * gGStaticScene.lighting.evaluateIrradiance(hitPoint.normal, shadow);
+    float3 direct = brdf * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, shadow);
     float3 indirect = albedo * gIndLight.Load(int3(threadID, 0)).rgb;
     float3 radiance = direct + indirect;
 
