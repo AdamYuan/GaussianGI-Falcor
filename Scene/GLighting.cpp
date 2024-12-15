@@ -7,19 +7,18 @@
 namespace GSGI
 {
 
-float3 GLighting::getDirection() const
+void GLighting::beginFrame()
 {
-    return math::normalize(float3(mDirectionXZ[0], 1.0f, mDirectionXZ[1]));
-}
-float3 GLighting::getRadiance() const
-{
-    return mColor * mIntensity;
+    mData = {
+        .radiance = mColor * mIntensity,
+        .direction = math::normalize(float3(mDirectionXZ[0], 1.0f, mDirectionXZ[1])),
+    };
 }
 
 void GLighting::bindShaderData(const ShaderVar& var) const
 {
-    var["radiance"] = getRadiance();
-    var["direction"] = getDirection();
+    var["radiance"] = mData.radiance;
+    var["direction"] = mData.direction;
 }
 
 void GLighting::renderUIImpl(Gui::Widgets& w)

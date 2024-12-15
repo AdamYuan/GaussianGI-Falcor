@@ -21,9 +21,10 @@ private:
 
 public:
     explicit NoIndLight(const ref<Device>&) {}
-    void update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
+    void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
     {
-        mpStaticScene = pDefaultStaticScene;
+        if (isActive)
+            mpStaticScene = pDefaultStaticScene;
     }
     const auto& getStaticScene() const { return mpStaticScene; }
     static void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)

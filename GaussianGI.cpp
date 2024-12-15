@@ -38,6 +38,7 @@ void GaussianGI::onFrameRender(RenderContext* pRenderContext, const ref<Fbo>& pT
 {
     mpCameraController->update();
     mpScene->getCamera()->beginFrame();
+    mpScene->getLighting()->beginFrame();
     mpScene->update();
 
     if (mConfig.enableRender)

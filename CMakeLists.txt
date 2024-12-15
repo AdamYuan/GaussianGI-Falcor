@@ -60,6 +60,10 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GIndLightArgs.hpp
         Renderer/IndLight/GIndLightType.hpp
         Renderer/IndLight/NoIndLight.hpp
+
+        Renderer/IndLight/PathTraced/PTIndLight.hpp
+        Renderer/IndLight/PathTraced/PTIndLight.cpp
+        Renderer/IndLight/PathTraced/PTIndLight.cs.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 

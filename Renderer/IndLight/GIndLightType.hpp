@@ -8,6 +8,7 @@
 #include <Falcor.h>
 #include "../../Common/EnumUtil.hpp"
 #include "NoIndLight.hpp"
+#include "PathTraced/PTIndLight.hpp"
 
 using namespace Falcor;
 
@@ -27,7 +28,7 @@ struct GIndLightTypeProperty
 {};
 
 GSGI_ENUM_REGISTER(GIndLightType::kNone, NoIndLight, "None", GIndLightTypeProperty);
-GSGI_ENUM_REGISTER(GIndLightType::kPathTraced, NoIndLight, "Path-traced", GIndLightTypeProperty);
+GSGI_ENUM_REGISTER(GIndLightType::kPathTraced, PTIndLight, "Path-traced", GIndLightTypeProperty);
 GSGI_ENUM_REGISTER(GIndLightType::k3DGS, NoIndLight, "3DGS", GIndLightTypeProperty);
 GSGI_ENUM_REGISTER(GIndLightType::kDDGI, NoIndLight, "DDGI", GIndLightTypeProperty);
 

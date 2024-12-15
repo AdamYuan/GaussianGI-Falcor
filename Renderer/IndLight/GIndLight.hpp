@@ -23,7 +23,7 @@ private:
 
 public:
     explicit GIndLight(ref<Device> pDevice);
-    void update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);
+    void update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene, GIndLightType type);
     ref<GStaticScene> getStaticScene(GIndLightType type) const;
     void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type);
 };

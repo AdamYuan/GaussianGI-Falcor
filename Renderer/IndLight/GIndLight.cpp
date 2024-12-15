@@ -13,11 +13,14 @@ GIndLight::GIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
                                { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple) = make_ref<typename EnumInfo_T::Type>(getDevice()); });
 }
 
-void GIndLight::update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
+void GIndLight::update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene, GIndLightType type)
 {
     enumForEach<GIndLightType>(
         [&]<typename EnumInfo_T>(EnumInfo_T)
-        { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->update(pRenderContext, isSceneChanged, pDefaultStaticScene); }
+        {
+            bool isActive = type == EnumInfo_T::kValue;
+            enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->update(pRenderContext, isActive, isSceneChanged, pDefaultStaticScene);
+        }
     );
 }
 

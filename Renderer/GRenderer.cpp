@@ -49,7 +49,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
             return getDevice()->createTexture2D(
                 width,
                 height,
-                ResourceFormat::RGBA16Float,
+                ResourceFormat::RGBA32Float,
                 1,
                 1,
                 nullptr,
@@ -68,7 +68,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
 
-    mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene);
+    mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene, mConfig.indirectLightType);
 
     // mpIndirectLight might alter meshes (or sth.) in mpDefaultStaticScene, and we need to use the altered GStaticScene
     ref<GStaticScene> pStaticScene = mpIndirectLight->getStaticScene(mConfig.indirectLightType);

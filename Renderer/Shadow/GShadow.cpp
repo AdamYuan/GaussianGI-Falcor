@@ -18,7 +18,7 @@ void GShadow::update(RenderContext* pRenderContext, const ref<GStaticScene>& pSt
     bool isStaticSceneChanged, isLightChanged;
 
     {
-        float3 lightDir = pStaticScene->getScene()->getLighting()->getDirection();
+        float3 lightDir = pStaticScene->getScene()->getLighting()->getData().direction;
         isLightChanged = math::any(lightDir != mLightDirection);
         isStaticSceneChanged = pStaticScene != mpStaticScene;
         mpStaticScene = pStaticScene;
