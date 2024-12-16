@@ -4,7 +4,7 @@
 
 #include "GMeshLoader.hpp"
 
-#include "../Common/TextureUtil.hpp"
+#include "../Util/TextureUtil.hpp"
 #include <unordered_map>
 #include <Utils/Timing/TimeReport.h>
 #include <assimp/Importer.hpp>

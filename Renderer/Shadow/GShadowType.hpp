@@ -6,7 +6,7 @@
 #define GSGI_GSHADOWTYPE_HPP
 
 #include <Falcor.h>
-#include "../../Common/EnumUtil.hpp"
+#include "../../Util/EnumUtil.hpp"
 #include "StatelessShadow.hpp"
 #include "PCF/PCFShadow.hpp"
 #include "EVSM/EVSMShadow.hpp"

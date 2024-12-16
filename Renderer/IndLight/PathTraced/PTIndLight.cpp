@@ -4,7 +4,7 @@
 
 #include "PTIndLight.hpp"
 
-#include "../../../Common/ShaderUtil.hpp"
+#include "../../../Util/ShaderUtil.hpp"
 
 namespace GSGI
 {

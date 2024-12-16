@@ -4,7 +4,7 @@
 
 #include "GVBuffer.hpp"
 
-#include "../Common/TextureUtil.hpp"
+#include "../Util/TextureUtil.hpp"
 
 namespace GSGI
 {

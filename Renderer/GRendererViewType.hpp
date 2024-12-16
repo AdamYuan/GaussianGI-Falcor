@@ -6,7 +6,7 @@
 #define GSGI_GRENDERERVIEWTYPE_HPP
 
 #include <Falcor.h>
-#include "../Common/EnumUtil.hpp"
+#include "../Util/EnumUtil.hpp"
 
 using namespace Falcor;
 

@@ -3,7 +3,7 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Scene.GMesh;
-import GaussianGI.Common.ShaderUtil;
+import GaussianGI.Util.ShaderUtil;
 import GVBuffer;
 
 struct GSIn

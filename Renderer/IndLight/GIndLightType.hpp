@@ -6,7 +6,7 @@
 #define GSGI_GINDIRECTTYPE_HPP
 
 #include <Falcor.h>
-#include "../../Common/EnumUtil.hpp"
+#include "../../Util/EnumUtil.hpp"
 #include "NoIndLight.hpp"
 #include "PathTraced/PTIndLight.hpp"
 

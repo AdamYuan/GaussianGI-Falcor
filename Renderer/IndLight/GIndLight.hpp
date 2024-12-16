@@ -6,7 +6,7 @@
 #define GSGI_GIRRADIANCE_HPP
 
 #include <Falcor.h>
-#include "../../Common/EnumUtil.hpp"
+#include "../../Util/EnumUtil.hpp"
 #include "../../Common/GDeviceObject.hpp"
 #include "GIndLightType.hpp"
 #include "GIndLightArgs.hpp"

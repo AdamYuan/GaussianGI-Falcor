@@ -4,8 +4,8 @@
 
 #include "GRenderer.hpp"
 
-#include "../Common/TextureUtil.hpp"
-#include "../Common/ShaderUtil.hpp"
+#include "../Util/TextureUtil.hpp"
+#include "../Util/ShaderUtil.hpp"
 
 namespace GSGI
 {

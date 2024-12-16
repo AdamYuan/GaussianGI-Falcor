@@ -6,10 +6,11 @@ target_sources(GaussianGI PRIVATE
         GaussianGI.h
 
         Common/GDeviceObject.hpp
-        Common/ShaderUtil.hpp
-        Common/ShaderUtil.slang
-        Common/TextureUtil.hpp
-        Common/EnumUtil.hpp
+
+        Util/ShaderUtil.hpp
+        Util/ShaderUtil.slang
+        Util/TextureUtil.hpp
+        Util/EnumUtil.hpp
 
         Scene/GBound.hpp
         Scene/GScene.hpp
