@@ -95,6 +95,9 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         pStaticScene->bindRootShaderData(var);
         var["gTarget"] = mpTargetTexture;
         var["gIndLight"] = mpIndLightTexture;
+        enumVisit(
+            mConfig.viewType, [&]<typename EnumInfo_T>(EnumInfo_T) { prog->addDefine("TARGET_VAR_NAME", EnumInfo_T::kProperty.varName); }
+        );
 
         mpPass->execute(pRenderContext, resolution.x, resolution.y);
     }
@@ -102,6 +105,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
 
 void GRenderer::renderUIImpl(Gui::Widgets& widget)
 {
+    enumDropdown(widget, "View Type", mConfig.viewType);
     enumDropdown(widget, "Shadow Type (Direct)", mConfig.directShadowType);
     enumDropdown(widget, "Shadow Type (Indirect)", mConfig.indirectShadowType);
     enumDropdown(widget, "Indirect Light Type", mConfig.indirectLightType);

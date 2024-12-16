@@ -36,6 +36,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/GRenderer.hpp
         Renderer/GRenderer.cpp
         Renderer/GRenderer.cs.slang
+        Renderer/GRendererViewType.hpp
         Renderer/GVBuffer.hpp
         Renderer/GVBuffer.cpp
         Renderer/GVBuffer.slang

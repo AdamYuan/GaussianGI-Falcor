@@ -9,6 +9,7 @@
 #include <Falcor.h>
 #include "../Scene/GSceneObject.hpp"
 #include "../Scene/GStaticScene.hpp"
+#include "GRendererViewType.hpp"
 #include "GVBuffer.hpp"
 #include "Shadow/GShadow.hpp"
 #include "IndLight/GIndLight.hpp"
@@ -32,6 +33,7 @@ private:
 
     struct
     {
+        GRendererViewType viewType = GRendererViewType::kRadiance;
         GShadowType directShadowType = GShadowType::kRayTraced;
         GShadowType indirectShadowType = GShadowType::kRayTraced;
         GIndLightType indirectLightType = GIndLightType::kNone;
