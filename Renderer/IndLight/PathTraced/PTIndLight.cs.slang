@@ -49,10 +49,9 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         ray.tMax = FLT_MAX;
         ray.dir = alignDirection(hitPoint.normal, sample_cosine_hemisphere_concentric(sampleNext2D(sampleGen), pdf));
         if (dot(ray.dir, hitPoint.geomNormal) < 0)
-        {
-            // n_dot_wi = 0 if ray.dir is flipped
             break;
-        }
+
+        // float n_dot_wi = max(0, dot(hitPoint.normal, ray.dir));
 
         hitInfo = gGStaticScene.traceClosestHit(ray, true);
         if (!hitInfo.isHit)
@@ -65,11 +64,10 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         hitPoint = gGStaticScene.getHitPoint(hitInfo);
         float3 albedo = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0).rgb;
 
-        // float3 brdf = albedo * M_1_PI;
-        // indLight +=
-        //     accumulate * brdf * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene,
-        //     hitPoint));
-        // accumulate *= brdf * n_dot_wi / pdf;
+        /* accumulate *= albedo * M_1_PI * n_dot_wi / pdf;
+        indLight +=
+            accumulate * M_1_PI * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene, hitPoint));
+        */
 
         accumulate *= albedo;
         indLight +=
@@ -78,6 +76,9 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         if (all(accumulate == 0))
             break;
     }
+
+    if (any(isnan(indLight)) || any(isinf(indLight)))
+        indLight = float3(0, 0, 0);
 
     float3 prevIndLight = gIndLight[threadID].rgb;
     indLight = (prevIndLight * gSPP + indLight) / float(gSPP + 1);
