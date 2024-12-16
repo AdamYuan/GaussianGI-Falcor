@@ -47,11 +47,17 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         ray.origin = hitPoint.getRayOrigin();
         ray.tMin = 0;
         ray.tMax = FLT_MAX;
-        ray.dir = alignDirection(hitPoint.geomNormal, sample_cosine_hemisphere_concentric(sampleNext2D(sampleGen), pdf));
+        ray.dir = alignDirection(hitPoint.normal, sample_cosine_hemisphere_concentric(sampleNext2D(sampleGen), pdf));
+        if (dot(ray.dir, hitPoint.geomNormal) < 0)
+        {
+            // n_dot_wi = 0 if ray.dir is flipped
+            break;
+        }
 
         hitInfo = gGStaticScene.traceClosestHit(ray, true);
         if (!hitInfo.isHit)
         {
+            // indLight += accumulate * M_1_PI * n_dot_wi * gGStaticScene.lighting.skyRadiance / pdf;
             indLight += accumulate * gGStaticScene.lighting.skyRadiance;
             break;
         }
@@ -59,12 +65,15 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         hitPoint = gGStaticScene.getHitPoint(hitInfo);
         float3 albedo = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0).rgb;
 
-        float3 brdf = albedo * M_1_PI;
-        float n_dot_wi = max(0, dot(hitPoint.normal, ray.dir)); // Use shading normal for n \dot w_i
+        // float3 brdf = albedo * M_1_PI;
+        // indLight +=
+        //     accumulate * brdf * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene,
+        //     hitPoint));
+        // accumulate *= brdf * n_dot_wi / pdf;
 
+        accumulate *= albedo;
         indLight +=
-            accumulate * brdf * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene, hitPoint));
-        accumulate *= brdf * n_dot_wi / pdf;
+            accumulate * M_1_PI * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, gGShadow.evaluate(gGStaticScene, hitPoint));
 
         if (all(accumulate == 0))
             break;
