@@ -12,6 +12,9 @@ target_sources(GaussianGI PRIVATE
         Util/TextureUtil.hpp
         Util/EnumUtil.hpp
 
+        Algorithm/AliasTable.hpp
+        Algorithm/AliasTable.cpp
+
         Scene/GBound.hpp
         Scene/GScene.hpp
         Scene/GScene.cpp
