@@ -27,11 +27,12 @@ void PTIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSce
 
 void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
 {
-    if (bool isCameraChanged = mpStaticScene->getScene()->getCamera()->getChanges() != Camera::Changes::None,
+    if (bool isCameraChanged = mpStaticScene->getScene()->getCamera()->getData().viewProjMat != mViewProjMat,
         isLightingChanged = mpStaticScene->getScene()->getLighting()->getData() != mLightingData,
         isResolutionChanged = math::any(args.pVBuffer->getResolution() != mResolution);
         isCameraChanged || isLightingChanged || isResolutionChanged)
     {
+        mViewProjMat = mpStaticScene->getScene()->getCamera()->getData().viewProjMat;
         mLightingData = mpStaticScene->getScene()->getLighting()->getData();
         mResolution = args.pVBuffer->getResolution();
         mSPP = 0;

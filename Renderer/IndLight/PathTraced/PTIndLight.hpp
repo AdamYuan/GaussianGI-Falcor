@@ -20,9 +20,13 @@ class PTIndLight final : public GDeviceObject<PTIndLight>
 private:
     ref<ComputePass> mpPass;
     ref<GStaticScene> mpStaticScene;
-    GLightingData mLightingData{};
-    uint2 mResolution{};
+
     uint32_t mSPP = 0;
+
+    // Detect changes
+    GLightingData mLightingData{};
+    float4x4 mViewProjMat{};
+    uint2 mResolution{};
 
 public:
     explicit PTIndLight(ref<Device> pDevice);
