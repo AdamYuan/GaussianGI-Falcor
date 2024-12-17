@@ -45,6 +45,14 @@ void GIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& arg
     );
 }
 
+void GIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, GIndLightType type)
+{
+    enumVisit(
+        type,
+        [&]<typename EnumInfo_T>(EnumInfo_T) { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->drawMisc(pRenderContext, pTargetFbo); }
+    );
+}
+
 void GIndLight::renderUIImpl(Gui::Widgets& widget, const EnumBitset<GIndLightType>& activeTypes)
 {
     enumForEach<GIndLightType>(

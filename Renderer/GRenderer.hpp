@@ -34,6 +34,7 @@ private:
     struct
     {
         GRendererViewType viewType = GRendererViewType::kRadiance;
+        bool drawMisc = false;
         GShadowType directShadowType = GShadowType::kRayTraced;
         GShadowType indirectShadowType = GShadowType::kRayTraced;
         GIndLightType indirectLightType = GIndLightType::kNone;
@@ -42,8 +43,6 @@ private:
 public:
     explicit GRenderer(const ref<GScene>& pScene);
     ~GRenderer() override = default;
-
-    const auto& getTexture() const { return mpTargetTexture; }
 
     void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
     void renderUIImpl(Gui::Widgets& widget);

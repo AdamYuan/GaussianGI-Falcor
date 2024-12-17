@@ -31,6 +31,10 @@ public:
     {
         pRenderContext->clearTexture(pIndirectTexture.get(), float4{0});
     }
+    static void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
+    {
+        pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
+    }
     static void renderUI(Gui::Widgets&) {}
 };
 

@@ -88,6 +88,11 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         mConfig.indirectLightType
     );
 
+    if (mConfig.drawMisc)
+    {
+        mpIndirectLight->drawMisc(pRenderContext, pTargetFbo, mConfig.indirectLightType);
+    }
+    else
     {
         auto [prog, var] = getShaderProgVar(mpPass);
         mpVBuffer->bindShaderData(var["gGVBuffer"]);
@@ -100,12 +105,17 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         );
 
         mpPass->execute(pRenderContext, resolution.x, resolution.y);
+
+        pRenderContext->blit(mpTargetTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     }
 }
 
 void GRenderer::renderUIImpl(Gui::Widgets& widget)
 {
+    ImGui::BeginDisabled(mConfig.drawMisc);
     enumDropdown(widget, "View Type", mConfig.viewType);
+    ImGui::EndDisabled();
+    widget.checkbox("Draw IndLight Misc", mConfig.drawMisc);
     widget.separator();
     enumDropdown(widget, "Shadow Type (Direct)", mConfig.directShadowType);
     enumDropdown(widget, "Shadow Type (Indirect)", mConfig.indirectShadowType);

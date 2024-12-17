@@ -31,6 +31,7 @@ public:
     );
     ref<GStaticScene> getStaticScene(GIndLightType type) const;
     void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type);
+    void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, GIndLightType type);
     void renderUIImpl(Gui::Widgets& widget, const EnumBitset<GIndLightType>& activeTypes);
 };
 

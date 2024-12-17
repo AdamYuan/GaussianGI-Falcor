@@ -38,6 +38,10 @@ public:
     void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);
     const auto& getStaticScene() const { return mpStaticScene; }
     void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
+    static void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
+    {
+        pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
+    }
     void renderUIImpl(Gui::Widgets& widget);
 };
 
