@@ -41,6 +41,7 @@ void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& ar
     auto [prog, var] = getShaderProgVar(mpPass);
     var["gIndLight"] = pIndirectTexture;
     var["gSPP"] = mSPP;
+    var["gMaxBounce"] = mConfig.maxBounce;
     mpStaticScene->bindRootShaderData(var);
     args.pVBuffer->bindShaderData(var["gGVBuffer"]);
     args.pShadow->prepareProgram(prog, var["gGShadow"], args.shadowType);
@@ -53,6 +54,8 @@ void PTIndLight::renderUIImpl(Gui::Widgets& widget)
 {
     widget.text(fmt::format("SPP: {}", mSPP));
     if (widget.button("Reset SPP"))
+        mSPP = 0;
+    if (widget.var("Max Bounce", mConfig.maxBounce, 1u, 16u))
         mSPP = 0;
 }
 

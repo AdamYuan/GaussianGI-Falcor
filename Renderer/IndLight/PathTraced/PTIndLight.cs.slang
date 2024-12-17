@@ -6,10 +6,7 @@ import GaussianGI.Renderer.Shadow.GShadow;
 import Utils.Sampling.TinyUniformSampleGenerator;
 import Utils.Math.MathHelpers;
 
-#ifndef MAX_BOUNCE
-#define MAX_BOUNCE 5
-#endif
-
+uniform uint gMaxBounce;
 uniform uint gSPP;
 uniform GVBuffer gGVBuffer;
 uniform GShadow gGShadow;
@@ -39,7 +36,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 
     float3 accumulate = float3(1, 1, 1);
     float3 indLight = float3(0, 0, 0);
-    for (uint bounce = 0; bounce < MAX_BOUNCE; ++bounce)
+    for (uint bounce = 0; bounce < gMaxBounce; ++bounce)
     {
         float pdf;
 

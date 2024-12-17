@@ -23,6 +23,11 @@ private:
 
     uint32_t mSPP = 0;
 
+    struct
+    {
+        uint32_t maxBounce = 5;
+    } mConfig = {};
+
     // Detect changes
     GLightingData mLightingData{};
     float4x4 mViewProjMat{};
