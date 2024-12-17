@@ -69,6 +69,10 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/PathTraced/PTIndLight.hpp
         Renderer/IndLight/PathTraced/PTIndLight.cpp
         Renderer/IndLight/PathTraced/PTIndLight.cs.slang
+
+        Renderer/IndLight/3DGS/GS3DIndLight.hpp
+        Renderer/IndLight/3DGS/GS3DIndLight.cpp
+        Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 
