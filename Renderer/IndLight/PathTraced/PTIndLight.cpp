@@ -49,4 +49,11 @@ void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& ar
     ++mSPP;
 }
 
+void PTIndLight::renderUIImpl(Gui::Widgets& widget)
+{
+    widget.text(fmt::format("SPP: {}", mSPP));
+    if (widget.button("Reset SPP"))
+        mSPP = 0;
+}
+
 } // namespace GSGI

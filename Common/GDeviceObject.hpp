@@ -25,10 +25,11 @@ public:
 
     const ref<Device>& getDevice() const { return mpDevice; }
 
-    void renderUI(Gui::Widgets& widget)
+    template<typename... Args>
+    void renderUI(Gui::Widgets& widget, Args&&... args)
     {
         ImGui::PushID(this);
-        static_cast<Derived_T*>(this)->renderUIImpl(widget);
+        static_cast<Derived_T*>(this)->renderUIImpl(widget, std::forward<Args>(args)...);
         ImGui::PopID();
     }
 };

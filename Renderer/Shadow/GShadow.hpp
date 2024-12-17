@@ -28,6 +28,8 @@ public:
 
     void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
     void prepareProgram(const ref<Program>& pProgram, const ShaderVar& var, GShadowType type) const;
+
+    void renderUIImpl(Gui::Widgets& widget, const EnumBitset<GShadowType>& activeTypes);
 };
 
 } // namespace GSGI

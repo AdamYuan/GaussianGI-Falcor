@@ -23,9 +23,15 @@ private:
 
 public:
     explicit GIndLight(ref<Device> pDevice);
-    void update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene, GIndLightType type);
+    void update(
+        RenderContext* pRenderContext,
+        bool isSceneChanged,
+        const ref<GStaticScene>& pDefaultStaticScene,
+        const EnumBitset<GIndLightType>& activeTypes
+    );
     ref<GStaticScene> getStaticScene(GIndLightType type) const;
     void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type);
+    void renderUIImpl(Gui::Widgets& widget, const EnumBitset<GIndLightType>& activeTypes);
 };
 
 } // namespace GSGI

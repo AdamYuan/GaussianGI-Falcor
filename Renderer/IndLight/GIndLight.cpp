@@ -13,12 +13,17 @@ GIndLight::GIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
                                { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple) = make_ref<typename EnumInfo_T::Type>(getDevice()); });
 }
 
-void GIndLight::update(RenderContext* pRenderContext, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene, GIndLightType type)
+void GIndLight::update(
+    RenderContext* pRenderContext,
+    bool isSceneChanged,
+    const ref<GStaticScene>& pDefaultStaticScene,
+    const EnumBitset<GIndLightType>& activeTypes
+)
 {
     enumForEach<GIndLightType>(
         [&]<typename EnumInfo_T>(EnumInfo_T)
         {
-            bool isActive = type == EnumInfo_T::kValue;
+            bool isActive = enumBitsetTest(activeTypes, EnumInfo_T::kValue);
             enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->update(pRenderContext, isActive, isSceneChanged, pDefaultStaticScene);
         }
     );
@@ -37,6 +42,20 @@ void GIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& arg
         type,
         [&]<typename EnumInfo_T>(EnumInfo_T)
         { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->draw(pRenderContext, args, pIndirectTexture); }
+    );
+}
+
+void GIndLight::renderUIImpl(Gui::Widgets& widget, const EnumBitset<GIndLightType>& activeTypes)
+{
+    enumForEach<GIndLightType>(
+        [&]<typename EnumInfo_T>(EnumInfo_T)
+        {
+            if (enumBitsetTest(activeTypes, EnumInfo_T::kValue))
+            {
+                if (auto g = widget.group(EnumInfo_T::kLabel, true))
+                    enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->renderUI(g);
+            }
+        }
     );
 }
 

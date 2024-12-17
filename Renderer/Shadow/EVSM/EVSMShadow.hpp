@@ -14,7 +14,7 @@ using namespace Falcor;
 namespace GSGI
 {
 
-class EVSMShadow final : GDeviceObject<EVSMShadow>
+class EVSMShadow final : public GDeviceObject<EVSMShadow>
 {
 public:
     explicit EVSMShadow(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
@@ -22,6 +22,7 @@ public:
 
     void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
     void bindShaderData(const ShaderVar& var) const {}
+    void renderUIImpl(Gui::Widgets& widget) {}
 };
 
 } // namespace GSGI

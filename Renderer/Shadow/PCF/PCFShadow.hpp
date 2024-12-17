@@ -14,7 +14,7 @@ using namespace Falcor;
 namespace GSGI
 {
 
-class PCFShadow final : GDeviceObject<PCFShadow>
+class PCFShadow final : public GDeviceObject<PCFShadow>
 {
 public:
     explicit PCFShadow(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
@@ -22,6 +22,7 @@ public:
 
     void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
     void bindShaderData(const ShaderVar& var) const {}
+    void renderUIImpl(Gui::Widgets& widget) {}
 };
 
 } // namespace GSGI

@@ -68,7 +68,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         logInfo("updateHasInstance {}", getScene()->getVersion());
     }
 
-    mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene, mConfig.indirectLightType);
+    mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene, enumBitsetMake(mConfig.indirectLightType));
 
     // mpIndirectLight might alter meshes (or sth.) in mpDefaultStaticScene, and we need to use the altered GStaticScene
     ref<GStaticScene> pStaticScene = mpIndirectLight->getStaticScene(mConfig.indirectLightType);
@@ -106,9 +106,15 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
 void GRenderer::renderUIImpl(Gui::Widgets& widget)
 {
     enumDropdown(widget, "View Type", mConfig.viewType);
+    widget.separator();
     enumDropdown(widget, "Shadow Type (Direct)", mConfig.directShadowType);
     enumDropdown(widget, "Shadow Type (Indirect)", mConfig.indirectShadowType);
+    if (auto g = widget.group("Shadows", true))
+        mpShadow->renderUI(g, enumBitsetMake(mConfig.directShadowType, mConfig.indirectShadowType));
+    widget.separator();
     enumDropdown(widget, "Indirect Light Type", mConfig.indirectLightType);
+    if (auto g = widget.group("Indirect Lights", true))
+        mpIndirectLight->renderUI(g, enumBitsetMake(mConfig.indirectLightType));
 }
 
 } // namespace GSGI

@@ -44,4 +44,18 @@ void GShadow::prepareProgram(const ref<Program>& pProgram, const ShaderVar& var,
     );
 }
 
+void GShadow::renderUIImpl(Gui::Widgets& widget, const EnumBitset<GShadowType>& activeTypes)
+{
+    enumForEach<GShadowType>(
+        [&]<typename EnumInfo_T>(EnumInfo_T)
+        {
+            if (enumBitsetTest(activeTypes, EnumInfo_T::kValue))
+            {
+                if (auto g = widget.group(EnumInfo_T::kLabel, true))
+                    enumTupleGet<EnumInfo_T::kValue>(mpShadowTuple)->renderUI(g);
+            }
+        }
+    );
+}
+
 } // namespace GSGI

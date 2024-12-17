@@ -21,6 +21,7 @@ public:
 
     void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
     void bindShaderData(const ShaderVar& var) const {}
+    static void renderUI(Gui::Widgets&) {}
 };
 
 } // namespace GSGI

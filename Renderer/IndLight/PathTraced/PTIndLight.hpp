@@ -33,6 +33,7 @@ public:
     void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);
     const auto& getStaticScene() const { return mpStaticScene; }
     void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
+    void renderUIImpl(Gui::Widgets& widget);
 };
 
 } // namespace GSGI

@@ -108,6 +108,31 @@ inline auto& enumTupleGet(std::tuple<Tuple_Ts...>& t)
     return std::get<static_cast<std::size_t>(Enum_V)>(t);
 }
 
+// Enum Bitset
+template<typename Enum_T>
+using EnumBitset = std::bitset<kEnumCount<Enum_T>>;
+
+template<typename Enum_T>
+inline void enumBitsetSet(EnumBitset<Enum_T>& bitset, Enum_T key, bool bit = true)
+{
+    bitset.set(static_cast<std::size_t>(key), bit);
+}
+
+template<typename Enum_T>
+inline bool enumBitsetTest(const EnumBitset<Enum_T>& bitset, Enum_T key)
+{
+    return bitset.test(static_cast<std::size_t>(key));
+}
+
+template<typename Enum_T, typename... Args>
+inline EnumBitset<Enum_T> enumBitsetMake(Enum_T firstKey, Args... otherKeys)
+{
+    EnumBitset<Enum_T> bitset{};
+    enumBitsetSet(bitset, firstKey);
+    (enumBitsetSet<Enum_T>(bitset, otherKeys), ...);
+    return bitset;
+}
+
 } // namespace GSGI
 
 #endif // GSGI_ENUMUTIL_HPP

@@ -31,6 +31,7 @@ public:
     {
         pRenderContext->clearTexture(pIndirectTexture.get(), float4{0});
     }
+    static void renderUI(Gui::Widgets&) {}
 };
 
 } // namespace GSGI
