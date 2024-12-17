@@ -9,32 +9,33 @@
 namespace GSGI
 {
 
-void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
+void GStaticScene::import(std::vector<GMesh::Ptr>&& pMeshes)
 {
     FALCOR_CHECK(mpScene->getMeshEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getMeshEntries()");
+
+    mpMeshes = std::move(pMeshes);
 
     std::vector<GMesh::Vertex> vertices;
     std::vector<GMesh::Index> indices;
     std::vector<GMesh::TextureID> textureIDs;
-    std::vector<MeshInfo> meshInfos;
-    std::vector<InstanceInfo> instanceInfos;
     std::vector<gfx::IndirectDrawIndexedArguments> drawCommands;
 
     mpTextures.clear();
-    mMeshViews.clear();
-    mMeshViews.reserve(pMeshes.size());
-    drawCommands.reserve(pMeshes.size());
-    instanceInfos.reserve(mpScene->getInstanceCount());
-    for (std::size_t meshID = 0; meshID < pMeshes.size(); ++meshID)
+    drawCommands.reserve(mpMeshes.size());
+    mMeshInfos.clear();
+    mMeshInfos.reserve(mpMeshes.size());
+    mInstanceInfos.clear();
+    mInstanceInfos.reserve(mpScene->getInstanceCount());
+    for (std::size_t meshID = 0; meshID < mpMeshes.size(); ++meshID)
     {
         const auto& entry = mpScene->getMeshEntries()[meshID];
-        const auto& pMesh = pMeshes[meshID];
+        const auto& pMesh = mpMeshes[meshID];
 
         MeshInfo meshInfo = {
             .indexCount = pMesh->getIndexCount(),
             .instanceCount = (uint)entry.instances.size(),
             .firstIndex = (uint)indices.size(),
-            .firstInstance = (uint)instanceInfos.size(),
+            .firstInstance = (uint)mInstanceInfos.size(),
         };
 
         gfx::IndirectDrawIndexedArguments drawCmd = {
@@ -45,17 +46,11 @@ void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
             .StartInstanceLocation = (gfx::GfxIndex)meshInfo.firstInstance,
         };
 
-        MeshView meshView = {
-            .pMesh = pMesh,
-            .info = meshInfo,
-        };
-
         uint baseIndex = vertices.size(), baseTextureID = mpTextures.size();
 
         // Mesh buffer
-        mMeshViews.push_back(meshView);
         drawCommands.push_back(drawCmd);
-        meshInfos.push_back(meshInfo);
+        mMeshInfos.push_back(meshInfo);
         // Vertex buffer
         vertices.insert(vertices.end(), pMesh->vertices.begin(), pMesh->vertices.end());
         // Index buffer
@@ -75,7 +70,7 @@ void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
                 .transform = instance.transform,
                 .meshID = (uint)meshID,
             };
-            instanceInfos.push_back(instanceInfo);
+            mInstanceInfos.push_back(instanceInfo);
         }
     }
 
@@ -113,18 +108,18 @@ void GStaticScene::import(std::span<const GMesh::Ptr> pMeshes)
 
     mpMeshInfoBuffer = getDevice()->createStructuredBuffer(
         sizeof(MeshInfo), //
-        meshInfos.size(),
+        mMeshInfos.size(),
         ResourceBindFlags::ShaderResource,
         MemoryType::DeviceLocal,
-        meshInfos.data()
+        mMeshInfos.data()
     );
 
     mpInstanceInfoBuffer = getDevice()->createStructuredBuffer(
         sizeof(InstanceInfo), //
-        instanceInfos.size(),
+        mInstanceInfos.size(),
         ResourceBindFlags::ShaderResource,
         MemoryType::DeviceLocal,
-        instanceInfos.data()
+        mInstanceInfos.data()
     );
 
     if (mpTextures.size() > GMesh::kMaxTextureCount)
@@ -165,7 +160,7 @@ void GStaticScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, con
     pRasterPass->getState()->setFbo(pFbo);
     pRasterPass->getState()->setVao(mpVao);
     pRenderContext->drawIndexedIndirect(
-        pRasterPass->getState().get(), pRasterPass->getVars().get(), mMeshViews.size(), mpDrawCmdBuffer.get(), 0, nullptr, 0
+        pRasterPass->getState().get(), pRasterPass->getVars().get(), mpMeshes.size(), mpDrawCmdBuffer.get(), 0, nullptr, 0
     );
 }
 

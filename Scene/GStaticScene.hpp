@@ -31,18 +31,15 @@ public:
         GTransform transform;
         uint meshID{};
     };
-    struct MeshView
-    {
-        GMesh::Ptr pMesh;
-        MeshInfo info;
-    };
 
 private:
-    void import(std::span<const GMesh::Ptr> pMeshes);
+    void import(std::vector<GMesh::Ptr>&& pMeshes);
     void buildBLAS(RenderContext* pRenderContext);
     void buildTLAS(RenderContext* pRenderContext);
 
-    std::vector<MeshView> mMeshViews;
+    std::vector<GMesh::Ptr> mpMeshes;
+    std::vector<MeshInfo> mMeshInfos;
+    std::vector<InstanceInfo> mInstanceInfos;
     ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTextureIDBuffer, mpDrawCmdBuffer, mpInstanceInfoBuffer, mpMeshInfoBuffer;
     std::vector<ref<Texture>> mpTextures;
     ref<Vao> mpVao;
@@ -56,10 +53,10 @@ private:
     static std::vector<GMesh::Ptr> getSceneMeshes(const ref<GScene>& pScene);
 
 public:
-    GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext, std::span<const GMesh::Ptr> pAlternateMeshes)
+    GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext, std::vector<GMesh::Ptr>&& pAlternateMeshes)
         : GDeviceObject(pScene->getDevice()), mpScene{pScene}
     {
-        import(pAlternateMeshes);
+        import(std::move(pAlternateMeshes));
         buildBLAS(pRenderContext);
         buildTLAS(pRenderContext);
     }
@@ -70,9 +67,11 @@ public:
 
     const auto& getScene() const { return mpScene; }
 
-    uint getMeshCount() const { return mMeshViews.size(); }
-    const auto& getMeshViews() const { return mMeshViews; }
-    const MeshView& getMeshView(std::size_t meshID) const { return mMeshViews[meshID]; }
+    uint getMeshCount() const { return mpMeshes.size(); }
+    const auto& getMeshes() const { return mpMeshes; }
+    const auto& getMeshInfos() const { return mMeshInfos; }
+    uint getInstanceCount() const { return mInstanceInfos.size(); }
+    const auto& getInstanceInfos() const { return mInstanceInfos; }
 
     void bindRootShaderData(const ShaderVar& rootVar) const;
 

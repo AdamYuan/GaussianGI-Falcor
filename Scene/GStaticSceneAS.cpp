@@ -29,20 +29,21 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
     // Step 1. Prepare
     for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
-        const auto& meshView = mMeshViews[meshID];
+        const auto& pMesh = mpMeshes[meshID];
+        const auto& meshInfo = mMeshInfos[meshID];
         auto& meshBlasInfo = meshBlasInfos[meshID];
 
         // Geometry Desc
-        DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshView.info.firstIndex * sizeof(GMesh::Index);
+        DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshInfo.firstIndex * sizeof(GMesh::Index);
 
         meshBlasInfo.geomDescs.reserve(2);
-        if (meshView.pMesh->hasNonOpaquePrimitive())
+        if (pMesh->hasNonOpaquePrimitive())
             meshBlasInfo.geomDescs.push_back(
-                meshView.pMesh->getRTGeometryDesc<RtGeometryFlags::None>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
+                pMesh->getRTGeometryDesc<RtGeometryFlags::None>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
-        if (meshView.pMesh->hasOpaquePrimitive())
+        if (pMesh->hasOpaquePrimitive())
             meshBlasInfo.geomDescs.push_back(
-                meshView.pMesh->getRTGeometryDesc<RtGeometryFlags::Opaque>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
+                pMesh->getRTGeometryDesc<RtGeometryFlags::Opaque>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
 
         // Build Inputs
@@ -138,34 +139,30 @@ void GStaticScene::buildTLAS(RenderContext* pRenderContext)
     RtAccelerationStructureBuildInputs buildInputs = {
         .kind = RtAccelerationStructureKind::TopLevel,
         .flags = RtAccelerationStructureBuildFlags::PreferFastTrace,
-        .descCount = (uint)getScene()->getInstanceCount(),
+        .descCount = (uint)getInstanceCount(),
     };
 
     // instance descriptors
     {
         std::vector<RtInstanceDesc> instanceDescs;
-        instanceDescs.reserve(getScene()->getInstanceCount());
+        instanceDescs.reserve(getInstanceCount());
 
-        for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
+        for (uint instanceID = 0; instanceID < getInstanceCount(); ++instanceID)
         {
-            const auto& entry = mpScene->getMeshEntries()[meshID];
-
-            // Instance buffer
-            for (const auto& instance : entry.instances)
-            {
-                auto instanceDesc = RtInstanceDesc{
-                    .instanceID = entry.pMesh->firstOpaquePrimitiveID, // Custom InstanceID
-                    .instanceMask = 0xFF,
-                    .instanceContributionToHitGroupIndex = 0,
-                    .flags = RtGeometryInstanceFlags::TriangleFacingCullDisable,
-                    .accelerationStructure = mpMeshBLASs[meshID]->getGpuAddress(),
-                };
-                auto transform3x4 = instance.transform.getMatrix3x4();
-                std::memcpy(instanceDesc.transform, &transform3x4, sizeof(instanceDesc.transform));
-                static_assert(sizeof(instanceDesc.transform) == sizeof(transform3x4));
-                instanceDescs.push_back(instanceDesc);
-            }
+            const auto& instanceInfo = mInstanceInfos[instanceID];
+            auto instanceDesc = RtInstanceDesc{
+                .instanceID = mpMeshes[instanceInfo.meshID]->firstOpaquePrimitiveID, // Custom InstanceID
+                .instanceMask = 0xFF,
+                .instanceContributionToHitGroupIndex = 0,
+                .flags = RtGeometryInstanceFlags::TriangleFacingCullDisable,
+                .accelerationStructure = mpMeshBLASs[instanceInfo.meshID]->getGpuAddress(),
+            };
+            auto transform3x4 = instanceInfo.transform.getMatrix3x4();
+            std::memcpy(instanceDesc.transform, &transform3x4, sizeof(instanceDesc.transform));
+            static_assert(sizeof(instanceDesc.transform) == sizeof(transform3x4));
+            instanceDescs.push_back(instanceDesc);
         }
+
         GpuMemoryHeap::Allocation allocation =
             getDevice()->getUploadHeap()->allocate(buildInputs.descCount * sizeof(RtInstanceDesc), sizeof(RtInstanceDesc));
         std::copy(instanceDescs.begin(), instanceDescs.end(), reinterpret_cast<RtInstanceDesc*>(allocation.pData));
