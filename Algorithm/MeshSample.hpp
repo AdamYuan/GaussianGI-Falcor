@@ -70,7 +70,6 @@ struct MeshSample
             }
             primitiveTable = AliasTable::create(primitiveAreas);
         }
-        return {};
 
         std::vector<MeshSample> samples(sampleCount);
         uint2 u2;
