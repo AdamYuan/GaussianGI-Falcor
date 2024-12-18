@@ -44,6 +44,11 @@ public:
             index = entry.alias;
         return index;
     }
+    uint32_t sample(uint2 rand) const
+    {
+        static_assert(sizeof(rand.x) == sizeof(uint32_t));
+        return sample(rand.x, rand.y);
+    }
 };
 
 } // namespace GSGI

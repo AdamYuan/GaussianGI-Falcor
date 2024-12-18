@@ -31,14 +31,14 @@ AliasTable AliasTable::create(std::span<const float> floatWeights)
 
     uint32_t count = floatWeights.size();
     std::vector<uint32_t> stack(count);
-    uint32_t *const kStackBegin = stack.data(), *const kStackEnd = stack.data() + count;
-    uint32_t *pSmall = kStackBegin, *pLarge = kStackEnd;
+    uint32_t *const kpStackBegin = stack.data(), *const kpStackEnd = stack.data() + count;
+    uint32_t *pSmall = kpStackBegin, *pLarge = kpStackEnd;
 
     // define bi-stack operations
 #define SMALL_PUSH(x) (*(pSmall++) = (x))
 #define LARGE_PUSH(x) (*(--pLarge) = (x))
-#define SMALL_EMPTY (pSmall == kStackBegin)
-#define LARGE_EMPTY (pLarge == kStackEnd)
+#define SMALL_EMPTY (pSmall == kpStackBegin)
+#define LARGE_EMPTY (pLarge == kpStackEnd)
 #define SMALL_POP_AND_GET (*(--pSmall))
 #define LARGE_POP_AND_GET (*(pLarge++))
 #define LARGE_GET (*pLarge)
@@ -46,21 +46,22 @@ AliasTable AliasTable::create(std::span<const float> floatWeights)
 
     for (uint32_t i = 0; i < count; ++i)
     {
-        if (weights[i] < 0x100000000)
+        if (weights[i] < (uint64_t)0x100000000)
             SMALL_PUSH(i);
         else
             LARGE_PUSH(i);
     }
 
     AliasTable table{};
+    table.mEntries.resize(count);
 
     while (!SMALL_EMPTY && !LARGE_EMPTY)
     {
         uint32_t curSmall = SMALL_POP_AND_GET, curLarge = LARGE_GET;
-        table.mEntries[curSmall].prob = weights[curSmall] & 0xFFFFFFFF;
+        table.mEntries[curSmall].prob = weights[curSmall] & (uint64_t)0xFFFFFFFF;
         table.mEntries[curSmall].alias = curLarge;
-        weights[curLarge] -= 0x100000000 - weights[curSmall];
-        if (weights[curLarge] < 0x100000000)
+        weights[curLarge] -= (uint64_t)0x100000000 - weights[curSmall];
+        if (weights[curLarge] < (uint64_t)0x100000000)
         {
             LARGE_POP;
             SMALL_PUSH(curLarge);
