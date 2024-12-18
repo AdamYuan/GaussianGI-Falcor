@@ -14,6 +14,8 @@ target_sources(GaussianGI PRIVATE
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp
+        Algorithm/MeshView.hpp
+        Algorithm/MeshSample.hpp
 
         Scene/GBound.hpp
         Scene/GScene.hpp
@@ -24,6 +26,7 @@ target_sources(GaussianGI PRIVATE
         Scene/GMesh.cpp
         Scene/GMesh.slang
         Scene/GMesh.slangh
+        Scene/GMeshView.hpp
         Scene/GMeshLoader.hpp
         Scene/GMeshLoader.cpp
         Scene/GTransform.hpp
