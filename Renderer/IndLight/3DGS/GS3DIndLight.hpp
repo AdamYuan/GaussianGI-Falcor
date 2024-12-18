@@ -20,6 +20,16 @@ class GS3DIndLight final : public GDeviceObject<GS3DIndLight>
 private:
     ref<GStaticScene> mpStaticScene;
 
+    ref<VertexLayout> mpPointVertexLayout;
+    ref<RasterPass> mpPointPass;
+    ref<Buffer> mpPointBuffer;
+    ref<Vao> mpPointVao;
+
+    struct
+    {
+        uint splatsPerMesh = 65536;
+    } mConfig = {};
+
 public:
     explicit GS3DIndLight(ref<Device> pDevice);
     void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);

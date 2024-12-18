@@ -1,0 +1,10 @@
+#ifndef GSGI_GS3D_SLANGH
+#define GSGI_GS3D_SLANGH
+
+#define GS3D_VERTEX_PRIMID_LOC 0 // Primitive ID
+#define GS3D_VERTEX_BARY_LOC 1   // Barycentrics
+
+#define GS3D_VERTEX_PRIMID_NAME "GS3D_PRIMID"
+#define GS3D_VERTEX_BARY_NAME "GS3D_BARY"
+
+#endif

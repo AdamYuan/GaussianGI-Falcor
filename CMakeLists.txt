@@ -76,6 +76,9 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DIndLight.hpp
         Renderer/IndLight/3DGS/GS3DIndLight.cpp
         Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
+        Renderer/IndLight/3DGS/GS3DIndLightMisc.slang
+        Renderer/IndLight/3DGS/GS3DIndLightMisc.slangh
+        Renderer/IndLight/3DGS/GS3DIndLightMiscPoint.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 
