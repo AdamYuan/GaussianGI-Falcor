@@ -1,5 +1,7 @@
 #include "GaussianGI.h"
 
+#include "Util/DeviceUtil.hpp"
+
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
 namespace GSGI
@@ -12,6 +14,9 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
+    deviceWaveGetLaneCount(pRenderContext);
+    logInfo("WaveGetLaneCount() = {}", deviceWaveGetLaneCount());
+
     auto camera = Camera::create("Main Camera");
     camera->setNearPlane(0.001f);
     camera->setFarPlane(10.0f);

@@ -1,0 +1,148 @@
+/******************************************************************************
+ * GPUSorting
+ *
+ * SPDX-License-Identifier: MIT
+ * Copyright Thomas Smith 4/28/2024
+ * https://github.com/b0nes164/GPUSorting
+ *
+ ******************************************************************************/
+#pragma once
+
+#include "SortCommon.slangh"
+
+#define G_HIST_PART_SIZE 32768U // The size of a GlobalHistogram partition tile.
+#define G_HIST_DIM 128U         // The number of threads in a global hist threadblock
+
+#define SEC_RADIX_START 256    // Offset for retrieving value from global histogram buffer
+#define THIRD_RADIX_START 512  // Offset for retrieving value from global histogram buffer
+#define FOURTH_RADIX_START 768 // Offset for retrieving value from global histogram buffer
+
+#define FLAG_NOT_READY 0 // Flag value inidicating neither inclusive sum, nor reduction of a partition tile is ready
+#define FLAG_REDUCTION 1 // Flag value indicating reduction of a partition tile is ready
+#define FLAG_INCLUSIVE 2 // Flag value indicating inclusive sum of a partition tile is ready
+#define FLAG_MASK 3      // Mask used to retrieve flag values
+
+// #define COPY_DIM 1024
+
+RWStructuredBuffer<uint> b_globalHist;                // buffer holding device level offsets for each binning pass
+globallycoherent RWStructuredBuffer<uint> b_passHist; // buffer used to store reduced sums of partition tiles
+globallycoherent RWStructuredBuffer<uint> b_index;    // buffer used to atomically assign partition tile indexes
+
+groupshared uint4 g_gHist[RADIX * 2]; // Shared memory for GlobalHistogram
+groupshared uint g_scan[RADIX];       // Shared memory for Scan
+
+inline uint CurrentPass()
+{
+    return e_radixShift >> 3;
+}
+
+inline uint PassHistOffset(uint index)
+{
+    return ((CurrentPass() * e_threadBlocks) + index) << RADIX_LOG;
+}
+
+//*****************************************************************************
+// GLOBAL HISTOGRAM KERNEL
+//*****************************************************************************
+// histogram, 64 threads to a histogram
+inline void HistogramDigitCounts(uint gtid, uint gid)
+{
+    const uint histOffset = gtid / 64 * RADIX;
+    const uint partitionEnd = gid == e_threadBlocks - 1 ? e_numKeys : (gid + 1) * G_HIST_PART_SIZE;
+
+    uint t;
+    for (uint i = gtid + gid * G_HIST_PART_SIZE; i < partitionEnd; i += G_HIST_DIM)
+    {
+        t = b_sort[i];
+        InterlockedAdd(g_gHist[ExtractDigit(t, 0) + histOffset].x, 1);
+        InterlockedAdd(g_gHist[ExtractDigit(t, 8) + histOffset].y, 1);
+        InterlockedAdd(g_gHist[ExtractDigit(t, 16) + histOffset].z, 1);
+        InterlockedAdd(g_gHist[ExtractDigit(t, 24) + histOffset].w, 1);
+    }
+}
+
+// reduce counts and atomically add to device
+inline void ReduceWriteDigitCounts(uint gtid)
+{
+    for (uint i = gtid; i < RADIX; i += G_HIST_DIM)
+    {
+        InterlockedAdd(b_globalHist[i], g_gHist[i].x + g_gHist[i + RADIX].x);
+        InterlockedAdd(b_globalHist[i + SEC_RADIX_START], g_gHist[i].y + g_gHist[i + RADIX].y);
+        InterlockedAdd(b_globalHist[i + THIRD_RADIX_START], g_gHist[i].z + g_gHist[i + RADIX].z);
+        InterlockedAdd(b_globalHist[i + FOURTH_RADIX_START], g_gHist[i].w + g_gHist[i + RADIX].w);
+    }
+}
+
+//*****************************************************************************
+// SCAN KERNEL
+//*****************************************************************************
+inline void LoadInclusiveScan(uint gtid, uint gid)
+{
+    const uint t = b_globalHist[gtid + gid * RADIX];
+    g_scan[gtid] = t + WavePrefixSum(t);
+}
+
+inline void GlobalHistExclusiveScanWGE16(uint gtid, uint gid)
+{
+    GroupMemoryBarrierWithGroupSync();
+    if (gtid < (RADIX / LANES_PER_WAVE))
+    {
+        g_scan[(gtid + 1) * LANES_PER_WAVE - 1] += WavePrefixSum(g_scan[(gtid + 1) * LANES_PER_WAVE - 1]);
+    }
+    GroupMemoryBarrierWithGroupSync();
+
+    const uint laneMask = LANES_PER_WAVE - 1;
+    const uint index = (WaveGetLaneIndex() + 1 & laneMask) + (gtid & ~laneMask);
+    b_passHist[index + gid * RADIX * e_threadBlocks] =
+        ((WaveGetLaneIndex() != laneMask ? g_scan[gtid] : 0) + (gtid >= LANES_PER_WAVE ? WaveReadLaneAt(g_scan[gtid - 1], 0) : 0))
+            << 2 |
+        FLAG_INCLUSIVE;
+}
+
+//*****************************************************************************
+// DIGIT BINNING PASS KERNEL
+//*****************************************************************************
+inline void AssignPartitionTile(uint gtid, inout uint partitionIndex)
+{
+    if (gtid == 0)
+        InterlockedAdd(b_index[CurrentPass()], 1, g_d[D_TOTAL_SMEM - 1]);
+    GroupMemoryBarrierWithGroupSync();
+    partitionIndex = g_d[D_TOTAL_SMEM - 1];
+}
+
+// For OneSweep
+inline void DeviceBroadcastReductionsWGE16(uint gtid, uint partIndex, uint histReduction)
+{
+    if (partIndex < e_threadBlocks - 1)
+    {
+        InterlockedAdd(b_passHist[gtid + PassHistOffset(partIndex + 1)], FLAG_REDUCTION | histReduction << 2);
+    }
+}
+
+inline void Lookback(uint gtid, uint partIndex, uint exclusiveHistReduction)
+{
+    if (gtid < RADIX)
+    {
+        uint lookbackReduction = 0;
+        for (uint k = partIndex; k >= 0;)
+        {
+            const uint flagPayload = b_passHist[gtid + PassHistOffset(k)];
+            if ((flagPayload & FLAG_MASK) == FLAG_INCLUSIVE)
+            {
+                lookbackReduction += flagPayload >> 2;
+                if (partIndex < e_threadBlocks - 1)
+                {
+                    InterlockedAdd(b_passHist[gtid + PassHistOffset(partIndex + 1)], 1 | lookbackReduction << 2);
+                }
+                g_d[gtid + PART_SIZE] = lookbackReduction - exclusiveHistReduction;
+                break;
+            }
+
+            if ((flagPayload & FLAG_MASK) == FLAG_REDUCTION)
+            {
+                lookbackReduction += flagPayload >> 2;
+                k--;
+            }
+        }
+    }
+}

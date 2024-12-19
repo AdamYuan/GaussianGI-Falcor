@@ -7,6 +7,8 @@ target_sources(GaussianGI PRIVATE
 
         Common/GDeviceObject.hpp
 
+        Util/DeviceUtil.hpp
+        Util/WaveOps.cs.slang
         Util/ShaderUtil.hpp
         Util/ShaderUtil.slang
         Util/TextureUtil.hpp
@@ -16,6 +18,12 @@ target_sources(GaussianGI PRIVATE
         Algorithm/AliasTable.cpp
         Algorithm/MeshView.hpp
         Algorithm/MeshSample.hpp
+
+        Algorithm/GPUSorting/DeviceSorter.hpp
+        Algorithm/GPUSorting/DeviceSorter.cpp
+        Algorithm/GPUSorting/OneSweep.cs.slang
+        Algorithm/GPUSorting/SweepCommon.slangh
+        Algorithm/GPUSorting/SortCommon.slangh
 
         Scene/GBound.hpp
         Scene/GScene.hpp
