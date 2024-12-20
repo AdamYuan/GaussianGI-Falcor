@@ -1,6 +1,5 @@
 add_falcor_executable(GaussianGI)
 set_target_properties(GaussianGI PROPERTIES CXX_STANDARD 20)
-
 target_sources(GaussianGI PRIVATE
         GaussianGI.cpp
         GaussianGI.h
@@ -8,6 +7,7 @@ target_sources(GaussianGI PRIVATE
         Common/GDeviceObject.hpp
 
         Util/DeviceUtil.hpp
+        Util/DeviceUtil.cpp
         Util/WaveOps.cs.slang
         Util/ShaderUtil.hpp
         Util/ShaderUtil.slang
@@ -89,6 +89,25 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DIndLightMiscPoint.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
-
 target_copy_shaders(GaussianGI GaussianGI)
 target_source_group(GaussianGI "GaussianGI")
+
+add_falcor_executable(GaussianGITest)
+set_target_properties(GaussianGITest PROPERTIES CXX_STANDARD 20)
+target_sources(GaussianGITest PRIVATE
+        GaussianGITest.cpp
+
+        Util/DeviceUtil.hpp
+        Util/DeviceUtil.cpp
+        Util/WaveOps.cs.slang
+
+        Test/DeviceSorterTest.cpp
+        Algorithm/GPUSorting/DeviceSorter.hpp
+        Algorithm/GPUSorting/DeviceSorter.cpp
+        Algorithm/GPUSorting/OneSweep.cs.slang
+        Algorithm/GPUSorting/SweepCommon.slangh
+        Algorithm/GPUSorting/SortCommon.slangh
+)
+target_link_libraries(GaussianGITest PRIVATE args)
+target_copy_shaders(GaussianGITest GaussianGI)
+target_source_group(GaussianGITest "GaussianGI")

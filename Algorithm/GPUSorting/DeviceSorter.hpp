@@ -70,7 +70,7 @@ struct DeviceSorterResource
 };
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-class DeviceSorter final : public GDeviceObject<DeviceSorter<Type_V, DispatchType_V>>
+class DeviceSorter final
 {
 private:
     ref<ComputePass> mpInitSweepPass, mpGlobalHistPass, mpScanPass, mpDigitBinningPass;
@@ -88,7 +88,7 @@ private:
     );
 
 public:
-    explicit DeviceSorter(ref<Device> pDevice);
+    explicit DeviceSorter(const ref<Device> &pDevice);
 
     void dispatch(
         ComputeContext* pComputeContext, //

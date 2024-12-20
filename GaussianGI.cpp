@@ -14,8 +14,7 @@ GaussianGI::GaussianGI(const SampleAppConfig& config) : SampleApp(config)
 
 void GaussianGI::onLoad(RenderContext* pRenderContext)
 {
-    deviceWaveGetLaneCount(pRenderContext);
-    logInfo("WaveGetLaneCount() = {}", deviceWaveGetLaneCount());
+    logInfo("WaveGetLaneCount() = {}", deviceWaveGetLaneCount(getDevice()));
 
     auto camera = Camera::create("Main Camera");
     camera->setNearPlane(0.001f);

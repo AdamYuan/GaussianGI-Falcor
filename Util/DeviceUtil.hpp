@@ -12,20 +12,7 @@ using namespace Falcor;
 namespace GSGI
 {
 
-inline uint deviceWaveGetLaneCount(ComputeContext* pComputeContext = nullptr)
-{
-    static const uint laneCount = [&]
-    {
-        FALCOR_CHECK(pComputeContext, "pComputeContext must be valid at first run");
-        const auto& pDevice = pComputeContext->getDevice();
-        auto pPass = ComputePass::create(pDevice, "GaussianGI/Util/WaveOps.cs.slang", "testWaveGetLaneCount");
-        auto pBuffer = pDevice->createTypedBuffer<uint32_t>(1, ResourceBindFlags::UnorderedAccess, MemoryType::DeviceLocal);
-        pPass->getRootVar()["laneCount"] = pBuffer;
-        pPass->execute(pComputeContext, 1, 1, 1);
-        return pBuffer->getElement<uint32_t>(0);
-    }();
-    return laneCount;
-}
+uint deviceWaveGetLaneCount(const ref<Device>& pDevice);
 
 } // namespace GSGI
 

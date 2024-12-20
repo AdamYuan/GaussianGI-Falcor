@@ -12,6 +12,8 @@ template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, DispatchType_V>::create(const ref<Device>& pDevice, uint maxCount)
 {
     FALCOR_CHECK(maxCount <= DeviceSorterProperty::kMaxSize, "maxCount should not exceed DeviceSorterProperty::kMaxSize");
+    static_assert(std::same_as<uint, uint32_t>);
+
     DeviceSorterResource res = {.maxCount = maxCount};
     res.pTempKeyBuffer = pDevice->createStructuredBuffer(sizeof(uint), maxCount);
     res.pGlobalHistBuffer =
@@ -25,13 +27,14 @@ DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, Dispat
         res.pTempPayloadBuffer = pDevice->createStructuredBuffer(sizeof(uint), maxCount);
     if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
-        uint zeros[6] = {};
+        DispatchArguments args[] = {{0, 1, 1}, {0, 1, 1}};
+        static_assert(sizeof(DispatchArguments) == sizeof(uint32_t) * 3);
         res.pIndirectBuffer = pDevice->createStructuredBuffer(
-            sizeof(uint),
-            6,
+            sizeof(DispatchArguments),
+            2,
             ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::IndirectArg,
             MemoryType::DeviceLocal,
-            zeros
+            args
         );
     }
     return res;
@@ -65,13 +68,13 @@ void DeviceSorter<Type_V, DispatchType_V>::bindCount(
 }
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-DeviceSorter<Type_V, DispatchType_V>::DeviceSorter(ref<Device> pDevice) : GDeviceObject<DeviceSorter>(std::move(pDevice))
+DeviceSorter<Type_V, DispatchType_V>::DeviceSorter(const ref<Device>& pDevice)
 {
     constexpr const char* kShaderPath = "GaussianGI/Algorithm/GPUSorting/OneSweep.cs.slang";
     DefineList defList{};
     defList.add("SORT_PAIRS", Type_V == DeviceSortType::kPair ? "1" : "0");
     defList.add("SORT_INDIRECT", DispatchType_V == DeviceSortDispatchType::kIndirect ? "1" : "0");
-    defList.add("LANES_PER_WAVE", fmt::to_string(deviceWaveGetLaneCount()));
+    defList.add("LANES_PER_WAVE", fmt::to_string(deviceWaveGetLaneCount(pDevice)));
     mpInitSweepPass = ComputePass::create(pDevice, kShaderPath, "csInitSweep", defList);
     mpGlobalHistPass = ComputePass::create(pDevice, kShaderPath, "csGlobalHistogram", defList);
     mpScanPass = ComputePass::create(pDevice, kShaderPath, "csScan", defList);
@@ -102,41 +105,48 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
     {
         const auto& pPass = mpInitSweepPass;
         auto var = pPass->getRootVar();
+        bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_passHist"] = resource.pPassHistBuffer;
         var["b_globalHist"] = resource.pGlobalHistBuffer;
         var["b_index"] = resource.pIndexBuffer;
-        bindCount(var, count, pCountBuffer, countBufferOffset);
         if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
             var["b_indirect"] = resource.pIndirectBuffer;
         pPass->execute(pComputeContext, 256 * pPass->getThreadGroupSize().x, 1, 1);
     }
 
+    /* if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
+    {
+        auto indirect = resource.pIndirectBuffer->template getElements<uint32_t>();
+        fmt::println("indirect: {}, {}, {}, {}, {}, {}", indirect[0], indirect[1], indirect[2], indirect[3], indirect[4], indirect[5]);
+    } */
+
     {
         const auto& pPass = mpGlobalHistPass;
         auto var = pPass->getRootVar();
+        bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_sort"] = pKeyBuffer;
         var["b_globalHist"] = resource.pGlobalHistBuffer;
-        bindCount(var, count, pCountBuffer, countBufferOffset);
         if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
             pPass->execute(
                 pComputeContext, div_round_up(count, DeviceSorterProperty::kGlobalHistPartSize) * pPass->getThreadGroupSize().x, 1, 1
             );
         else
-            pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 0 * sizeof(uint32_t));
+            pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 0 * sizeof(DispatchArguments));
     }
 
     {
         const auto& pPass = mpScanPass;
         auto var = pPass->getRootVar();
+        bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_passHist"] = resource.pPassHistBuffer;
         var["b_globalHist"] = resource.pGlobalHistBuffer;
-        bindCount(var, count, pCountBuffer, countBufferOffset);
         pPass->execute(pComputeContext, DeviceSorterProperty::kRadixPasses * pPass->getThreadGroupSize().x, 1, 1);
     }
 
     {
         const auto& pPass = mpDigitBinningPass;
         auto var = pPass->getRootVar();
+        bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_passHist"] = resource.pPassHistBuffer;
         var["b_index"] = resource.pIndexBuffer;
 
@@ -158,7 +168,7 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
                     pComputeContext, div_round_up(count, DeviceSorterProperty::kPartitionSize) * pPass->getThreadGroupSize().x, 1, 1
                 );
             else
-                pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 3 * sizeof(uint32_t));
+                pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 1 * sizeof(DispatchArguments));
         }
     }
 }
