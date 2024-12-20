@@ -41,6 +41,7 @@ uniform uint e_radixShift;
 
 #if SORT_INDIRECT == 1
 static uint e_numKeys;
+uniform uint e_numKeyIndex;
 StructuredBuffer<uint> b_numKeys;
 RWStructuredBuffer<uint> b_indirect;
 #else
@@ -52,7 +53,7 @@ static uint e_threadBlocks;
 void Prepare(uint blockSize)
 {
 #if SORT_INDIRECT == 1
-    e_numKeys = b_numKeys[0];
+    e_numKeys = b_numKeys[e_numKeyIndex];
 #endif
     e_threadBlocks = (e_numKeys + blockSize - 1) / blockSize;
 }

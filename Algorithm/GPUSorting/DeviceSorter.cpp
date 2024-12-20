@@ -62,7 +62,13 @@ void DeviceSorter<Type_V, DispatchType_V>::bindCount(
 )
 {
     if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
-        var["b_numKeys"].setSrv(pCountBuffer->getSRV(countBufferOffset, sizeof(uint32_t)));
+    {
+        FALCOR_CHECK(countBufferOffset % sizeof(uint32_t) == 0, "countBufferOffset must be aligned to 4");
+        uint32_t index = countBufferOffset / sizeof(uint32_t);
+        FALCOR_CHECK(uint64_t(index) * sizeof(uint32_t) == countBufferOffset, "countBufferOffset too large");
+        var["b_numKeys"] = pCountBuffer;
+        var["e_numKeyIndex"] = index;
+    }
     else
         var["e_numKeys"] = count;
 }
@@ -114,10 +120,12 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         pPass->execute(pComputeContext, 256 * pPass->getThreadGroupSize().x, 1, 1);
     }
 
+    // For Debug
     /* if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
         auto indirect = resource.pIndirectBuffer->template getElements<uint32_t>();
         fmt::println("indirect: {}, {}, {}, {}, {}, {}", indirect[0], indirect[1], indirect[2], indirect[3], indirect[4], indirect[5]);
+        return;
     } */
 
     {
@@ -133,6 +141,10 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         else
             pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 0 * sizeof(DispatchArguments));
     }
+
+    // For Debug
+    /* if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
+        return; */
 
     {
         const auto& pPass = mpScanPass;

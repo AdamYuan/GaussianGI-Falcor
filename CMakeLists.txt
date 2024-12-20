@@ -107,6 +107,9 @@ target_sources(GaussianGITest PRIVATE
         Algorithm/GPUSorting/OneSweep.cs.slang
         Algorithm/GPUSorting/SweepCommon.slangh
         Algorithm/GPUSorting/SortCommon.slangh
+
+        Test/IndirectDispatchTest.cpp
+        Test/IndirectDispatch.cs.slang
 )
 target_link_libraries(GaussianGITest PRIVATE args)
 target_copy_shaders(GaussianGITest GaussianGI)

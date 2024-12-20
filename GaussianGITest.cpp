@@ -174,5 +174,6 @@ int runMain(int argc, char** argv)
 
 int main(int argc, char** argv)
 {
+    return runMain(argc, argv);
     return catchAndReportAllExceptions([&]() { return runMain(argc, argv); });
 }
