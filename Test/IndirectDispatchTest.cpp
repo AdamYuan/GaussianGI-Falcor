@@ -17,8 +17,20 @@ GPU_TEST(IndirectDispatch_Test)
         sizeof(DispatchArguments), 1, ResourceBindFlags::IndirectArg, MemoryType::DeviceLocal, &args
     );
 
-    auto pPass = ComputePass::create(ctx.getDevice(), "GaussianGI/Test/IndirectDispatch.cs.slang", "csMain");
-    pPass->executeIndirect(ctx.getRenderContext(), pArgBuffer.get(), 0);
+    ProgramDesc::ShaderModule shaderModule;
+    shaderModule.addString(R"(
+[numthreads(1, 1, 1)]
+void main() {}
+)");
+
+    ProgramDesc desc = {};
+    desc.addShaderModule(shaderModule).csEntry("main");
+
+    auto pPass = ComputePass::create(ctx.getDevice(), desc);
+    pPass->execute(ctx.getRenderContext(), 1, 1, 1); // OK
+    fmt::println("ComputePass::execute");
+    pPass->executeIndirect(ctx.getRenderContext(), pArgBuffer.get(), 0); // Crash
+    fmt::println("ComputePass::executeIndirect");
 }
 
 } // namespace GSGI
