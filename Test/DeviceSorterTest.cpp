@@ -56,33 +56,34 @@ std::tuple<ref<Buffer>, uint64_t> makeCountBuffer(const ref<Device>& pDevice, ui
     return {std::move(pBuffer), uint64_t(offset) * sizeof(uint32_t)};
 }
 
-void validate(GPUUnitTestContext& ctx, std::vector<uint32_t>&& keys, const ref<Buffer>& pKeyBuffer, uint sortCount)
+void validate(GPUUnitTestContext& ctx, const std::vector<uint32_t>& keys, const ref<Buffer>& pKeyBuffer, uint sortCount)
 {
-    std::sort(keys.begin(), keys.end());
+    auto sortedKeys = std::vector<uint32_t>{keys.begin(), keys.begin() + sortCount};
+    std::sort(sortedKeys.begin(), sortedKeys.end());
     auto gpuSortedKeys = pKeyBuffer->getElements<uint32_t>(0, sortCount);
     for (uint i = 0; i < sortCount; ++i)
-        EXPECT_EQ(keys[i], gpuSortedKeys[i]);
+        EXPECT_EQ(sortedKeys[i], gpuSortedKeys[i]);
 }
 
 void validate(
     GPUUnitTestContext& ctx,
-    std::vector<uint32_t>&& keys,
-    std::vector<uint32_t>&& payloads,
+    const std::vector<uint32_t>& keys,
+    const std::vector<uint32_t>& payloads,
     const ref<Buffer>& pKeyBuffer,
     const ref<Buffer>& pPayloadBuffer,
     uint sortCount
 )
 {
-    std::vector<std::pair<uint, uint>> keyPayloads(sortCount);
+    std::vector<std::pair<uint, uint>> sortedPairs(sortCount);
     for (uint i = 0; i < sortCount; ++i)
-        keyPayloads[i] = {keys[i], payloads[i]};
-    std::stable_sort(keyPayloads.begin(), keyPayloads.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
+        sortedPairs[i] = {keys[i], payloads[i]};
+    std::stable_sort(sortedPairs.begin(), sortedPairs.end(), [](const auto& l, const auto& r) { return l.first < r.first; });
     auto gpuSortedKeys = pKeyBuffer->getElements<uint32_t>(0, sortCount);
     auto gpuSortedPayloads = pPayloadBuffer->getElements<uint32_t>(0, sortCount);
     for (uint i = 0; i < sortCount; ++i)
     {
-        EXPECT_EQ(keyPayloads[i].first, gpuSortedKeys[i]);
-        EXPECT_EQ(keyPayloads[i].second, gpuSortedPayloads[i]);
+        EXPECT_EQ(sortedPairs[i].first, gpuSortedKeys[i]);
+        EXPECT_EQ(sortedPairs[i].second, gpuSortedPayloads[i]);
     }
 }
 
@@ -96,7 +97,7 @@ GPU_TEST(DeviceSorter_Key_Direct)
     fmt::println("Count = {}", count);
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
     sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, count, sorterResource);
-    validate(ctx, std::move(keys), pKeyBuffer, count);
+    validate(ctx, keys, pKeyBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Pair_Direct)
@@ -108,7 +109,7 @@ GPU_TEST(DeviceSorter_Pair_Direct)
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
     auto [payloads, pPayloadBuffer] = makePayloads(ctx.getDevice(), count);
     sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, count, sorterResource);
-    validate(ctx, std::move(keys), std::move(payloads), pKeyBuffer, pPayloadBuffer, count);
+    validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Pair_IsStableSort)
@@ -129,7 +130,7 @@ GPU_TEST(DeviceSorter_Pair_IsStableSort)
     );
     auto [payloads, pPayloadBuffer] = makePayloads(ctx.getDevice(), count);
     sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, count, sorterResource);
-    validate(ctx, std::move(keys), std::move(payloads), pKeyBuffer, pPayloadBuffer, count);
+    validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Key_Indirect)
@@ -147,7 +148,7 @@ GPU_TEST(DeviceSorter_Key_Indirect)
         fmt::println("Sort Count = {}", sortCount);
         auto [pCountBuffer, countBufferOffset] = makeCountBuffer(ctx.getDevice(), sortCount);
         sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pCountBuffer, countBufferOffset, sorterResource);
-        validate(ctx, std::move(keys), pKeyBuffer, sortCount);
+        validate(ctx, keys, pKeyBuffer, sortCount);
     }
 }
 
@@ -167,7 +168,7 @@ GPU_TEST(DeviceSorter_Pair_Indirect)
         fmt::println("Sort Count = {}", sortCount);
         auto [pCountBuffer, countBufferOffset] = makeCountBuffer(ctx.getDevice(), sortCount);
         sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, pCountBuffer, countBufferOffset, sorterResource);
-        validate(ctx, std::move(keys), std::move(payloads), pKeyBuffer, pPayloadBuffer, sortCount);
+        validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, sortCount);
     }
 }
 

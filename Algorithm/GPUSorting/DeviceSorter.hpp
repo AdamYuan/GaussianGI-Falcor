@@ -6,7 +6,6 @@
 #define GSGI_ONESWEEPSORTER_HPP
 
 #include <Falcor.h>
-#include "../../Common/GDeviceObject.hpp"
 
 using namespace Falcor;
 
@@ -24,17 +23,6 @@ enum class DeviceSortDispatchType
     kDirect,
     kIndirect
 };
-
-namespace DeviceSorterProperty
-{
-inline constexpr uint kRadix = 256; // 1 << 8
-inline constexpr uint kRadixPasses = 4;
-inline constexpr uint kPartitionSize = 3840;
-
-inline constexpr uint kMaxSize = 65535 * kPartitionSize;
-
-inline constexpr uint kGlobalHistPartSize = 32768;
-} // namespace DeviceSorterProperty
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 struct DeviceSorterResource
