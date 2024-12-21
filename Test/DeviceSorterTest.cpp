@@ -91,7 +91,7 @@ void validate(
 
 GPU_TEST(DeviceSorter_Key_Direct)
 {
-    uint count = 1000; // std::uniform_int_distribution<uint>{1, DeviceSorterProperty::kMaxSize}(rand);
+    uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
     auto sorter = DeviceSorter<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>(ctx.getDevice());
     auto sorterResource = DeviceSorterResource<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), count);
     fmt::println("Count = {}", count);
