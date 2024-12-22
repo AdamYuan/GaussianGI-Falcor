@@ -18,6 +18,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/AliasTable.cpp
         Algorithm/MeshView.hpp
         Algorithm/MeshSample.hpp
+        Algorithm/MeshBVH.hpp
 
         Algorithm/GPUSorting/DeviceSorter.hpp
         Algorithm/GPUSorting/DeviceSorter.cpp
