@@ -7,6 +7,7 @@
 
 #include <concepts>
 #include <Falcor.h>
+#include <Utils/Math/AABB.h>
 
 using namespace Falcor;
 
@@ -34,6 +35,7 @@ concept MeshView = requires(const T ct) {
     ct.getPrimitive(0);
     { ct.getPrimitiveCount() } -> std::convertible_to<std::size_t>;
     requires PrimitiveView<std::remove_cvref_t<decltype(ct.getPrimitive(0))>>;
+    { ct.getAABB() } -> std::convertible_to<AABB>;
 };
 
 } // namespace Concepts

@@ -44,7 +44,7 @@ void GMesh::updateBound()
 {
     this->bound = {};
     for (const auto& vertex : this->vertices)
-        this->bound.merge(vertex.position);
+        this->bound.include(vertex.position);
 }
 
 ref<VertexLayout> GMesh::createVertexLayout()

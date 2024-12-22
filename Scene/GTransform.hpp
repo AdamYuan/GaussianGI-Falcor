@@ -7,9 +7,9 @@
 #define GSGI_GTRANSFORM_HPP
 
 #include <Falcor.h>
-using namespace Falcor;
+#include <Utils/Math/AABB.h>
 
-#include "GBound.hpp"
+using namespace Falcor;
 
 namespace GSGI
 {
@@ -46,29 +46,29 @@ struct GTransform
         p += this->center;
         return p;
     }
-    GBound apply(GBound b) const
+    AABB apply(AABB b) const
     {
         // [ cosR  -sinR ]
         // [ sinR   cosR ]
-        float2 bMaxXZ{
-            cosRotY * (cosRotY > 0 ? b.bMax.x : b.bMin.x) - sinRotY * (sinRotY < 0 ? b.bMax.z : b.bMin.z),
-            sinRotY * (sinRotY > 0 ? b.bMax.x : b.bMin.x) + cosRotY * (cosRotY > 0 ? b.bMax.z : b.bMin.z),
+        float2 maxPointXZ{
+            cosRotY * (cosRotY > 0 ? b.maxPoint.x : b.minPoint.x) - sinRotY * (sinRotY < 0 ? b.maxPoint.z : b.minPoint.z),
+            sinRotY * (sinRotY > 0 ? b.maxPoint.x : b.minPoint.x) + cosRotY * (cosRotY > 0 ? b.maxPoint.z : b.minPoint.z),
         };
-        float2 bMinXZ{
-            cosRotY * (cosRotY < 0 ? b.bMax.x : b.bMin.x) - sinRotY * (sinRotY > 0 ? b.bMax.z : b.bMin.z),
-            sinRotY * (sinRotY < 0 ? b.bMax.x : b.bMin.x) + cosRotY * (cosRotY < 0 ? b.bMax.z : b.bMin.z),
+        float2 minPointXZ{
+            cosRotY * (cosRotY < 0 ? b.maxPoint.x : b.minPoint.x) - sinRotY * (sinRotY > 0 ? b.maxPoint.z : b.minPoint.z),
+            sinRotY * (sinRotY < 0 ? b.maxPoint.x : b.minPoint.x) + cosRotY * (cosRotY < 0 ? b.maxPoint.z : b.minPoint.z),
         };
 
-        b.bMax.x = bMaxXZ[0];
-        b.bMax.z = bMaxXZ[1];
-        b.bMin.x = bMinXZ[0];
-        b.bMin.z = bMinXZ[1];
+        b.maxPoint.x = maxPointXZ[0];
+        b.maxPoint.z = maxPointXZ[1];
+        b.minPoint.x = minPointXZ[0];
+        b.minPoint.z = minPointXZ[1];
 
-        b.bMax *= this->scale;
-        b.bMin *= this->scale;
+        b.maxPoint *= this->scale;
+        b.minPoint *= this->scale;
 
-        b.bMax += this->center;
-        b.bMin += this->center;
+        b.maxPoint += this->center;
+        b.minPoint += this->center;
 
         return b;
     }

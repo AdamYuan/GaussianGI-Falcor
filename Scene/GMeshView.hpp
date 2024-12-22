@@ -48,6 +48,7 @@ struct GMeshView
             .primitiveID = primitiveID,
         };
     }
+    const AABB& getAABB() const { return pMesh->bound; }
 
     static GMeshView make(const GMesh::Ptr& pMesh) { return GMeshView{.pMesh = pMesh.get()}; }
 };

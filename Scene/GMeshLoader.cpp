@@ -75,7 +75,7 @@ struct GMeshLoaderContext
                 gVertex.texcoord = {aiTexcoord.x, aiTexcoord.y};
             }
             this->mesh.vertices.push_back(gVertex);
-            this->mesh.bound.merge(gVertex.position);
+            this->mesh.bound.include(gVertex.position);
         }
         // process texture
         if (pAiMesh->mMaterialIndex >= pAiScene->mNumMaterials)
@@ -194,7 +194,7 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
         .mesh =
             {
                 .path = filename,
-                .bound = GBound{},
+                .bound = AABB{},
             },
     };
     if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.getPrimitiveCount() == 0)
@@ -212,14 +212,14 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
 
     // Normalize mesh through Y direction
     {
-        float3 center = ctx.mesh.bound.getCenter();
-        float3 halfExtent = ctx.mesh.bound.getExtent() * 0.5f;
+        float3 center = ctx.mesh.bound.center();
+        float3 halfExtent = ctx.mesh.bound.extent() * 0.5f;
         float invHalfExtentY = 1.0f / halfExtent.y;
         const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtentY; };
         for (auto& vertex : ctx.mesh.vertices)
             normalizeFloat3(vertex.position);
-        normalizeFloat3(ctx.mesh.bound.bMin);
-        normalizeFloat3(ctx.mesh.bound.bMax);
+        normalizeFloat3(ctx.mesh.bound.minPoint);
+        normalizeFloat3(ctx.mesh.bound.maxPoint);
         timeReport.measure("Normalizing mesh");
     }
 

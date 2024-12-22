@@ -48,7 +48,7 @@ struct MeshSample
     uint32_t primitiveID;
     float2 barycentrics;
 
-    float3 getPosition(Concepts::MeshView auto meshView) const
+    float3 getPosition(const Concepts::MeshView auto& meshView) const
     {
         float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
         float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
@@ -56,7 +56,11 @@ struct MeshSample
         return p0 * (1.0f - barycentrics.x - barycentrics.y) + p1 * barycentrics.x + p2 * barycentrics.y;
     }
 
-    static std::vector<MeshSample> sample(Concepts::MeshView auto meshView, Concepts::MeshSampler auto& sampler, uint32_t sampleCount)
+    static std::vector<MeshSample> sample(
+        const Concepts::MeshView auto& meshView,
+        Concepts::MeshSampler auto& sampler,
+        uint32_t sampleCount
+    )
     {
         AliasTable primitiveTable;
         {

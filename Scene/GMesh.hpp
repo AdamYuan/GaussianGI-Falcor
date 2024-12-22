@@ -7,8 +7,7 @@
 #define GSGI_GMESH_HPP
 
 #include <Falcor.h>
-
-#include "GBound.hpp"
+#include <Utils/Math/AABB.h>
 
 using namespace Falcor;
 
@@ -38,7 +37,7 @@ struct GMesh
     };
 
     std::filesystem::path path;
-    GBound bound;
+    AABB bound;
 
     std::vector<Vertex> vertices;
     std::vector<Index> indices;
@@ -87,7 +86,7 @@ struct GMesh
     {
         if (mesh.firstOpaquePrimitiveID == -1)
             mesh.reorderOpaque();
-        if (mesh.bound.empty())
+        if (!mesh.bound.valid())
             mesh.updateBound();
         return std::make_shared<const GMesh>(std::move(mesh));
     }

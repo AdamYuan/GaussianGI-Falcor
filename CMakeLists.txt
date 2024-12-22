@@ -19,6 +19,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshView.hpp
         Algorithm/MeshSample.hpp
         Algorithm/MeshBVH.hpp
+        Algorithm/MeshClosestPoint.hpp
 
         Algorithm/GPUSorting/DeviceSorter.hpp
         Algorithm/GPUSorting/DeviceSorter.cpp
@@ -26,7 +27,6 @@ target_sources(GaussianGI PRIVATE
         Algorithm/GPUSorting/SweepCommon.slangh
         Algorithm/GPUSorting/SortCommon.slangh
 
-        Scene/GBound.hpp
         Scene/GScene.hpp
         Scene/GScene.cpp
         Scene/GScene.slang
