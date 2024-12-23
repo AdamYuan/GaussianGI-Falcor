@@ -82,12 +82,14 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/PathTraced/PTIndLight.cpp
         Renderer/IndLight/PathTraced/PTIndLight.cs.slang
 
+        Renderer/IndLight/3DGS/GS3D.hpp
+        Renderer/IndLight/3DGS/GS3D.slang
         Renderer/IndLight/3DGS/GS3DIndLight.hpp
         Renderer/IndLight/3DGS/GS3DIndLight.cpp
         Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
-        Renderer/IndLight/3DGS/GS3DIndLightMisc.slang
-        Renderer/IndLight/3DGS/GS3DIndLightMisc.slangh
-        Renderer/IndLight/3DGS/GS3DIndLightMiscPoint.3d.slang
+        Renderer/IndLight/3DGS/GS3DMiscRenderer.hpp
+        Renderer/IndLight/3DGS/GS3DMiscRenderer.cpp
+        Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 target_copy_shaders(GaussianGI GaussianGI)

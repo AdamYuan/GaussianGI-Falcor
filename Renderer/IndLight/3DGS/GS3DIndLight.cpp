@@ -4,9 +4,10 @@
 
 #include "GS3DIndLight.hpp"
 
+#include <ranges>
+#include "GS3D.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Scene/GMeshView.hpp"
-#include "GS3DIndLightMisc.slangh"
 #include "../../../Util/ShaderUtil.hpp"
 
 namespace GSGI
@@ -14,19 +15,7 @@ namespace GSGI
 
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
-    mpPointVertexLayout = []
-    {
-        auto vertexBufferLayout = VertexBufferLayout::create();
-        vertexBufferLayout->addElement(GS3D_VERTEX_PRIMID_NAME, 0, ResourceFormat::R32Uint, 1, GS3D_VERTEX_PRIMID_LOC);
-        vertexBufferLayout->addElement(GS3D_VERTEX_BARY_NAME, sizeof(uint32_t), ResourceFormat::RG32Float, 1, GS3D_VERTEX_BARY_LOC);
-        static_assert(sizeof(MeshPoint) == 12);
-        static_assert(offsetof(MeshPoint, primitiveID) == 0);
-        static_assert(offsetof(MeshPoint, barycentrics) == sizeof(uint32_t));
-        auto vertexLayout = VertexLayout::create();
-        vertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
-        return vertexLayout;
-    }();
-    mpPointPass = RasterPass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightMiscPoint.3d.slang", "vsMain", "psMain");
+    mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
 }
 
 void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
@@ -34,20 +23,31 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
     mpStaticScene = pDefaultStaticScene;
     if (isSceneChanged)
     {
-        std::vector<MeshPoint> meshPoints;
+        std::vector<GS3DSplat> splats;
         for (const auto& pMesh : pDefaultStaticScene->getMeshes())
         {
             auto sampler = MeshSamplerDefault<std::mt19937>{};
             auto view = GMeshView::make(pMesh);
             auto meshSamples = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
-            meshPoints.insert(meshPoints.end(), meshSamples.begin(), meshSamples.end());
+            auto meshSplats = meshSamples | std::views::transform(
+                                                [](const MeshPoint& meshPoint) -> GS3DSplat
+                                                {
+                                                    return GS3DSplat{
+                                                        .barycentrics = meshPoint.barycentrics,
+                                                        .primitiveID = meshPoint.primitiveID,
+                                                    };
+                                                }
+                                            );
+            splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
         }
 
-        mpPointBuffer = getDevice()->createStructuredBuffer(
-            sizeof(MeshPoint), meshPoints.size(), ResourceBindFlags::Vertex, MemoryType::DeviceLocal, meshPoints.data()
+        mpSplatBuffer = getDevice()->createStructuredBuffer(
+            sizeof(GS3DSplat), //
+            splats.size(),
+            ResourceBindFlags::ShaderResource,
+            MemoryType::DeviceLocal,
+            splats.data()
         );
-        mpPointVao = Vao::create(Vao::Topology::PointList, mpPointVertexLayout, {mpPointBuffer});
-        mpPointPass->getState()->setVao(mpPointVao);
     }
 }
 
@@ -55,25 +55,15 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
 
 void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {
-    pRenderContext->clearDsv(pTargetFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
-    pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
-
-    auto [prog, var] = getShaderProgVar(mpPointPass);
-    mpStaticScene->bindRootShaderData(var);
-    mpPointPass->getState()->setFbo(pTargetFbo);
-
-    for (uint meshID = 0; meshID < mpStaticScene->getMeshCount(); ++meshID)
-    {
-        const auto& meshInfo = mpStaticScene->getMeshInfos()[meshID];
-        pRenderContext->drawInstanced(
-            mpPointPass->getState().get(),
-            mpPointPass->getVars().get(),
-            mConfig.splatsPerMesh,
-            meshInfo.instanceCount,
-            mConfig.splatsPerMesh * meshID,
-            meshInfo.firstInstance
-        );
-    }
+    mpMiscRenderer->draw(
+        pRenderContext,
+        pTargetFbo,
+        {
+            .pStaticScene = mpStaticScene,
+            .pSplatBuffer = mpSplatBuffer,
+            .splatsPerMesh = mConfig.splatsPerMesh,
+        }
+    );
 }
 
 void GS3DIndLight::renderUIImpl(Gui::Widgets& widget) {}

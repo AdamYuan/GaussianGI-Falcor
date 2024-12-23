@@ -9,6 +9,7 @@
 #include "../../../Common/GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../GIndLightArgs.hpp"
+#include "GS3DMiscRenderer.hpp"
 
 using namespace Falcor;
 
@@ -19,11 +20,8 @@ class GS3DIndLight final : public GDeviceObject<GS3DIndLight>
 {
 private:
     ref<GStaticScene> mpStaticScene;
-
-    ref<VertexLayout> mpPointVertexLayout;
-    ref<RasterPass> mpPointPass;
-    ref<Buffer> mpPointBuffer;
-    ref<Vao> mpPointVao;
+    ref<GS3DMiscRenderer> mpMiscRenderer;
+    ref<Buffer> mpSplatBuffer;
 
     struct
     {

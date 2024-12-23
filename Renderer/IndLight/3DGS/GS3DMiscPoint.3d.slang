@@ -3,7 +3,10 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Util.ShaderUtil;
-import GS3DIndLightMisc;
+import GS3D;
+
+StructuredBuffer<GS3D::Splat> gSplats;
+uniform uint gSplatsPerMesh;
 
 struct PSIn
 {
@@ -11,16 +14,21 @@ struct PSIn
     nointerpolation float3 texColor;
 }
 
-PSIn vsMain(GS3DMisc::PointVSIn vIn, uint instanceID: SV_InstanceID)
+PSIn vsMain(uint vertexID: SV_VertexID)
 {
+    uint instanceID = vertexID / gSplatsPerMesh;
+    var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
+
+    GS3D::Splat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + vertexID % gSplatsPerMesh];
+
     var hitInfo = (GStaticScene::HitInfo)0;
     hitInfo.isHit = true;
     hitInfo.isFrontFace = true;
     hitInfo.instanceID = instanceID;
-    hitInfo.meshPrimitiveID = vIn.primitiveID;
-    hitInfo.barycentrics = vIn.barycentrics;
+    hitInfo.meshPrimitiveID = splat.primitiveID;
+    hitInfo.barycentrics = splat.barycentrics;
 
-    var hitPoint = gGStaticScene.getHitPoint(hitInfo);
+    var hitPoint = gGStaticScene.getHitPoint(hitInfo, instanceInfo);
 
     PSIn o;
     o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(hitPoint.position, 1));

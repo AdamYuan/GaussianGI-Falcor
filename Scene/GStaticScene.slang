@@ -82,13 +82,28 @@ public struct GStaticScene
     }
     public uint getPrimitiveTextureID(uint globalPrimitiveID) { return textureIDs[globalPrimitiveID]; }
 
-    public HitPoint getHitPoint(HitInfo hitInfo)
+    public HitPoint getHitPoint(in const HitInfo hitInfo)
     {
         if (!hitInfo.isHit)
             return (HitPoint)0;
 
         var instanceInfo = getInstanceInfo(hitInfo.instanceID);
+        return getHitPoint(hitInfo, instanceInfo);
+    }
+
+    public HitPoint getHitPoint(in const HitInfo hitInfo, in const InstanceInfo instanceInfo)
+    {
+        if (!hitInfo.isHit)
+            return (HitPoint)0;
+
         var meshInfo = getMeshInfo(instanceInfo.meshID);
+        return getHitPoint(hitInfo, instanceInfo, meshInfo);
+    }
+
+    public HitPoint getHitPoint(in const HitInfo hitInfo, in const InstanceInfo instanceInfo, in const MeshInfo meshInfo)
+    {
+        if (!hitInfo.isHit)
+            return (HitPoint)0;
 
         uint globalPrimitiveID = getGlobalPrimitiveID(meshInfo, hitInfo.meshPrimitiveID);
         GMesh::Vertex vertices[3];
