@@ -125,10 +125,8 @@ struct MeshClosestPoint
         return 0;
     }
 
-    static Result query(const Concepts::MeshView auto& meshView, const MeshClosestPointBVH& bvh, const float3& point, float maxDistance)
+    static Result query(const Concepts::MeshView auto& meshView, const MeshClosestPointBVH& bvh, const float3& point, float maxDist2)
     {
-        float maxDist2 = maxDistance * maxDistance;
-
         float dist2 = maxDist2;
         std::optional<MeshPoint> optPoint = std::nullopt;
 
