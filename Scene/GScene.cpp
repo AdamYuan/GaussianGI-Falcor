@@ -172,6 +172,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             meshGrp.text(fmt::format("Vertex Count: {}", entry.pMesh->getVertexCount()));
             meshGrp.text(fmt::format("Index Count: {}", entry.pMesh->getIndexCount()));
             meshGrp.text(fmt::format("Texture Count: {}", entry.pMesh->getTextureCount()));
+            meshGrp.text(fmt::format("AABB: ({}, {})", entry.pMesh->bound.minPoint, entry.pMesh->bound.maxPoint));
 
             if (meshGrp.button("Add Instance"))
             {

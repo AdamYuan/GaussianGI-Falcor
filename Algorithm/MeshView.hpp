@@ -40,6 +40,22 @@ concept MeshView = requires(const T ct) {
 
 } // namespace Concepts
 
+struct MeshPoint
+{
+    uint32_t primitiveID;
+    float2 barycentrics;
+
+    float3 getPosition(const Concepts::MeshView auto& meshView) const
+    {
+        float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
+        float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
+        float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
+        return p0 * (1.0f - barycentrics.x - barycentrics.y) + p1 * barycentrics.x + p2 * barycentrics.y;
+    }
+};
+
+static_assert(sizeof(MeshPoint) == 3 * sizeof(uint32_t));
+
 } // namespace GSGI
 
 #endif // GSGI_MESHVIEW_HPP

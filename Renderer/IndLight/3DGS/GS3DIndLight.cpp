@@ -19,9 +19,9 @@ GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevic
         auto vertexBufferLayout = VertexBufferLayout::create();
         vertexBufferLayout->addElement(GS3D_VERTEX_PRIMID_NAME, 0, ResourceFormat::R32Uint, 1, GS3D_VERTEX_PRIMID_LOC);
         vertexBufferLayout->addElement(GS3D_VERTEX_BARY_NAME, sizeof(uint32_t), ResourceFormat::RG32Float, 1, GS3D_VERTEX_BARY_LOC);
-        static_assert(sizeof(MeshSample) == 12);
-        static_assert(offsetof(MeshSample, primitiveID) == 0);
-        static_assert(offsetof(MeshSample, barycentrics) == sizeof(uint32_t));
+        static_assert(sizeof(MeshPoint) == 12);
+        static_assert(offsetof(MeshPoint, primitiveID) == 0);
+        static_assert(offsetof(MeshPoint, barycentrics) == sizeof(uint32_t));
         auto vertexLayout = VertexLayout::create();
         vertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
         return vertexLayout;
@@ -34,7 +34,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
     mpStaticScene = pDefaultStaticScene;
     if (isSceneChanged)
     {
-        std::vector<MeshSample> meshPoints;
+        std::vector<MeshPoint> meshPoints;
         for (const auto& pMesh : pDefaultStaticScene->getMeshes())
         {
             auto sampler = MeshSamplerDefault<std::mt19937>{};
@@ -44,7 +44,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
         }
 
         mpPointBuffer = getDevice()->createStructuredBuffer(
-            sizeof(MeshSample), meshPoints.size(), ResourceBindFlags::Vertex, MemoryType::DeviceLocal, meshPoints.data()
+            sizeof(MeshPoint), meshPoints.size(), ResourceBindFlags::Vertex, MemoryType::DeviceLocal, meshPoints.data()
         );
         mpPointVao = Vao::create(Vao::Topology::PointList, mpPointVertexLayout, {mpPointBuffer});
         mpPointPass->getState()->setVao(mpPointVao);

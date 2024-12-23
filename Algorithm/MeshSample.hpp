@@ -45,22 +45,7 @@ static_assert(Concepts::MeshSampler<MeshSamplerDefault<std::mt19937>>);
 
 struct MeshSample
 {
-    uint32_t primitiveID;
-    float2 barycentrics;
-
-    float3 getPosition(const Concepts::MeshView auto& meshView) const
-    {
-        float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
-        float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
-        float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
-        return p0 * (1.0f - barycentrics.x - barycentrics.y) + p1 * barycentrics.x + p2 * barycentrics.y;
-    }
-
-    static std::vector<MeshSample> sample(
-        const Concepts::MeshView auto& meshView,
-        Concepts::MeshSampler auto& sampler,
-        uint32_t sampleCount
-    )
+    static std::vector<MeshPoint> sample(const Concepts::MeshView auto& meshView, Concepts::MeshSampler auto& sampler, uint32_t sampleCount)
     {
         AliasTable primitiveTable;
         {
@@ -75,7 +60,7 @@ struct MeshSample
             primitiveTable = AliasTable::create(primitiveAreas);
         }
 
-        std::vector<MeshSample> samples(sampleCount);
+        std::vector<MeshPoint> samples(sampleCount);
         uint2 u2;
         float2 f2;
         for (auto& sample : samples)

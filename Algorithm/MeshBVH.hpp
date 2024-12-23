@@ -71,6 +71,8 @@ public:
     public:
         NodeView(const Node& node, NodeID nodeID) : mNode{node}, mNodeID{nodeID} {}
 
+        const Bound_T& getBound() const { return mNode.bound; }
+
         bool isLeaf() const { return mNode.data & Node::kLeafFlag; }
         uint32_t getLeafPrimitiveID() const
         {
@@ -86,12 +88,13 @@ public:
         NodeID getRightChildID() const
         {
             FALCOR_ASSERT(isInner());
-            return static_cast<NodeID>(mNodeID);
+            return static_cast<NodeID>(mNode.data);
         }
     };
 
     static NodeID getRootID() { return static_cast<NodeID>(0); }
     const NodeView& getNode(NodeID nodeID) const { return NodeView(mNodes[static_cast<uint32_t>(nodeID)], nodeID); }
+    const NodeView& getRootNode() const { return getNode(getRootID()); }
 
     template<Concepts::MeshBVHBuilder<Bound_T> Builder_T, Concepts::MeshView MeshView_T>
     static MeshBVH build(const MeshView_T& meshView)
