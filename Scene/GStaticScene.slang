@@ -55,6 +55,7 @@ public struct GStaticScene
     public SamplerState sampler;
     public Camera camera;
     public GLighting lighting;
+    public uint meshCount, instanceCount;
 
     public GMesh::Vertex getVertex(uint index) { return vertices[index]; }
     public MeshInfo getMeshInfo(uint meshID) { return meshInfos[meshID]; }

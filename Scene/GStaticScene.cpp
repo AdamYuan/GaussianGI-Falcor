@@ -148,6 +148,8 @@ void GStaticScene::bindRootShaderData(const ShaderVar& rootVar) const
     var["meshInfos"] = mpMeshInfoBuffer;
     var["instanceInfos"] = mpInstanceInfoBuffer;
     var["sampler"] = getDevice()->getDefaultSampler();
+    var["meshCount"] = (uint)getMeshCount();
+    var["instanceCount"] = (uint)getInstanceCount();
     mpScene->getCamera()->bindShaderData(var["camera"]);
     mpScene->getLighting()->bindShaderData(var["lighting"]);
     for (int textureID = 0; textureID < (int)mpTextures.size(); ++textureID)
