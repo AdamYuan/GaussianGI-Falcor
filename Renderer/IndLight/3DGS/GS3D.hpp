@@ -21,6 +21,14 @@ struct GS3DSplat
 };
 static_assert(sizeof(GS3DSplat) == 6 * sizeof(uint32_t));
 
+struct GS3DSplatView
+{
+    float16_t2 axis0, axis1;
+    float16_t2 clipXY;
+    uint32_t color;
+};
+static_assert(sizeof(GS3DSplatView) == 4 * sizeof(uint32_t));
+
 } // namespace GSGI
 
 #endif // GSGI_GS3DCOMMON_HPP

@@ -45,8 +45,14 @@ static_assert(Concepts::MeshSampler<MeshSamplerDefault<std::mt19937>>);
 
 struct MeshSample
 {
-    static std::vector<MeshPoint> sample(const Concepts::MeshView auto& meshView, Concepts::MeshSampler auto& sampler, uint32_t sampleCount)
+    struct Result
     {
+        std::vector<MeshPoint> points;
+        float totalArea;
+    };
+    static Result sample(const Concepts::MeshView auto& meshView, Concepts::MeshSampler auto& sampler, uint32_t sampleCount)
+    {
+        float totalArea = 0;
         AliasTable primitiveTable;
         {
             std::vector<float> primitiveAreas(meshView.getPrimitiveCount());
@@ -55,27 +61,33 @@ struct MeshSample
                 float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
                 float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
                 float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
-                primitiveAreas[primitiveID] = math::length(math::cross(p1 - p0, p2 - p0)); //  * 0.5f;
+                float doubleArea = math::length(math::cross(p1 - p0, p2 - p0));
+                totalArea += doubleArea;
+                primitiveAreas[primitiveID] = doubleArea;
             }
             primitiveTable = AliasTable::create(primitiveAreas);
+            totalArea *= 0.5f;
         }
 
-        std::vector<MeshPoint> samples(sampleCount);
+        std::vector<MeshPoint> points(sampleCount);
         uint2 u2;
         float2 f2;
-        for (auto& sample : samples)
+        for (auto& point : points)
         {
             sampler(u2, f2);
-            sample.primitiveID = primitiveTable.sample(u2);
+            point.primitiveID = primitiveTable.sample(u2);
             if (f2.x + f2.y > 1.0f)
             {
                 f2.x = 1.0f - f2.x;
                 f2.y = 1.0f - f2.y;
             }
-            sample.barycentrics = f2;
+            point.barycentrics = f2;
         }
 
-        return samples;
+        return {
+            .points = std::move(points),
+            .totalArea = totalArea,
+        };
     }
 };
 

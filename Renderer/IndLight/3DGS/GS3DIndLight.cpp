@@ -8,7 +8,6 @@
 #include "GS3D.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Scene/GMeshView.hpp"
-#include "../../../Util/ShaderUtil.hpp"
 
 namespace GSGI
 {
@@ -28,16 +27,20 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
         {
             auto sampler = MeshSamplerDefault<std::mt19937>{};
             auto view = GMeshView::make(pMesh);
-            auto meshSamples = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
-            auto meshSplats = meshSamples | std::views::transform(
-                                                [](const MeshPoint& meshPoint) -> GS3DSplat
-                                                {
-                                                    return GS3DSplat{
-                                                        .barycentrics = meshPoint.barycentrics,
-                                                        .primitiveID = meshPoint.primitiveID,
-                                                    };
-                                                }
-                                            );
+            auto sampleResult = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
+            static constexpr float kEpsilon = 0.01f, kK = 16.0f;
+            float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea) / float(mConfig.splatsPerMesh);
+            auto meshSplats = sampleResult.points | std::views::transform(
+                                                        [&](const MeshPoint& meshPoint) -> GS3DSplat
+                                                        {
+                                                            return GS3DSplat{
+                                                                .barycentrics = meshPoint.barycentrics,
+                                                                .primitiveID = meshPoint.primitiveID,
+                                                                .rotate = float16_t4(0.0f, 0.0f, 0.0f, 1.0f),
+                                                                .scale = float16_t2(initialScale, initialScale),
+                                                            };
+                                                        }
+                                                    );
             splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
         }
 
@@ -66,6 +69,10 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTarg
     );
 }
 
-void GS3DIndLight::renderUIImpl(Gui::Widgets& widget) {}
+void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
+{
+    if (auto g = widget.group("Misc", true))
+        mpMiscRenderer->renderUI(g);
+}
 
 } // namespace GSGI

@@ -90,6 +90,8 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DMiscRenderer.hpp
         Renderer/IndLight/3DGS/GS3DMiscRenderer.cpp
         Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang
+        Renderer/IndLight/3DGS/GS3DMiscSplatView.cs.slang
+        Renderer/IndLight/3DGS/GS3DMiscSplatDraw.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp)
 target_copy_shaders(GaussianGI GaussianGI)
