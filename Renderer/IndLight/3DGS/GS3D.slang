@@ -45,12 +45,15 @@ public namespace GS3D
 
     public float3 getCovariance2D(float2x3 cov3d, float3 viewPos, float3x3 viewRotMatrix, float4x4 projMatrix, float2 resolution)
     {
+        // focal = 0.5 * h / tan(fov * 0.5),
+        // projMatrix._m00 = h / (w * tan(fov * 0.5))
         float focal = resolution.x * projMatrix._m00 * 0.5;
         float3x3 J = float3x3(
             float3(focal / viewPos.z, 0, -(focal * viewPos.x) / (viewPos.z * viewPos.z)),
             float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),
             float3(0, 0, 0)
         );
+        J[1] = -J[1]; // Reverse Y-Axis to match screen coordinate
         float3x3 W = viewRotMatrix;
         float3x3 T = mul(J, W);
         float3x3 V = float3x3(
@@ -70,17 +73,28 @@ public namespace GS3D
 
     public Eigen<2> decomposeCovariance2D(float3 cov2d)
     {
-        // same as in antimatter15/splat
-        float diag1 = cov2d.x, diag2 = cov2d.z, offDiag = cov2d.y;
-        float mid = 0.5f * (diag1 + diag2);
-        float radius = length(float2((diag1 - diag2) / 2.0, offDiag));
+        // [a, b]
+        // [b, c]
+        float a = cov2d.x, b = cov2d.y, c = cov2d.z;
+        // | a - \lambda, b           | = 0
+        // | b          , c - \lambda |
+        // \Rightarrow \lambda^2 - (a + c)\lambda + ac - b^2 = 0
+
+        // \frac{a + c}{2}
+        float mid = 0.5 * (a + c);
+        // \frac{\sqrt{(a + c)^2 - 4 (ac - b^2)}}{2} = \frac{\sqrt{(a - c)^2 + (2b)^2}}{2}
+        float radius = length(float2((a - c) * 0.5, b));
+
         float lambda1 = mid + radius;
-        float lambda2 = max(mid - radius, 0.1);
-        float2 diagVec = normalize(float2(offDiag, lambda1 - diag1));
-        diagVec.y = -diagVec.y;
+        float lambda2 = mid - radius;
+
+        // [ a - \lambda, b           ][ e_x ] = 0
+        // [ b          , c - \lambda ][ e_y ]
+        float2 eigen1 = normalize(float2(b, lambda1 - a));
+        float2 eigen2 = float2(eigen1.y, -eigen1.x); // normalize(float2(b, lambda2 - a));
         Eigen<2> eigen;
         eigen.lambda = float2(lambda1, lambda2);
-        eigen.eigen = float2x2(diagVec, float2(diagVec.y, -diagVec.x));
+        eigen.eigen = float2x2(eigen1, eigen2);
         return eigen;
     }
 }
