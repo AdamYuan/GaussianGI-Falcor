@@ -20,6 +20,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshSample.hpp
         Algorithm/MeshBVH.hpp
         Algorithm/MeshClosestPoint.hpp
+        Algorithm/MeshGSOptimize.hpp
 
         Algorithm/GPUSorting/DeviceSorter.hpp
         Algorithm/GPUSorting/DeviceSorter.cpp

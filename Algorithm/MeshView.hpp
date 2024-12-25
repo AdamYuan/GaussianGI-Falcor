@@ -49,6 +49,11 @@ struct PrimitiveViewMethod
         float3 p2 = primitiveView.getVertex(2).getPosition();
         return {p0, p1, p2};
     }
+    static float3 getGeomNormal(const Concepts::PrimitiveView auto& primitiveView)
+    {
+        auto [p0, p1, p2] = getVertexPositions(primitiveView);
+        return math::normalize(math::cross(p1 - p0, p2 - p0));
+    }
 };
 
 struct MeshPoint

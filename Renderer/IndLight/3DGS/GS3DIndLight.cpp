@@ -7,7 +7,7 @@
 #include <ranges>
 #include "GS3D.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
-#include "../../../Algorithm/MeshClosestPoint.hpp"
+#include "../../../Algorithm/MeshGSOptimize.hpp"
 #include "../../../Scene/GMeshView.hpp"
 
 namespace GSGI
@@ -33,17 +33,25 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             static constexpr float kEpsilon = 0.01f, kK = 32.0f;
             float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea / float(mConfig.splatsPerMesh));
             logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
-            auto meshSplats = sampleResult.points | std::views::transform(
-                                                        [&](const MeshPoint& meshPoint) -> GS3DPackedSplat
-                                                        {
-                                                            return GS3DPackedSplat{
-                                                                .barycentrics = meshPoint.barycentrics,
-                                                                .primitiveID = meshPoint.primitiveID,
-                                                                .rotate = float16_t4(0.0f, 0.0f, 0.0f, 1.0f),
-                                                                .scale = float16_t2(initialScale, initialScale),
-                                                            };
-                                                        }
-                                                    );
+            auto meshSplats =
+                sampleResult.points | std::views::transform(
+                                          [&](const MeshPoint& meshPoint) -> GS3DPackedSplat
+                                          {
+                                              auto result = MeshGSOptimize::run(
+                                                  GMeshView{pMesh},
+                                                  meshPoint,
+                                                  {
+                                                      .initialScale = initialScale,
+                                                  }
+                                              );
+                                              return GS3DPackedSplat{
+                                                  .barycentrics = meshPoint.barycentrics,
+                                                  .primitiveID = meshPoint.primitiveID,
+                                                  .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
+                                                  .scale = float16_t2(result.scaleXY),
+                                              };
+                                          }
+                                      );
             splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
         }
 
