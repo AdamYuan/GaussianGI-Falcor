@@ -24,8 +24,8 @@ struct MeshBVHSplit
 namespace Concepts
 {
 
-template<typename T, typename Bound_T>
-concept MeshBVHBuilder = requires(T& t, const MeshView auto& meshView) {
+template<typename T, typename Bound_T, typename MeshView_T>
+concept MeshBVHBuilder = MeshView<MeshView_T> && requires(T& t, const MeshView_T& meshView) {
     t = T{};
     { t.root(meshView) } -> std::convertible_to<Bound_T>;
     { t.split(meshView, std::span<uint32_t>{}, Bound_T{}) } -> std::convertible_to<MeshBVHSplit<Bound_T>>;
@@ -93,12 +93,14 @@ public:
     };
 
     static NodeID getRootID() { return static_cast<NodeID>(0); }
-    const NodeView& getNode(NodeID nodeID) const { return NodeView(mNodes[static_cast<uint32_t>(nodeID)], nodeID); }
-    const NodeView& getRootNode() const { return getNode(getRootID()); }
+    NodeView getNode(NodeID nodeID) const { return NodeView(mNodes[static_cast<uint32_t>(nodeID)], nodeID); }
+    NodeView getRootNode() const { return getNode(getRootID()); }
 
-    template<Concepts::MeshBVHBuilder<Bound_T> Builder_T, Concepts::MeshView MeshView_T>
+    template<typename Builder_T, Concepts::MeshView MeshView_T>
     static MeshBVH build(const MeshView_T& meshView)
     {
+        static_assert(Concepts::MeshBVHBuilder<Builder_T, Bound_T, MeshView_T>);
+
         uint32_t primitiveCount = meshView.getPrimitiveCount();
         uint32_t nodeCount = primitiveCount << 1 | 1;
 
