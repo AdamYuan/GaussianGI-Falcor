@@ -90,7 +90,7 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         {
             mSplatViewCount = splatViewCount;
 
-            mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DSplatView), mSplatViewCount);
+            mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DPackedSplatView), mSplatViewCount);
             mpSplatViewSortKeyBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
             mpSplatViewSortPayloadBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
             mSplatViewSorterResource =

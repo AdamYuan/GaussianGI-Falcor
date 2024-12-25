@@ -12,22 +12,22 @@ using namespace Falcor;
 namespace GSGI
 {
 
-struct GS3DSplat
+struct GS3DPackedSplat
 {
     float2 barycentrics;
     uint32_t primitiveID;
     float16_t4 rotate;
     float16_t2 scale;
 };
-static_assert(sizeof(GS3DSplat) == 6 * sizeof(uint32_t));
+static_assert(sizeof(GS3DPackedSplat) == 6 * sizeof(uint32_t));
 
-struct GS3DSplatView
+struct GS3DPackedSplatView
 {
     float16_t2 axis0, axis1;
     float16_t2 clipXY;
     uint32_t color;
 };
-static_assert(sizeof(GS3DSplatView) == 4 * sizeof(uint32_t));
+static_assert(sizeof(GS3DPackedSplatView) == 4 * sizeof(uint32_t));
 
 } // namespace GSGI
 

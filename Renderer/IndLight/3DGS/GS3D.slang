@@ -31,9 +31,9 @@ public namespace GS3D
         );
     }
 
-    public float2x3 getCovariance3D(float4 splatRotate, float2 splatScaleXY, in const GTransform transform)
+    public float2x3 getCovariance3D(float4 splatRotate, float3 splatScale, in const GTransform transform)
     {
-        float3 scale = float3(splatScaleXY, 0.1 * splatScaleXY.x) * transform.scale;
+        float3 scale = splatScale * transform.scale;
         float3x3 scaleMat = float3x3(scale.x, 0, 0, 0, scale.y, 0, 0, 0, scale.z);
         float3x3 transformRotMat = transform.getRotateMatrix();
         float3x3 splatRotMat = getQuatMatrix(splatRotate);

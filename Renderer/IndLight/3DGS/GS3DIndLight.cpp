@@ -7,10 +7,13 @@
 #include <ranges>
 #include "GS3D.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
+#include "../../../Algorithm/MeshClosestPoint.hpp"
 #include "../../../Scene/GMeshView.hpp"
 
 namespace GSGI
 {
+
+// static MeshClosestPointBVH meshBvh;
 
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
@@ -22,18 +25,18 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
     mpStaticScene = pDefaultStaticScene;
     if (isSceneChanged)
     {
-        std::vector<GS3DSplat> splats;
+        std::vector<GS3DPackedSplat> splats;
         for (const auto& pMesh : pDefaultStaticScene->getMeshes())
         {
             auto sampler = MeshSamplerDefault<std::mt19937>{};
-            auto view = GMeshView::make(pMesh);
-            auto sampleResult = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
-            static constexpr float kEpsilon = 0.01f, kK = 16.0f;
-            float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea) / float(mConfig.splatsPerMesh);
+            auto sampleResult = MeshSample::sample(GMeshView{pMesh}, sampler, mConfig.splatsPerMesh);
+            static constexpr float kEpsilon = 0.01f, kK = 32.0f;
+            float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea / float(mConfig.splatsPerMesh));
+            logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
             auto meshSplats = sampleResult.points | std::views::transform(
-                                                        [&](const MeshPoint& meshPoint) -> GS3DSplat
+                                                        [&](const MeshPoint& meshPoint) -> GS3DPackedSplat
                                                         {
-                                                            return GS3DSplat{
+                                                            return GS3DPackedSplat{
                                                                 .barycentrics = meshPoint.barycentrics,
                                                                 .primitiveID = meshPoint.primitiveID,
                                                                 .rotate = float16_t4(0.0f, 0.0f, 0.0f, 1.0f),
@@ -44,8 +47,10 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
         }
 
+        // meshBvh = MeshClosestPoint::buildBVH(GMeshView{mpStaticScene->getMeshes()[0]});
+
         mpSplatBuffer = getDevice()->createStructuredBuffer(
-            sizeof(GS3DSplat), //
+            sizeof(GS3DPackedSplat), //
             splats.size(),
             ResourceBindFlags::ShaderResource,
             MemoryType::DeviceLocal,
@@ -73,6 +78,11 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 {
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);
+
+    /* auto result = MeshClosestPoint::query(
+        GMeshView{mpStaticScene->getMeshes()[0]}, meshBvh, mpStaticScene->getScene()->getCamera()->getPosition(), 1.0f
+    );
+    widget.text(fmt::format("dist = {}, id = {}", math::sqrt(result.dist2), result.optPrimitiveID)); */
 }
 
 } // namespace GSGI
