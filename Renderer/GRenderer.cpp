@@ -65,7 +65,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
     if (isSceneChanged)
     {
         mpDefaultStaticScene = make_ref<GStaticScene>(getScene(), pRenderContext);
-        logInfo("updateHasInstance {}", getScene()->getVersion());
+        // logInfo("updateHasInstance {}", getScene()->getVersion());
     }
 
     mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene, enumBitsetMake(mConfig.indirectLightType));
