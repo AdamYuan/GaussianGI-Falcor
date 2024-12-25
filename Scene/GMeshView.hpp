@@ -16,41 +16,41 @@ namespace GSGI
 
 struct GMeshVertexView
 {
-    const GMesh* pMesh;
+    const GMesh& mesh;
     uint32_t vertexID;
 
-    const float3& getPosition() const { return pMesh->vertices[vertexID].position; }
+    const float3& getPosition() const { return mesh.vertices[vertexID].position; }
 };
 
 struct GMeshPrimitiveView
 {
-    const GMesh* pMesh;
+    const GMesh& mesh;
     uint32_t primitiveID;
 
     GMeshVertexView getVertex(uint id) const
     {
         return GMeshVertexView{
-            .pMesh = pMesh,
-            .vertexID = pMesh->indices[primitiveID * 3 + id],
+            .mesh = mesh,
+            .vertexID = mesh.indices[primitiveID * 3 + id],
         };
     }
 };
 
 struct GMeshView
 {
-    const GMesh* pMesh;
+    const GMesh& mesh;
 
-    uint getPrimitiveCount() const { return pMesh->getPrimitiveCount(); }
+    explicit GMeshView(const GMesh::Ptr& pMesh) : mesh{*pMesh} {}
+
+    uint getPrimitiveCount() const { return mesh.getPrimitiveCount(); }
     GMeshPrimitiveView getPrimitive(uint primitiveID) const
     {
         return GMeshPrimitiveView{
-            .pMesh = pMesh,
+            .mesh = mesh,
             .primitiveID = primitiveID,
         };
     }
-    const AABB& getAABB() const { return pMesh->bound; }
-
-    static GMeshView make(const GMesh::Ptr& pMesh) { return GMeshView{.pMesh = pMesh.get()}; }
+    const AABB& getAABB() const { return mesh.bound; }
 };
 
 static_assert(Concepts::MeshView<GMeshView>);

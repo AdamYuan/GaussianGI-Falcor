@@ -31,9 +31,7 @@ struct MeshClosestPointBVHBuilder
         primitiveInfos.resize(primitiveCount);
         for (uint32_t primitiveID = 0; primitiveID < primitiveCount; ++primitiveID)
         {
-            float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
-            float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
-            float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
+            auto [p0, p1, p2] = PrimitiveViewMethod::getVertexPositions(meshView.getPrimitive(primitiveID));
             auto primitiveAABB = AABB{p0, p0}.include(p1).include(p2);
             primitiveInfos[primitiveID] = {
                 .center = primitiveAABB.center(),
@@ -66,24 +64,29 @@ struct MeshClosestPointBVHBuilder
         }
 
         static_assert(std::numeric_limits<double>::is_iec559);
-        const auto getBoundDistance = [splitAxis](const AABB& leftBound, const AABB& rightBound)
-        { return rightBound.minPoint[splitAxis] - leftBound.maxPoint[splitAxis]; };
+        const auto getScore = [count = primitiveIDs.size()](uint32_t splitPos, const AABB& leftBound, const AABB& rightBound)
+        {
+            uint32_t leftCount = splitPos, rightCount = count - splitPos;
+            // Volume heuristic (contrast to surface area heuristic)
+            // The probability of entering a node is (approximately) in proportion to the volume of its bound
+            return -(float(leftCount) * leftBound.volume() + float(rightCount) * rightBound.volume());
+        };
 
         // Init as the first split
         AABB leftBound = BOUND(0);
-        float optimalDistance = getBoundDistance(leftBound, RIGHT_BOUND(1));
         uint32_t optimalSplitPos = 1;
+        float optimalScore = getScore(optimalSplitPos, leftBound, RIGHT_BOUND(1));
         AABB optimalLeftBound = leftBound;
 
         // Check other splits
         for (uint32_t splitPos = 2; splitPos < primitiveIDs.size(); ++splitPos)
         {
             leftBound.include(BOUND(splitPos - 1));
-            float distance = getBoundDistance(leftBound, RIGHT_BOUND(splitPos));
+            float score = getScore(splitPos, leftBound, RIGHT_BOUND(splitPos));
 
-            if (distance > optimalDistance)
+            if (score > optimalScore)
             {
-                optimalDistance = distance;
+                optimalScore = score;
                 optimalSplitPos = splitPos;
                 optimalLeftBound = leftBound;
             }
@@ -104,8 +107,8 @@ struct MeshClosestPoint
 {
     struct Result
     {
-        std::optional<MeshPoint> optPoint;
-        float distance{};
+        std::optional<uint32_t> optPrimitiveID;
+        float dist2{};
     };
 
     static MeshClosestPointBVH buildBVH(const Concepts::MeshView auto& meshView)
@@ -121,14 +124,43 @@ struct MeshClosestPoint
 
     static float getPrimitiveDist2(const float3& point, const Concepts::PrimitiveView auto& primitiveView)
     {
-        // TODO: Implement this
-        return 0;
+        // From https://iquilezles.org/articles/triangledistance/
+        auto [v1, v2, v3] = PrimitiveViewMethod::getVertexPositions(primitiveView);
+        float3 v21 = v2 - v1;
+        float3 p1 = point - v1;
+        float3 v32 = v3 - v2;
+        float3 p2 = point - v2;
+        float3 v13 = v1 - v3;
+        float3 p3 = point - v3;
+        float3 nor = math::cross(v21, v13);
+
+        const auto dot2 = [](const auto& x) { return math::dot(x, x); };
+
+        return                                                         // inside/outside test
+            (                                                          //
+                math::sign(math::dot(math::cross(v21, nor), p1)) +     //
+                    math::sign(math::dot(math::cross(v32, nor), p2)) + //
+                    math::sign(math::dot(math::cross(v13, nor), p3)) <
+                2.0
+            )
+                ?
+                // 3 edges
+                math::min(
+                    math::min(
+                        dot2(v21 * math::clamp(math::dot(v21, p1) / dot2(v21), 0.0f, 1.0f) - p1),
+                        dot2(v32 * math::clamp(math::dot(v32, p2) / dot2(v32), 0.0f, 1.0f) - p2)
+                    ),
+                    dot2(v13 * math::clamp(math::dot(v13, p3) / dot2(v13), 0.0f, 1.0f) - p3)
+                )
+                :
+                // 1 face
+                math::dot(nor, p1) * math::dot(nor, p1) / dot2(nor);
     }
 
     static Result query(const Concepts::MeshView auto& meshView, const MeshClosestPointBVH& bvh, const float3& point, float maxDist2)
     {
         float dist2 = maxDist2;
-        std::optional<MeshPoint> optPoint = std::nullopt;
+        std::optional<uint32_t> optPrimitiveID = std::nullopt;
 
         const auto queryImpl = [&](const MeshClosestPointBVH::NodeView& node, float aabbDist2, auto&& queryFunc)
         {
@@ -142,10 +174,7 @@ struct MeshClosestPoint
                 if (primitiveDist2 < dist2)
                 {
                     dist2 = primitiveDist2;
-                    optPoint = MeshPoint{
-                        .primitiveID = primitiveID,
-                        .barycentrics = {},
-                    };
+                    optPrimitiveID = primitiveID;
                 }
             }
             else
@@ -173,8 +202,8 @@ struct MeshClosestPoint
         queryImpl(rootNode, getAABBDist2(point, rootNode.getBound()), queryImpl);
 
         return Result{
-            .optPoint = optPoint,
-            .distance = math::sqrt(dist2),
+            .optPrimitiveID = optPrimitiveID,
+            .dist2 = dist2,
         };
     }
 };

@@ -40,6 +40,17 @@ concept MeshView = requires(const T ct) {
 
 } // namespace Concepts
 
+struct PrimitiveViewMethod
+{
+    static std::tuple<float3, float3, float3> getVertexPositions(const Concepts::PrimitiveView auto& primitiveView)
+    {
+        float3 p0 = primitiveView.getVertex(0).getPosition();
+        float3 p1 = primitiveView.getVertex(1).getPosition();
+        float3 p2 = primitiveView.getVertex(2).getPosition();
+        return {p0, p1, p2};
+    }
+};
+
 struct MeshPoint
 {
     uint32_t primitiveID;
@@ -47,9 +58,7 @@ struct MeshPoint
 
     float3 getPosition(const Concepts::MeshView auto& meshView) const
     {
-        float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
-        float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
-        float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
+        auto [p0, p1, p2] = PrimitiveViewMethod::getVertexPositions(meshView.getPrimitive(primitiveID));
         return p0 * (1.0f - barycentrics.x - barycentrics.y) + p1 * barycentrics.x + p2 * barycentrics.y;
     }
 };

@@ -58,9 +58,7 @@ struct MeshSample
             std::vector<float> primitiveAreas(meshView.getPrimitiveCount());
             for (uint primitiveID = 0; primitiveID < meshView.getPrimitiveCount(); ++primitiveID)
             {
-                float3 p0 = meshView.getPrimitive(primitiveID).getVertex(0).getPosition();
-                float3 p1 = meshView.getPrimitive(primitiveID).getVertex(1).getPosition();
-                float3 p2 = meshView.getPrimitive(primitiveID).getVertex(2).getPosition();
+                auto [p0, p1, p2] = PrimitiveViewMethod::getVertexPositions(meshView.getPrimitive(primitiveID));
                 float doubleArea = math::length(math::cross(p1 - p0, p2 - p0));
                 totalArea += doubleArea;
                 primitiveAreas[primitiveID] = doubleArea;
