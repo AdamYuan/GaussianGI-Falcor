@@ -53,7 +53,7 @@ struct MeshSample
         std::vector<MeshPoint> points;
         float totalArea;
     };
-    static Result sample(const Concepts::MeshView auto& meshView, Concepts::MeshSampler auto& sampler, uint32_t sampleCount)
+    static Result sample(const Concepts::MeshView auto& meshView, Concepts::MeshSampler auto&& sampler, uint32_t sampleCount)
     {
         float totalArea = 0;
         AliasTable primitiveTable;

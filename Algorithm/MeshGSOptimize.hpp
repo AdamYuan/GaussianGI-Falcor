@@ -78,7 +78,7 @@ struct MeshGSOptimize
         const Concepts::MeshView auto& meshView,
         const MeshPoint& meshPoint,
         const MeshClosestPointBVH& meshBvh,
-        Concepts::MeshGS2DSampler auto& sampler,
+        Concepts::MeshGS2DSampler auto&& sampler,
         const Config& cfg
     )
     {

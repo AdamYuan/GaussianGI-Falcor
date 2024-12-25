@@ -10,6 +10,7 @@
 #include "../../../Algorithm/MeshGSOptimize.hpp"
 #include "../../../Scene/GMeshView.hpp"
 #include <tbb/parallel_for.h>
+#include <boost/random/sobol.hpp>
 
 namespace GSGI
 {
@@ -30,15 +31,26 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
         for (const auto& pMesh : pDefaultStaticScene->getMeshes())
         {
             auto view = GMeshView{pMesh};
-            auto sampler = MeshSamplerDefault<std::mt19937>{};
-            auto sampleResult = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
+            auto sampleResult = MeshSample::sample(
+                view,
+                [sobolEngine = boost::random::sobol_engine<uint32_t, 32>{4}] mutable
+                {
+                    uint2 u2;
+                    float2 f2;
+                    u2.x = sobolEngine();
+                    u2.y = sobolEngine();
+                    f2.x = float(sobolEngine()) / 4294967296.0f;
+                    f2.y = float(sobolEngine()) / 4294967296.0f;
+                    return std::tuple{u2, f2};
+                },
+                mConfig.splatsPerMesh
+            );
 
             static constexpr float kEpsilon = 0.05f, kK = 16.0f;
             float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea / float(mConfig.splatsPerMesh));
             logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
-            auto bvh = MeshClosestPoint::buildBVH(view);
-            auto gsSampler = MeshGSSamplerDefault<std::mt19937>{};
 
+            auto bvh = MeshClosestPoint::buildBVH(view);
             splats.resize(splats.size() + mConfig.splatsPerMesh);
 
             tbb::parallel_for(
@@ -53,7 +65,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
                             view,
                             meshPoint,
                             bvh,
-                            gsSampler,
+                            MeshGSSamplerDefault{std::mt19937{splatID}},
                             {
                                 .initialScale = initialScale,
                                 .sampleCount = 128,
