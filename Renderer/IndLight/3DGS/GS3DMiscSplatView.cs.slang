@@ -60,8 +60,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     view.axis0 = float16_t2(axis0);
     view.axis1 = float16_t2(axis1);
     view.clipXY = float16_t2(clipPos.xy);
-    float3 texColor = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0).rgb;
-    view.color = packUnorm3x8_unsafe(texColor);
+    float4 texColor = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0);
+    view.color = packUnorm4x8_unsafe(texColor);
 
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount

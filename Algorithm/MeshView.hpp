@@ -66,6 +66,7 @@ struct MeshPoint
         auto [p0, p1, p2] = PrimitiveViewMethod::getVertexPositions(meshView.getPrimitive(primitiveID));
         return p0 * (1.0f - barycentrics.x - barycentrics.y) + p1 * barycentrics.x + p2 * barycentrics.y;
     }
+    auto getPrimitive(const Concepts::MeshView auto& meshView) const { return meshView.getPrimitive(primitiveID); }
 };
 
 static_assert(sizeof(MeshPoint) == 3 * sizeof(uint32_t));

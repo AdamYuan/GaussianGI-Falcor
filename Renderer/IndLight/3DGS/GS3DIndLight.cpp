@@ -9,6 +9,7 @@
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Algorithm/MeshGSOptimize.hpp"
 #include "../../../Scene/GMeshView.hpp"
+#include <tbb/parallel_for.h>
 
 namespace GSGI
 {
@@ -28,34 +29,50 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
         std::vector<GS3DPackedSplat> splats;
         for (const auto& pMesh : pDefaultStaticScene->getMeshes())
         {
+            auto view = GMeshView{pMesh};
             auto sampler = MeshSamplerDefault<std::mt19937>{};
-            auto sampleResult = MeshSample::sample(GMeshView{pMesh}, sampler, mConfig.splatsPerMesh);
-            static constexpr float kEpsilon = 0.01f, kK = 32.0f;
+            auto sampleResult = MeshSample::sample(view, sampler, mConfig.splatsPerMesh);
+
+            static constexpr float kEpsilon = 0.05f, kK = 16.0f;
             float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea / float(mConfig.splatsPerMesh));
             logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
-            auto meshSplats =
-                sampleResult.points | std::views::transform(
-                                          [&](const MeshPoint& meshPoint) -> GS3DPackedSplat
-                                          {
-                                              auto result = MeshGSOptimize::run(
-                                                  GMeshView{pMesh},
-                                                  meshPoint,
-                                                  {
-                                                      .initialScale = initialScale,
-                                                  }
-                                              );
-                                              return GS3DPackedSplat{
-                                                  .barycentrics = meshPoint.barycentrics,
-                                                  .primitiveID = meshPoint.primitiveID,
-                                                  .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
-                                                  .scale = float16_t2(result.scaleXY),
-                                              };
-                                          }
-                                      );
-            splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
-        }
+            auto bvh = MeshClosestPoint::buildBVH(view);
+            auto gsSampler = MeshGSSamplerDefault<std::mt19937>{};
 
-        // meshBvh = MeshClosestPoint::buildBVH(GMeshView{mpStaticScene->getMeshes()[0]});
+            splats.resize(splats.size() + mConfig.splatsPerMesh);
+
+            tbb::parallel_for(
+                uint32_t{0},
+                mConfig.splatsPerMesh,
+                [&](uint32_t splatID)
+                {
+                    splats[splats.size() - splatID - 1] = [&]
+                    {
+                        const auto& meshPoint = sampleResult.points[splatID];
+                        auto result = MeshGSOptimize::run(
+                            view,
+                            meshPoint,
+                            bvh,
+                            gsSampler,
+                            {
+                                .initialScale = initialScale,
+                                .sampleCount = 128,
+                                .epsNormal = 0.2f,
+                                .epsDistance = 0.2f * initialScale,
+                                .epsScale = 1e-6f,
+                                .scaleYMaxIteration = 32,
+                            }
+                        );
+                        return GS3DPackedSplat{
+                            .barycentrics = meshPoint.barycentrics,
+                            .primitiveID = meshPoint.primitiveID,
+                            .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
+                            .scale = float16_t2(result.scaleXY),
+                        };
+                    }();
+                }
+            );
+        }
 
         mpSplatBuffer = getDevice()->createStructuredBuffer(
             sizeof(GS3DPackedSplat), //

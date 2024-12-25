@@ -94,7 +94,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DMiscSplatView.cs.slang
         Renderer/IndLight/3DGS/GS3DMiscSplatDraw.3d.slang
 )
-target_link_libraries(GaussianGI PRIVATE assimp)
+target_link_libraries(GaussianGI PRIVATE assimp tbb)
 target_copy_shaders(GaussianGI GaussianGI)
 target_source_group(GaussianGI "GaussianGI")
 

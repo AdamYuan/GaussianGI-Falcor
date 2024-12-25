@@ -20,8 +20,8 @@ namespace GSGI
 namespace Concepts
 {
 template<typename T>
-concept MeshSampler = requires(T& t, uint2 u2, float2 f2) {
-    { t(u2, f2) } -> std::same_as<void>;
+concept MeshSampler = requires(T& t) {
+    { t() } -> std::convertible_to<std::tuple<uint2, float2>>;
 };
 } // namespace Concepts
 
@@ -30,14 +30,17 @@ struct MeshSamplerDefault
 {
     Rand_T rand;
 
-    void operator()(uint2& u2, float2& f2)
+    std::tuple<uint2, float2> operator()()
     {
         std::uniform_int_distribution<uint32_t> uintDistrib{0u, 0xFFFFFFFFu};
         std::uniform_real_distribution<float> floatDistrib{0.0f, 1.0f};
+        uint2 u2;
         u2.x = uintDistrib(rand);
         u2.y = uintDistrib(rand);
+        float2 f2;
         f2.x = floatDistrib(rand);
         f2.y = floatDistrib(rand);
+        return {u2, f2};
     }
 };
 
@@ -68,11 +71,9 @@ struct MeshSample
         }
 
         std::vector<MeshPoint> points(sampleCount);
-        uint2 u2;
-        float2 f2;
         for (auto& point : points)
         {
-            sampler(u2, f2);
+            auto [u2, f2] = sampler();
             point.primitiveID = primitiveTable.sample(u2);
             if (f2.x + f2.y > 1.0f)
             {

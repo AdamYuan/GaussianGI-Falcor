@@ -45,7 +45,7 @@ private:
 
         static Node makeInner(const Bound_T& bound, uint32_t rightChildID)
         {
-            FALCOR_ASSERT((rightChild & kLeafFlag) == 0);
+            FALCOR_ASSERT((rightChildID & kLeafFlag) == 0);
             return {.bound = bound, .data = rightChildID};
         }
         static Node makeLeaf(const Bound_T& bound, uint32_t primitiveID)

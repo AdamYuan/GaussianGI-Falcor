@@ -8,7 +8,7 @@ uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d =
 
 struct PSIn
 {
-    nointerpolation float3 color;
+    nointerpolation float4 color;
     linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 }
@@ -29,7 +29,7 @@ void gsMain(point GS3D::SplatView gIn[1], uint instanceID: SV_InstanceID, inout 
     // deltaClip * 2 to scale from [0, 1] to [-1, 1]
 
     PSIn o;
-    o.color = unpackUnorm3x8(splatView.color);
+    o.color = unpackUnorm4x8(splatView.color);
 
     o.quadPos = float2(-gD, -gD);
     o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
@@ -50,9 +50,9 @@ void gsMain(point GS3D::SplatView gIn[1], uint instanceID: SV_InstanceID, inout 
 
 float4 psMain(PSIn pIn)
 {
-    float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
+    float alpha = gAlpha * pIn.color.a * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;
-    return float4(pIn.color, alpha);
+    return float4(pIn.color.rgb, alpha);
 }
 
