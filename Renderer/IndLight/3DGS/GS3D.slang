@@ -53,7 +53,6 @@ public namespace GS3D
             float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),
             float3(0, 0, 0)
         );
-        J[1] = -J[1]; // Reverse Y-Axis to match screen coordinate
         float3x3 W = viewRotMatrix;
         float3x3 T = mul(J, W);
         float3x3 V = float3x3(
