@@ -61,7 +61,7 @@ template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 class DeviceSorter final
 {
 private:
-    ref<ComputePass> mpInitSweepPass, mpGlobalHistPass, mpScanPass, mpDigitBinningPass;
+    ref<ComputePass> mpResetPass, mpGlobalHistPass, mpScanHistPass, mpOneSweepPass;
 
     static void bindCount(const ShaderVar& var, uint count, const ref<Buffer>& pCountBuffer, uint64_t countBufferOffset);
 
@@ -76,7 +76,7 @@ private:
     );
 
 public:
-    explicit DeviceSorter(const ref<Device> &pDevice);
+    explicit DeviceSorter(const ref<Device>& pDevice);
 
     void dispatch(
         ComputeContext* pComputeContext, //

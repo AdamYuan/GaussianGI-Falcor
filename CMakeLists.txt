@@ -22,11 +22,14 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshClosestPoint.hpp
         Algorithm/MeshGSOptimize.hpp
 
-        Algorithm/GPUSorting/DeviceSorter.hpp
-        Algorithm/GPUSorting/DeviceSorter.cpp
-        Algorithm/GPUSorting/OneSweep.cs.slang
-        Algorithm/GPUSorting/SweepCommon.slangh
-        Algorithm/GPUSorting/SortCommon.slangh
+        Algorithm/DeviceSort/DeviceSorter.hpp
+        Algorithm/DeviceSort/DeviceSorter.cpp
+        Algorithm/DeviceSort/DeviceSorter.slangh
+        Algorithm/DeviceSort/DeviceSorterSizes.slangh
+        Algorithm/DeviceSort/Reset.cs.slang
+        Algorithm/DeviceSort/GlobalHist.cs.slang
+        Algorithm/DeviceSort/ScanHist.cs.slang
+        Algorithm/DeviceSort/OneSweep.cs.slang
 
         Scene/GScene.hpp
         Scene/GScene.cpp
@@ -108,11 +111,14 @@ target_sources(GaussianGITest PRIVATE
         Util/WaveOps.cs.slang
 
         Test/DeviceSorterTest.cpp
-        Algorithm/GPUSorting/DeviceSorter.hpp
-        Algorithm/GPUSorting/DeviceSorter.cpp
-        Algorithm/GPUSorting/OneSweep.cs.slang
-        Algorithm/GPUSorting/SweepCommon.slangh
-        Algorithm/GPUSorting/SortCommon.slangh
+        Algorithm/DeviceSort/DeviceSorter.hpp
+        Algorithm/DeviceSort/DeviceSorter.cpp
+        Algorithm/DeviceSort/DeviceSorter.slangh
+        Algorithm/DeviceSort/DeviceSorterSizes.slangh
+        Algorithm/DeviceSort/Reset.cs.slang
+        Algorithm/DeviceSort/GlobalHist.cs.slang
+        Algorithm/DeviceSort/ScanHist.cs.slang
+        Algorithm/DeviceSort/OneSweep.cs.slang
 
         Test/IndirectDispatchTest.cpp
 )

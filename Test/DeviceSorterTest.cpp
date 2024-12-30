@@ -2,7 +2,7 @@
 // Created by adamyuan on 12/20/24.
 //
 
-#include "../Algorithm/GPUSorting/DeviceSorter.hpp"
+#include "../Algorithm/DeviceSort/DeviceSorter.hpp"
 #include "Testing/UnitTest.h"
 #include <random>
 

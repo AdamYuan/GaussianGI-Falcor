@@ -4,25 +4,22 @@
 #include "DeviceSorter.hpp"
 
 #include "../../Util/DeviceUtil.hpp"
+#include "DeviceSorterSizes.slangh"
 
 namespace GSGI
 {
 
 namespace
 {
-inline constexpr uint kRadix = 256; // 1 << 8
+inline constexpr uint kRadix = RADIX; // 1 << 8
 inline constexpr uint kRadixPasses = 4;
-inline constexpr uint kPartitionSize = 3840;
-
-inline constexpr uint kMaxSize = 65535 * kPartitionSize;
-
-inline constexpr uint kGlobalHistPartSize = 32768;
+inline constexpr uint kPartitionSize = SORT_PART_SIZE;
+inline constexpr uint kGlobalHistPartSize = GLOBAL_HIST_PART_SIZE;
 } // namespace
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, DispatchType_V>::create(const ref<Device>& pDevice, uint maxCount)
 {
-    FALCOR_CHECK(maxCount <= kMaxSize, "maxCount should not exceed DeviceSorterProperty::kMaxSize");
     static_assert(std::same_as<uint, uint32_t>);
 
     DeviceSorterResource res = {.maxCount = maxCount};
@@ -73,25 +70,24 @@ void DeviceSorter<Type_V, DispatchType_V>::bindCount(
         FALCOR_CHECK(countBufferOffset % sizeof(uint32_t) == 0, "countBufferOffset must be aligned to 4");
         uint32_t index = countBufferOffset / sizeof(uint32_t);
         FALCOR_CHECK(uint64_t(index) * sizeof(uint32_t) == countBufferOffset, "countBufferOffset too large");
-        var["b_numKeys"] = pCountBuffer;
-        var["e_numKeyIndex"] = index;
+        var["gKeyCountBuffer"] = pCountBuffer;
+        var["gKeyCountBufferIndex"] = index;
     }
     else
-        var["e_numKeys"] = count;
+        var["gKeyCount"] = count;
 }
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 DeviceSorter<Type_V, DispatchType_V>::DeviceSorter(const ref<Device>& pDevice)
 {
-    constexpr const char* kShaderPath = "GaussianGI/Algorithm/GPUSorting/OneSweep.cs.slang";
     DefineList defList{};
     defList.add("SORT_PAIRS", Type_V == DeviceSortType::kPair ? "1" : "0");
     defList.add("SORT_INDIRECT", DispatchType_V == DeviceSortDispatchType::kIndirect ? "1" : "0");
     defList.add("LANES_PER_WAVE", fmt::to_string(deviceWaveGetLaneCount(pDevice)));
-    mpInitSweepPass = ComputePass::create(pDevice, kShaderPath, "csInitSweep", defList);
-    mpGlobalHistPass = ComputePass::create(pDevice, kShaderPath, "csGlobalHistogram", defList);
-    mpScanPass = ComputePass::create(pDevice, kShaderPath, "csScan", defList);
-    mpDigitBinningPass = ComputePass::create(pDevice, kShaderPath, "csDigitBinning", defList);
+    mpResetPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/Reset.cs.slang", "csMain", defList);
+    mpGlobalHistPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/GlobalHist.cs.slang", "csMain", defList);
+    mpScanHistPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/ScanHist.cs.slang", "csMain", defList);
+    mpOneSweepPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/OneSweep.cs.slang", "csMain", defList);
 }
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
@@ -116,14 +112,14 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         FALCOR_CHECK(pPayloadBuffer->getSize() == resource.pTempPayloadBuffer->getSize(), "Payload buffer size not match"); */
 
     {
-        const auto& pPass = mpInitSweepPass;
+        const auto& pPass = mpResetPass;
         auto var = pPass->getRootVar();
         bindCount(var, count, pCountBuffer, countBufferOffset);
-        var["b_passHist"] = resource.pPassHistBuffer;
-        var["b_globalHist"] = resource.pGlobalHistBuffer;
-        var["b_index"] = resource.pIndexBuffer;
+        var["gPassHists"] = resource.pPassHistBuffer;
+        var["gGlobalHists"] = resource.pGlobalHistBuffer;
+        var["gIndices"] = resource.pIndexBuffer;
         if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
-            var["b_indirect"] = resource.pIndirectBuffer;
+            var["gIndirectArgs"] = resource.pIndirectBuffer;
         pPass->execute(pComputeContext, 256 * pPass->getThreadGroupSize().x, 1, 1);
     }
 
@@ -131,8 +127,11 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         const auto& pPass = mpGlobalHistPass;
         auto var = pPass->getRootVar();
         bindCount(var, count, pCountBuffer, countBufferOffset);
+        var["gSortKeys"] = pKeyBuffer;
+        var["gGlobalHists"] = resource.pGlobalHistBuffer;
+        /* bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_sort"] = pKeyBuffer;
-        var["b_globalHist"] = resource.pGlobalHistBuffer;
+        var["b_globalHist"] = resource.pGlobalHistBuffer; */
         if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
             pPass->execute(pComputeContext, div_round_up(count, kGlobalHistPartSize) * pPass->getThreadGroupSize().x, 1, 1);
         else
@@ -140,32 +139,33 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
     }
 
     {
-        const auto& pPass = mpScanPass;
+        const auto& pPass = mpScanHistPass;
         auto var = pPass->getRootVar();
         bindCount(var, count, pCountBuffer, countBufferOffset);
-        var["b_passHist"] = resource.pPassHistBuffer;
-        var["b_globalHist"] = resource.pGlobalHistBuffer;
+        var["gPassHists"] = resource.pPassHistBuffer;
+        var["gGlobalHists"] = resource.pGlobalHistBuffer;
         pPass->execute(pComputeContext, kRadixPasses * pPass->getThreadGroupSize().x, 1, 1);
     }
 
     {
-        const auto& pPass = mpDigitBinningPass;
+        const auto& pPass = mpOneSweepPass;
         auto var = pPass->getRootVar();
         bindCount(var, count, pCountBuffer, countBufferOffset);
-        var["b_passHist"] = resource.pPassHistBuffer;
-        var["b_index"] = resource.pIndexBuffer;
+        var["gPassHists"] = resource.pPassHistBuffer;
+        var["gIndices"] = resource.pIndexBuffer;
 
         bool flip = false;
         for (uint radixShift = 0; radixShift < 32; radixShift += 8, flip = !flip)
         {
-            var["e_radixShift"] = radixShift;
-            var["b_sort"] = flip ? resource.pTempKeyBuffer : pKeyBuffer;
-            var["b_alt"] = flip ? pKeyBuffer : resource.pTempKeyBuffer;
+            var["gRadixShift"] = radixShift;
+            var["gPassIdx"] = radixShift / 8;
+            var["gSortKeys"] = flip ? resource.pTempKeyBuffer : pKeyBuffer;
+            var["gAltKeys"] = flip ? pKeyBuffer : resource.pTempKeyBuffer;
 
             if constexpr (Type_V == DeviceSortType::kPair)
             {
-                var["b_sortPayload"] = flip ? resource.pTempPayloadBuffer : pPayloadBuffer;
-                var["b_altPayload"] = flip ? pPayloadBuffer : resource.pTempPayloadBuffer;
+                var["gSortPayloads"] = flip ? resource.pTempPayloadBuffer : pPayloadBuffer;
+                var["gAltPayloads"] = flip ? pPayloadBuffer : resource.pTempPayloadBuffer;
             }
 
             if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
