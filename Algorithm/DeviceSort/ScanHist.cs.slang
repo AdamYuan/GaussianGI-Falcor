@@ -15,6 +15,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     uint waveLaneIdx = WaveGetLaneIndex(), groupWaveIdx = groupThreadID.x / LANES_PER_WAVE, //
         groupThreadIdx = groupWaveIdx * LANES_PER_WAVE + waveLaneIdx, groupIdx = groupID.x;
 
+    // groupIdx is passIdx
+
     uint hist = gGlobalHists[groupIdx * RADIX + groupThreadIdx];
     uint wavePrefixSum = WavePrefixSum(hist);
 
@@ -33,4 +35,5 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 
     uint prefixSum = wavePrefixSum + sShared[groupWaveIdx];
     gPassHists[groupIdx * RADIX * getSortPartCount() + groupThreadIdx] = (prefixSum << 2) | FLAG_INCLUSIVE;
+    // Initial prefix for decoupled look-back prefix scan
 }
