@@ -3,7 +3,7 @@
 StructuredBuffer<uint> gGlobalHists; // Size: RADIX * PASS_COUNT
 RWStructuredBuffer<uint> gPassHists; // Size: divCeil(gKeyCount, SORT_PART_SIZE) * RADIX * PASS_COUNT
 
-groupshared uint sShared[RADIX / LANES_PER_WAVE];
+groupshared uint gShared[RADIX / LANES_PER_WAVE];
 
 // Exclusive prefix sum for Histograms
 
@@ -21,7 +21,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     uint wavePrefixSum = WavePrefixSum(hist);
 
     if (waveLaneIdx == LANES_PER_WAVE - 1)
-        sShared[groupWaveIdx] = wavePrefixSum + hist;
+        gShared[groupWaveIdx] = wavePrefixSum + hist;
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -29,11 +29,11 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 #error LANES_PER_WAVE too small
 #endif
     if (groupThreadIdx < (RADIX / LANES_PER_WAVE))
-        sShared[groupThreadIdx] = WavePrefixSum(sShared[groupThreadIdx]);
+        gShared[groupThreadIdx] = WavePrefixSum(gShared[groupThreadIdx]);
 
     GroupMemoryBarrierWithGroupSync();
 
-    uint prefixSum = wavePrefixSum + sShared[groupWaveIdx];
+    uint prefixSum = wavePrefixSum + gShared[groupWaveIdx];
     gPassHists[groupIdx * RADIX * getSortPartCount() + groupThreadIdx] = (prefixSum << 2) | FLAG_INCLUSIVE;
     // Initial prefix for decoupled look-back prefix scan
 }

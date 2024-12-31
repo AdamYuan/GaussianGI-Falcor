@@ -48,11 +48,6 @@ uint getSortPartCount()
     return divCeil(gKeyCount, SORT_PART_SIZE);
 }
 
-uint getGlobalHistPartCount()
-{
-    return divCeil(gKeyCount, GLOBAL_HIST_PART_SIZE);
-}
-
 void prepare()
 {
 #if SORT_INDIRECT == 1

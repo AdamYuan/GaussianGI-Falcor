@@ -14,21 +14,23 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 {
     prepare();
 
+    uint threadIdx = threadID.x;
+
+    uint sortGroupCount = getSortPartCount();
+
 #if SORT_INDIRECT == 1
-    if (threadID.x == 0)
+    if (threadIdx == 0)
     {
-        gIndirectArgs[0] = getGlobalHistPartCount();
-        gIndirectArgs[3] = getSortPartCount();
+        gIndirectArgs[0] = divCeil(gKeyCount, GLOBAL_HIST_PART_SIZE);
+        gIndirectArgs[3] = sortGroupCount;
     }
 #endif
-    const uint increment = 256 * 256;
-    const uint clearEnd = getSortPartCount() * PASS_COUNT * RADIX;
-    for (uint i = threadID.x; i < clearEnd; i += increment)
+    for (uint i = threadIdx, end = sortGroupCount * PASS_COUNT * RADIX; i < end; i += 256 * 256)
         gPassHists[i] = 0;
 
-    if (threadID.x < PASS_COUNT * RADIX)
-        gGlobalHists[threadID.x] = 0;
+    if (threadIdx < PASS_COUNT * RADIX)
+        gGlobalHists[threadIdx] = 0;
 
-    if (threadID.x < PASS_COUNT)
-        gIndices[threadID.x] = 0;
+    if (threadIdx < PASS_COUNT)
+        gIndices[threadIdx] = 0;
 }

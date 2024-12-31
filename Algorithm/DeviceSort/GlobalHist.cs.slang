@@ -19,31 +19,32 @@ PassDesc getPassDesc(uint passID)
     return desc;
 }
 
-#define RADIX_PER_GROUP 2
+#define HISTS_PER_GROUP 2
 
-groupshared uint sShared[RADIX * RADIX_PER_GROUP][PASS_COUNT]; // Shared memory for GlobalHistogram
+#define SHARED_HIST_SIZE (HISTS_PER_GROUP * PASS_COUNT * RADIX)
+#define SHARED_PASS_HIST(PASS_IDX, HIST_IDX, DIGIT) gShared[((PASS_IDX) * HISTS_PER_GROUP + (HIST_IDX)) * RADIX + (DIGIT)]
+
+groupshared uint gShared[SHARED_HIST_SIZE]; // Shared memory for GlobalHistogram
 
 [numthreads(GLOBAL_HIST_DIM, 1, 1)]
 void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 {
     prepare();
 
-    uint groupThreadIdx = groupThreadID.x, groupIdx = groupID.x;
+    uint groupThreadIdx = groupThreadID.x, groupIdx = groupID.x, groupCount = divCeil(gKeyCount, GLOBAL_HIST_PART_SIZE);
 
-    // clear shared memory
-    for (uint i = groupThreadIdx; i < RADIX * RADIX_PER_GROUP; i += GLOBAL_HIST_DIM)
-    {
-        [ForceUnroll]
-        for (uint passID = 0; passID < PASS_COUNT; ++passID)
-            sShared[i][passID] = 0;
-    }
+    // Clear shared memory
+    for (uint i = groupThreadIdx; i < SHARED_HIST_SIZE; i += GLOBAL_HIST_DIM)
+        gShared[i] = 0;
     GroupMemoryBarrierWithGroupSync();
 
     // Counting
-    const uint histOffset = groupThreadIdx / (GLOBAL_HIST_DIM / RADIX_PER_GROUP) * RADIX;
-    const uint partitionEnd = groupIdx == getGlobalHistPartCount() - 1 ? gKeyCount : (groupIdx + 1) * GLOBAL_HIST_PART_SIZE;
     SortKey keys[KEY_BUFFER_COUNT];
-    for (uint i = groupIdx * GLOBAL_HIST_PART_SIZE + groupThreadIdx; i < partitionEnd; i += GLOBAL_HIST_DIM)
+    for (uint i = groupIdx * GLOBAL_HIST_PART_SIZE + groupThreadIdx,
+              histID = groupThreadIdx / (GLOBAL_HIST_DIM / HISTS_PER_GROUP),
+              end = groupIdx == groupCount - 1 ? gKeyCount : (groupIdx + 1) * GLOBAL_HIST_PART_SIZE;
+         i < end;
+         i += GLOBAL_HIST_DIM)
     {
         [ForceUnroll]
         for (uint keyID = 0; keyID < KEY_BUFFER_COUNT; ++keyID)
@@ -53,7 +54,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         for (uint passID = 0; passID < PASS_COUNT; ++passID)
         {
             var passDesc = getPassDesc(passID);
-            InterlockedAdd(sShared[extractKeyRadix(keys[passDesc.keyID], passDesc.keyRadixShift) + histOffset][passID], 1);
+            uint radix = extractKeyRadix(keys[passDesc.keyID], passDesc.keyRadixShift);
+            InterlockedAdd(SHARED_PASS_HIST(passID, histID, radix), 1);
         }
     }
 
@@ -65,12 +67,12 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         [ForceUnroll]
         for (uint passID = 0; passID < PASS_COUNT; ++passID)
         {
-            uint sum = sShared[i][passID];
+            uint sum = SHARED_PASS_HIST(passID, 0, i);
             [ForceUnroll]
-            for (uint r = 1; r < RADIX_PER_GROUP; ++r)
-                sum += sShared[i + RADIX * r][passID];
+            for (uint histID = 1; histID < HISTS_PER_GROUP; ++histID)
+                sum += SHARED_PASS_HIST(passID, histID, i);
 
-            InterlockedAdd(gGlobalHists[i + RADIX * passID], sum);
+            InterlockedAdd(gGlobalHists[RADIX * passID + i], sum);
         }
     }
 }

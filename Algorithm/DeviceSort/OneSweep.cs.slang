@@ -25,13 +25,13 @@ groupshared uint gShared[SHARED_WAVE_HIST_SIZE + SHARED_WAVE_MASK_SIZE];
 groupshared uint gShared[SORT_PART_SIZE + RADIX];
 #endif
 
-#define SHARED_WAVE_HIST(WAVE_IDX, HIST_IDX) gShared[((WAVE_IDX) * RADIX) + (HIST_IDX)]
+#define SHARED_WAVE_HIST(WAVE_IDX, DIGIT) gShared[((WAVE_IDX) * RADIX) + (DIGIT)]
 #define SHARED_GROUP_IDX SHARED_WAVE_HIST(WAVES_PER_GROUP, 0) // Not interfere with SHARED_WAVE_HIST
-#define SHARED_WAVE_MASK(WAVE_IDX, HIST_IDX, UINT_IDX) \
-    gShared[SHARED_WAVE_HIST_SIZE + ((WAVE_IDX) * WAVE_MASK_SIZE + (UINT_IDX)) * RADIX + (HIST_IDX)]
-#define SHARED_WAVE_OFFSET(WAVE_IDX, HIST_IDX) SHARED_WAVE_HIST(WAVE_IDX, HIST_IDX) // WAVE_IDX >= 1
-#define SHARED_GROUP_OFFSET(HIST_IDX) SHARED_WAVE_HIST(0, HIST_IDX)
-#define SHARED_DEVICE_OFFSET(HIST_IDX) gShared[SORT_PART_SIZE + (HIST_IDX)]
+#define SHARED_WAVE_MASK(WAVE_IDX, DIGIT, UINT_IDX) \
+    gShared[SHARED_WAVE_HIST_SIZE + ((WAVE_IDX) * WAVE_MASK_SIZE + (UINT_IDX)) * RADIX + (DIGIT)]
+#define SHARED_WAVE_OFFSET(WAVE_IDX, DIGIT) SHARED_WAVE_HIST(WAVE_IDX, DIGIT) // WAVE_IDX >= 1
+#define SHARED_GROUP_OFFSET(DIGIT) SHARED_WAVE_HIST(0, DIGIT)
+#define SHARED_DEVICE_OFFSET(DIGIT) gShared[SORT_PART_SIZE + (DIGIT)]
 #define SHARED_KEYS(IDX) gShared[IDX] // IDX < SORT_PART_SIZE
 
 WaveMask sharedWaveMaskLoad(uint waveIdx, uint histIdx)
@@ -50,7 +50,7 @@ void sharedWaveMaskStore(uint waveIdx, uint histIdx, WaveMask waveMask)
         SHARED_WAVE_MASK(waveIdx, histIdx, i) = waveMask[i];
 }
 
-#define PASS_HIST(PART_IDX, HIST_IDX) gPassHists[((gGroupCount * gPassIdx + (PART_IDX)) * RADIX) + (HIST_IDX)]
+#define PASS_HIST(PART_IDX, DIGIT) gPassHists[((gGroupCount * gPassIdx + (PART_IDX)) * RADIX) + (DIGIT)]
 #define KEY_RADIX(KEY) extractKeyRadix((KEY), gRadixShift)
 
 static uint gWaveLaneIdx, gGroupWaveIdx, gGroupThreadIdx, gGroupCount, gGroupIdx;
