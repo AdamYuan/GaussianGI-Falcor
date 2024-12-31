@@ -11,11 +11,47 @@ namespace GSGI
 
 namespace
 {
-inline constexpr uint kRadix = RADIX; // 1 << 8
+inline constexpr uint kBitsPerPass = BITS_PER_PASS; // 8
+inline constexpr uint kRadix = RADIX;               // 1 << 8
 inline constexpr uint kRadixPasses = 4;
 inline constexpr uint kPartitionSize = SORT_PART_SIZE;
 inline constexpr uint kGlobalHistPartSize = GLOBAL_HIST_PART_SIZE;
 } // namespace
+
+DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTypes) : mBufferCount(bufferTypes.size())
+{
+    std::vector<bool> isActiveBufferID(mBufferCount, true);
+    const auto getActiveBufferIDs = [&](uint32_t excludeBufferID)
+    {
+        std::vector<uint32_t> bufferIDs;
+        for (uint32_t bufferID = 0; bufferID < bufferTypes.size(); ++bufferID)
+            if (isActiveBufferID[bufferID] && bufferID != excludeBufferID)
+                bufferIDs.push_back(bufferID);
+        return bufferIDs;
+    };
+
+    for (uint32_t bufferID = 0; bufferID < bufferTypes.size(); ++bufferID)
+    {
+        DeviceSortBufferType bufferType = bufferTypes[bufferID];
+        bool isPayload = static_cast<uint32_t>(bufferType) & 1u;
+        uint32_t keyBitWidth = static_cast<uint32_t>(bufferType) & (~1u);
+        uint32_t keyPassCount = keyBitWidth / kBitsPerPass;
+
+        auto payloadBufferIDs = getActiveBufferIDs(bufferID);
+        for (uint32_t keyPassID = 0; keyPassID < keyPassCount; ++keyPassID)
+        {
+            mPassDescs.push_back({
+                .keyBufferID = bufferID,
+                .keyRadixShift = keyPassID * kBitsPerPass,
+                .keyWrite = isPayload || keyPassID < keyPassCount - 1,
+                .payloadBufferIDs = payloadBufferIDs,
+            });
+        }
+
+        if (!isPayload)
+            isActiveBufferID[bufferID] = false;
+    }
+}
 
 template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
 DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, DispatchType_V>::create(const ref<Device>& pDevice, uint maxCount)

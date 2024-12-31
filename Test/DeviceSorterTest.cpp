@@ -89,6 +89,46 @@ void validate(
 
 } // namespace
 
+CPU_TEST(DeviceSorter_Desc)
+{
+    const auto printDesc = [](const char* name, const DeviceSortDesc& desc)
+    {
+        fmt::println("DeviceSortDesc {}", name);
+        fmt::println("Buffer Count: {}", desc.getBufferCount());
+        for (uint32_t passID = 0; passID < desc.getPassCount(); ++passID)
+        {
+            const auto& passDesc = desc.getPassDescs()[passID];
+            fmt::println(
+                "Pass {}: keyBuffer = {}, keyRadixShift = {}, keyWrite = {}, payloadBuffers = [{}]",
+                passID,
+                passDesc.keyBufferID,
+                passDesc.keyRadixShift,
+                passDesc.keyWrite,
+                fmt::join(passDesc.payloadBufferIDs, ", ")
+            );
+        }
+    };
+    printDesc("Key32", DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32}});
+    printDesc("PayloadKey32 + Payload32", DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload}});
+    printDesc("Key32 + Payload", DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}});
+    printDesc(
+        "Key32 + Key32 + Payload",
+        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}}
+    );
+    printDesc(
+        "Key32 + Key32Payload + Payload",
+        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload}}
+    );
+    printDesc(
+        "PayloadKey32 + Key32 + Payload",
+        DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}}
+    );
+    printDesc(
+        "Key32 + Payload + PayloadKey16",
+        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload, DeviceSortBufferType::kPayloadKey16}}
+    );
+}
+
 GPU_TEST(DeviceSorter_Key_Direct)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);

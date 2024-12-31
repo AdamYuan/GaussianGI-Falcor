@@ -12,6 +12,38 @@ using namespace Falcor;
 namespace GSGI
 {
 
+enum class DeviceSortBufferType : uint8_t
+{
+    kPayload = 1,
+    kKey16 = 16, // use first 16-bit in each 32-bit integer
+    kPayloadKey16 = 16 | 1,
+    kKey32 = 32, // use full 32-bit integer
+    kPayloadKey32 = 32 | 1,
+    // Key exclusively don't guarantee ordering after sort
+};
+
+class DeviceSortDesc
+{
+public:
+    struct PassDesc
+    {
+        uint32_t keyBufferID;
+        uint32_t keyRadixShift;
+        bool keyWrite;
+        std::vector<uint32_t> payloadBufferIDs;
+    };
+
+private:
+    uint32_t mBufferCount;
+    std::vector<PassDesc> mPassDescs;
+
+public:
+    explicit DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTypes);
+    uint32_t getBufferCount() const { return mBufferCount; }
+    uint32_t getPassCount() const { return mPassDescs.size(); }
+    const auto& getPassDescs() const { return mPassDescs; }
+};
+
 enum class DeviceSortType
 {
     kKey,
