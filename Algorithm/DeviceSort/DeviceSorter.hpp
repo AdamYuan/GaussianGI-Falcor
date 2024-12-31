@@ -25,29 +25,37 @@ enum class DeviceSortBufferType : uint8_t
 class DeviceSortDesc
 {
 public:
+    struct KeyBufferDesc
+    {
+        uint32_t bufferID; // Index in buffer array
+        uint32_t bitWidth;
+        bool isPayload;
+        std::vector<uint32_t> payloadBufferIDs;
+        uint32_t firstPassID; // First index in mPassDescs
+        uint32_t passCount;
+    };
+
     struct PassDesc
     {
-        uint32_t keyBufferID;
+        uint32_t keyID; // Index in mKeyBufferDescs
         uint32_t keyRadixShift;
         bool keyWrite;
-        std::vector<uint32_t> payloadBufferIDs;
     };
 
 private:
-    uint32_t mBufferCount;
+    uint32_t mBufferCount{};
     std::vector<PassDesc> mPassDescs;
+    std::vector<KeyBufferDesc> mKeyBufferDescs;
 
 public:
+    DeviceSortDesc() = default;
     explicit DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTypes);
     uint32_t getBufferCount() const { return mBufferCount; }
     uint32_t getPassCount() const { return mPassDescs.size(); }
-    const auto& getPassDescs() const { return mPassDescs; }
-};
-
-enum class DeviceSortType
-{
-    kKey,
-    kPair
+    const auto& getPassDesc(uint32_t passID) const { return mPassDescs[passID]; }
+    uint32_t getKeyBufferCount() const { return mKeyBufferDescs.size(); }
+    const auto& getKeyBufferDesc(uint32_t keyID) const { return mKeyBufferDescs[keyID]; }
+    uint32_t getPassMaxPayloadBufferCount() const { return getBufferCount() - 1; }
 };
 
 enum class DeviceSortDispatchType
@@ -56,106 +64,91 @@ enum class DeviceSortDispatchType
     kIndirect
 };
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-struct DeviceSorterResource
+template<DeviceSortDispatchType DispatchType_V>
+struct DeviceSortResource
 {
-    uint maxCount{};
-    ref<Buffer> pTempKeyBuffer;
-    ref<Buffer> pTempPayloadBuffer;
+    uint maxPassCount{}, maxKeyCount{};
+    std::vector<ref<Buffer>> pTempBuffers;
     ref<Buffer> pGlobalHistBuffer;
     ref<Buffer> pPassHistBuffer;
     ref<Buffer> pIndexBuffer;
     ref<Buffer> pIndirectBuffer;
 
-    static DeviceSorterResource create(const ref<Device>& pDevice, uint maxCount);
-    template<DeviceSortType AnotherType_V, DeviceSortDispatchType AnotherDispatchType_V>
-    DeviceSorterResource<AnotherType_V, AnotherDispatchType_V> convertTo()
+    static DeviceSortResource create(const ref<Device>& pDevice, const DeviceSortDesc& desc, uint maxKeyCount)
+    {
+        return create(pDevice, desc.getBufferCount(), desc.getPassCount(), maxKeyCount);
+    }
+    static DeviceSortResource create(const ref<Device>& pDevice, uint maxBufferCount, uint maxPassCount, uint maxKeyCount);
+
+    template<DeviceSortDispatchType AnotherDispatchType_V>
+    DeviceSortResource<AnotherDispatchType_V> convertTo()
         requires(
-            static_cast<uint>(AnotherType_V) <= static_cast<uint>(Type_V) &&
             static_cast<uint>(AnotherDispatchType_V) <= static_cast<uint>(DispatchType_V)
             // Ensure no extra buffer is required
         )
     {
-        return DeviceSorterResource<AnotherType_V, AnotherDispatchType_V>{
-            .maxCount = maxCount,
-            .pTempKeyBuffer = pTempKeyBuffer,
-            .pTempPayloadBuffer = pTempPayloadBuffer,
+        return DeviceSortResource<AnotherDispatchType_V>{
+            .maxPassCount = maxPassCount,
+            .maxKeyCount = maxKeyCount,
+            .pTempBuffers = pTempBuffers,
             .pGlobalHistBuffer = pGlobalHistBuffer,
             .pPassHistBuffer = pPassHistBuffer,
             .pIndexBuffer = pIndexBuffer,
             .pIndirectBuffer = pIndirectBuffer,
         };
     }
-    bool isCapable(uint maxCount) const;
+    bool isCapable(const DeviceSortDesc& desc, uint keyCount) const
+    {
+        return isCapable(desc.getBufferCount(), desc.getPassCount(), keyCount);
+    }
+    bool isCapable(uint bufferCount, uint passCount, uint keyCount) const;
 };
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
+template<DeviceSortDispatchType DispatchType_V>
 class DeviceSorter final
 {
 private:
+    DeviceSortDesc mDesc;
     ref<ComputePass> mpResetPass, mpGlobalHistPass, mpScanHistPass, mpOneSweepPass;
 
     static void bindCount(const ShaderVar& var, uint count, const ref<Buffer>& pCountBuffer, uint64_t countBufferOffset);
 
     void dispatchImpl(
         ComputeContext* pComputeContext,
-        const ref<Buffer>& pKeyBuffer,
-        const ref<Buffer>& pPayloadBuffer,
+        const std::vector<ref<Buffer>>& pBuffers,
         uint count,
         const ref<Buffer>& pCountBuffer,
         uint64_t countBufferOffset,
-        const DeviceSorterResource<Type_V, DispatchType_V>& resource
+        const DeviceSortResource<DispatchType_V>& resource
     );
 
 public:
-    explicit DeviceSorter(const ref<Device>& pDevice);
+    DeviceSorter() = default;
+    explicit DeviceSorter(const ref<Device>& pDevice, DeviceSortDesc desc);
+
+    const auto& getDesc() const { return mDesc; }
 
     void dispatch(
-        ComputeContext* pComputeContext, //
-        const ref<Buffer>& pKeyBuffer,
+        ComputeContext* pComputeContext,
+        const std::vector<ref<Buffer>>& pBuffers,
         uint count,
-        const DeviceSorterResource<Type_V, DispatchType_V>& resource
+        const DeviceSortResource<DispatchType_V>& resource
     )
-        requires(Type_V == DeviceSortType::kKey && DispatchType_V == DeviceSortDispatchType::kDirect)
+        requires(DispatchType_V == DeviceSortDispatchType::kDirect)
     {
-        dispatchImpl(pComputeContext, pKeyBuffer, nullptr, count, nullptr, 0, resource);
+        dispatchImpl(pComputeContext, pBuffers, count, nullptr, 0, resource);
     }
 
     void dispatch(
         ComputeContext* pComputeContext,
-        const ref<Buffer>& pKeyBuffer,
-        const ref<Buffer>& pPayloadBuffer,
-        uint count,
-        const DeviceSorterResource<Type_V, DispatchType_V>& resource
-    )
-        requires(Type_V == DeviceSortType::kPair && DispatchType_V == DeviceSortDispatchType::kDirect)
-    {
-        dispatchImpl(pComputeContext, pKeyBuffer, pPayloadBuffer, count, nullptr, 0, resource);
-    }
-
-    void dispatch(
-        ComputeContext* pComputeContext,
-        const ref<Buffer>& pKeyBuffer,
+        const std::vector<ref<Buffer>>& pBuffers,
         const ref<Buffer>& pCountBuffer,
         uint64_t countBufferOffset,
-        const DeviceSorterResource<Type_V, DispatchType_V>& resource
+        const DeviceSortResource<DispatchType_V>& resource
     )
-        requires(Type_V == DeviceSortType::kKey && DispatchType_V == DeviceSortDispatchType::kIndirect)
+        requires(DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
-        dispatchImpl(pComputeContext, pKeyBuffer, nullptr, 0, pCountBuffer, countBufferOffset, resource);
-    }
-
-    void dispatch(
-        ComputeContext* pComputeContext,
-        const ref<Buffer>& pKeyBuffer,
-        const ref<Buffer>& pPayloadBuffer,
-        const ref<Buffer>& pCountBuffer,
-        uint64_t countBufferOffset,
-        const DeviceSorterResource<Type_V, DispatchType_V>& resource
-    )
-        requires(Type_V == DeviceSortType::kPair && DispatchType_V == DeviceSortDispatchType::kIndirect)
-    {
-        dispatchImpl(pComputeContext, pKeyBuffer, pPayloadBuffer, 0, pCountBuffer, countBufferOffset, resource);
+        dispatchImpl(pComputeContext, pBuffers, 0, pCountBuffer, countBufferOffset, resource);
     }
 };
 

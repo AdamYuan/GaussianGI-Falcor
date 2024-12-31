@@ -2,10 +2,6 @@
 
 #include "DeviceSorterSizes.slangh"
 
-#ifndef SORT_PAIRS
-#define SORT_PAIRS 1
-#endif
-
 #ifndef SORT_INDIRECT
 #define SORT_INDIRECT 1
 #endif
@@ -20,6 +16,14 @@
 
 #ifndef PASS_COUNT
 #define PASS_COUNT 4
+#endif
+
+#ifndef KEY_BUFFER_COUNT
+#define KEY_BUFFER_COUNT 2
+#endif
+
+#ifndef PAYLOAD_BUFFER_COUNT
+#define PAYLOAD_BUFFER_COUNT 2
 #endif
 
 // Key

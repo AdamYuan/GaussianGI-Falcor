@@ -13,13 +13,13 @@ namespace
 {
 inline constexpr uint kBitsPerPass = BITS_PER_PASS; // 8
 inline constexpr uint kRadix = RADIX;               // 1 << 8
-inline constexpr uint kRadixPasses = 4;
 inline constexpr uint kPartitionSize = SORT_PART_SIZE;
 inline constexpr uint kGlobalHistPartSize = GLOBAL_HIST_PART_SIZE;
 } // namespace
 
 DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTypes) : mBufferCount(bufferTypes.size())
 {
+    FALCOR_CHECK(!bufferTypes.empty(), "");
     std::vector<bool> isActiveBufferID(mBufferCount, true);
     const auto getActiveBufferIDs = [&](uint32_t excludeBufferID)
     {
@@ -35,17 +35,29 @@ DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTy
         DeviceSortBufferType bufferType = bufferTypes[bufferID];
         bool isPayload = static_cast<uint32_t>(bufferType) & 1u;
         uint32_t keyBitWidth = static_cast<uint32_t>(bufferType) & (~1u);
-        uint32_t keyPassCount = keyBitWidth / kBitsPerPass;
 
-        auto payloadBufferIDs = getActiveBufferIDs(bufferID);
-        for (uint32_t keyPassID = 0; keyPassID < keyPassCount; ++keyPassID)
+        bool isKey = keyBitWidth;
+        if (isKey)
         {
-            mPassDescs.push_back({
-                .keyBufferID = bufferID,
-                .keyRadixShift = keyPassID * kBitsPerPass,
-                .keyWrite = isPayload || keyPassID < keyPassCount - 1,
-                .payloadBufferIDs = payloadBufferIDs,
+            uint32_t keyPassCount = keyBitWidth / kBitsPerPass;
+            uint32_t keyID = mKeyBufferDescs.size();
+            mKeyBufferDescs.push_back({
+                .bufferID = bufferID,
+                .bitWidth = keyBitWidth,
+                .isPayload = isPayload,
+                .payloadBufferIDs = getActiveBufferIDs(bufferID),
+                .firstPassID = (uint32_t)mPassDescs.size(),
+                .passCount = keyPassCount,
             });
+
+            for (uint32_t keyPassID = 0; keyPassID < keyPassCount; ++keyPassID)
+            {
+                mPassDescs.push_back({
+                    .keyID = keyID,
+                    .keyRadixShift = keyPassID * kBitsPerPass,
+                    .keyWrite = isPayload || keyPassID < keyPassCount - 1,
+                });
+            }
         }
 
         if (!isPayload)
@@ -53,18 +65,25 @@ DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTy
     }
 }
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, DispatchType_V>::create(const ref<Device>& pDevice, uint maxCount)
+template<DeviceSortDispatchType DispatchType_V>
+DeviceSortResource<DispatchType_V> DeviceSortResource<DispatchType_V>::create(
+    const ref<Device>& pDevice,
+    uint maxBufferCount,
+    uint maxPassCount,
+    uint maxKeyCount
+)
 {
     static_assert(std::same_as<uint, uint32_t>);
 
-    DeviceSorterResource res = {.maxCount = maxCount};
-    res.pTempKeyBuffer = pDevice->createStructuredBuffer(sizeof(uint), maxCount);
-    res.pGlobalHistBuffer = pDevice->createStructuredBuffer(sizeof(uint), kRadix * kRadixPasses);
-    res.pPassHistBuffer = pDevice->createStructuredBuffer(sizeof(uint), kRadix * kRadixPasses * div_round_up(maxCount, kPartitionSize));
-    res.pIndexBuffer = pDevice->createStructuredBuffer(sizeof(uint), kRadixPasses);
-    if constexpr (Type_V == DeviceSortType::kPair)
-        res.pTempPayloadBuffer = pDevice->createStructuredBuffer(sizeof(uint), maxCount);
+    DeviceSortResource res = {
+        .maxPassCount = maxPassCount,
+        .maxKeyCount = maxKeyCount,
+    };
+    for (uint32_t i = 0; i < maxBufferCount; ++i)
+        res.pTempBuffers.push_back(pDevice->createStructuredBuffer(sizeof(uint), maxKeyCount));
+    res.pGlobalHistBuffer = pDevice->createStructuredBuffer(sizeof(uint), kRadix * maxPassCount);
+    res.pPassHistBuffer = pDevice->createStructuredBuffer(sizeof(uint), kRadix * maxPassCount * div_round_up(maxKeyCount, kPartitionSize));
+    res.pIndexBuffer = pDevice->createStructuredBuffer(sizeof(uint), maxPassCount);
     if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
         DispatchArguments args[] = {{0, 1, 1}, {0, 1, 1}};
@@ -80,26 +99,19 @@ DeviceSorterResource<Type_V, DispatchType_V> DeviceSorterResource<Type_V, Dispat
     return res;
 }
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-bool DeviceSorterResource<Type_V, DispatchType_V>::isCapable(uint maxCount) const
+template<DeviceSortDispatchType DispatchType_V>
+bool DeviceSortResource<DispatchType_V>::isCapable(uint bufferCount, uint passCount, uint keyCount) const
 {
-    if (maxCount > this->maxCount)
+    if (keyCount > this->maxKeyCount || passCount > this->maxPassCount || bufferCount > this->pTempBuffers.size())
         return false;
-    bool isBufferCapable = pTempKeyBuffer && pGlobalHistBuffer && pPassHistBuffer && pIndexBuffer;
-    if constexpr (Type_V == DeviceSortType::kPair)
-        isBufferCapable = isBufferCapable && pTempPayloadBuffer;
+    bool isBufferCapable = std::all_of(pTempBuffers.begin(), pTempBuffers.begin() + bufferCount, [](const auto& x) { return bool(x); }) &&
+                           pGlobalHistBuffer && pPassHistBuffer && pIndexBuffer;
     if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
         isBufferCapable = isBufferCapable && pIndirectBuffer;
     return isBufferCapable;
 }
-
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-void DeviceSorter<Type_V, DispatchType_V>::bindCount(
-    const ShaderVar& var,
-    uint count,
-    const ref<Buffer>& pCountBuffer,
-    uint64_t countBufferOffset
-)
+template<DeviceSortDispatchType DispatchType_V>
+void DeviceSorter<DispatchType_V>::bindCount(const ShaderVar& var, uint count, const ref<Buffer>& pCountBuffer, uint64_t countBufferOffset)
 {
     if constexpr (DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
@@ -113,11 +125,14 @@ void DeviceSorter<Type_V, DispatchType_V>::bindCount(
         var["gKeyCount"] = count;
 }
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-DeviceSorter<Type_V, DispatchType_V>::DeviceSorter(const ref<Device>& pDevice)
+template<DeviceSortDispatchType DispatchType_V>
+DeviceSorter<DispatchType_V>::DeviceSorter(const ref<Device>& pDevice, DeviceSortDesc desc) : mDesc{std::move(desc)}
 {
     DefineList defList{};
-    defList.add("SORT_PAIRS", Type_V == DeviceSortType::kPair ? "1" : "0");
+    // defList.add("SORT_PAIRS", Type_V == DeviceSortType::kPair ? "1" : "0");
+    defList.add("PASS_COUNT", fmt::to_string(mDesc.getPassCount()));
+    defList.add("PAYLOAD_BUFFER_COUNT", fmt::to_string(mDesc.getPassMaxPayloadBufferCount()));
+    defList.add("KEY_BUFFER_COUNT", fmt::to_string(mDesc.getKeyBufferCount()));
     defList.add("SORT_INDIRECT", DispatchType_V == DeviceSortDispatchType::kIndirect ? "1" : "0");
     defList.add("LANES_PER_WAVE", fmt::to_string(deviceWaveGetLaneCount(pDevice)));
     mpResetPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/Reset.cs.slang", "csMain", defList);
@@ -126,15 +141,14 @@ DeviceSorter<Type_V, DispatchType_V>::DeviceSorter(const ref<Device>& pDevice)
     mpOneSweepPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/DeviceSort/OneSweep.cs.slang", "csMain", defList);
 }
 
-template<DeviceSortType Type_V, DeviceSortDispatchType DispatchType_V>
-void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
+template<DeviceSortDispatchType DispatchType_V>
+void DeviceSorter<DispatchType_V>::dispatchImpl(
     ComputeContext* pComputeContext,
-    const ref<Buffer>& pKeyBuffer,
-    const ref<Buffer>& pPayloadBuffer,
+    const std::vector<ref<Buffer>>& pBuffers,
     uint count,
     const ref<Buffer>& pCountBuffer,
     uint64_t countBufferOffset,
-    const DeviceSorterResource<Type_V, DispatchType_V>& resource
+    const DeviceSortResource<DispatchType_V>& resource
 )
 {
     if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
@@ -142,10 +156,8 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         if (count == 0)
             return;
     }
-    FALCOR_CHECK(resource.isCapable(count), "DeviceSorterResource not capable");
-    /* FALCOR_CHECK(pKeyBuffer->getSize() == resource.pTempKeyBuffer->getSize(), "Key buffer size not match");
-    if constexpr (Type_V == DeviceSortType::kPair)
-        FALCOR_CHECK(pPayloadBuffer->getSize() == resource.pTempPayloadBuffer->getSize(), "Payload buffer size not match"); */
+    FALCOR_CHECK(resource.isCapable(mDesc, count), "DeviceSortResource not capable");
+    FALCOR_CHECK(pBuffers.size() == mDesc.getBufferCount(), "bufferCount not matched");
 
     {
         const auto& pPass = mpResetPass;
@@ -163,7 +175,13 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         const auto& pPass = mpGlobalHistPass;
         auto var = pPass->getRootVar();
         bindCount(var, count, pCountBuffer, countBufferOffset);
-        var["gSortKeys"] = pKeyBuffer;
+        for (uint32_t keyID = 0; keyID < mDesc.getKeyBufferCount(); ++keyID)
+            var["gSrcKeys"][keyID] = pBuffers[mDesc.getKeyBufferDesc(keyID).bufferID];
+        for (uint32_t passID = 0; passID < mDesc.getPassCount(); ++passID)
+        {
+            const auto& passDesc = mDesc.getPassDesc(passID);
+            var["gPassDescs"][passID] = passDesc.keyID << 16 | passDesc.keyRadixShift;
+        }
         var["gGlobalHists"] = resource.pGlobalHistBuffer;
         /* bindCount(var, count, pCountBuffer, countBufferOffset);
         var["b_sort"] = pKeyBuffer;
@@ -180,7 +198,7 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         bindCount(var, count, pCountBuffer, countBufferOffset);
         var["gPassHists"] = resource.pPassHistBuffer;
         var["gGlobalHists"] = resource.pGlobalHistBuffer;
-        pPass->execute(pComputeContext, kRadixPasses * pPass->getThreadGroupSize().x, 1, 1);
+        pPass->execute(pComputeContext, mDesc.getPassCount() * pPass->getThreadGroupSize().x, 1, 1);
     }
 
     {
@@ -191,35 +209,45 @@ void DeviceSorter<Type_V, DispatchType_V>::dispatchImpl(
         var["gIndices"] = resource.pIndexBuffer;
 
         bool flip = false;
-        for (uint radixShift = 0; radixShift < 32; radixShift += 8, flip = !flip)
-        {
-            var["gRadixShift"] = radixShift;
-            var["gPassIdx"] = radixShift / 8;
-            var["gSortKeys"] = flip ? resource.pTempKeyBuffer : pKeyBuffer;
-            var["gAltKeys"] = flip ? pKeyBuffer : resource.pTempKeyBuffer;
 
-            if constexpr (Type_V == DeviceSortType::kPair)
+        for (uint passID = 0; passID < mDesc.getPassCount(); ++passID)
+        {
+            const auto& passDesc = mDesc.getPassDesc(passID);
+            const auto& keyDesc = mDesc.getKeyBufferDesc(passDesc.keyID);
+
+            if (passID == keyDesc.firstPassID)
             {
-                var["gSortPayloads"] = flip ? resource.pTempPayloadBuffer : pPayloadBuffer;
-                var["gAltPayloads"] = flip ? pPayloadBuffer : resource.pTempPayloadBuffer;
+                var["gPayloadBufferCount"] = (uint32_t)keyDesc.payloadBufferIDs.size();
+            }
+
+            const auto& getSrcBuffer = [&](uint32_t bufferID) { return flip ? resource.pTempBuffers[bufferID] : pBuffers[bufferID]; };
+            const auto& getDstBuffer = [&](uint32_t bufferID) { return flip ? pBuffers[bufferID] : resource.pTempBuffers[bufferID]; };
+
+            var["gPassIdx"] = passID;
+            var["gRadixShift"] = passDesc.keyRadixShift;
+            var["gSrcKeys"] = getSrcBuffer(keyDesc.bufferID);
+            var["gDstKeys"] = getDstBuffer(keyDesc.bufferID);
+
+            for (uint32_t payloadBufferID : keyDesc.payloadBufferIDs)
+            {
+                var["gSrcPayloads"] = getSrcBuffer(payloadBufferID);
+                var["gDstPayloads"] = getDstBuffer(payloadBufferID);
             }
 
             if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
                 pPass->execute(pComputeContext, div_round_up(count, kPartitionSize) * pPass->getThreadGroupSize().x, 1, 1);
             else
                 pPass->executeIndirect(pComputeContext, resource.pIndirectBuffer.get(), 1 * sizeof(DispatchArguments));
+
+            flip = !flip;
         }
     }
 }
 
-template struct DeviceSorterResource<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>;
-template struct DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>;
-template struct DeviceSorterResource<DeviceSortType::kKey, DeviceSortDispatchType::kIndirect>;
-template struct DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kIndirect>;
+template struct DeviceSortResource<DeviceSortDispatchType::kDirect>;
+template struct DeviceSortResource<DeviceSortDispatchType::kIndirect>;
 
-template class DeviceSorter<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>;
-template class DeviceSorter<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>;
-template class DeviceSorter<DeviceSortType::kKey, DeviceSortDispatchType::kIndirect>;
-template class DeviceSorter<DeviceSortType::kPair, DeviceSortDispatchType::kIndirect>;
+template class DeviceSorter<DeviceSortDispatchType::kDirect>;
+template class DeviceSorter<DeviceSortDispatchType::kIndirect>;
 
 } // namespace GSGI

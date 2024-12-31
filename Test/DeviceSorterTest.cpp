@@ -91,7 +91,7 @@ void validate(
 
 CPU_TEST(DeviceSorter_Desc)
 {
-    const auto printDesc = [](const char* name, const DeviceSortDesc& desc)
+    /* const auto printDesc = [](const char* name, const DeviceSortDesc& desc)
     {
         fmt::println("DeviceSortDesc {}", name);
         fmt::println("Buffer Count: {}", desc.getBufferCount());
@@ -126,37 +126,40 @@ CPU_TEST(DeviceSorter_Desc)
     printDesc(
         "Key32 + Payload + PayloadKey16",
         DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload, DeviceSortBufferType::kPayloadKey16}}
-    );
+    ); */
 }
 
 GPU_TEST(DeviceSorter_Key_Direct)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
-    auto sorter = DeviceSorter<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>(ctx.getDevice());
-    auto sorterResource = DeviceSorterResource<DeviceSortType::kKey, DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), count);
+    auto desc = DeviceSortDesc({DeviceSortBufferType::kPayloadKey32});
+    auto sorter = DeviceSorter<DeviceSortDispatchType::kDirect>(ctx.getDevice(), desc);
+    auto sorterResource = DeviceSortResource<DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), desc, count);
     fmt::println("Count = {}", count);
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
-    sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, count, sorterResource);
+    sorter.dispatch(ctx.getRenderContext(), {pKeyBuffer}, count, sorterResource);
     validate(ctx, keys, pKeyBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Pair_Direct)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
-    auto sorter = DeviceSorter<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>(ctx.getDevice());
-    auto sorterResource = DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), count);
+    auto desc = DeviceSortDesc({DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload});
+    auto sorter = DeviceSorter<DeviceSortDispatchType::kDirect>(ctx.getDevice(), desc);
+    auto sorterResource = DeviceSortResource<DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), desc, count);
     fmt::println("Count = {}", count);
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
     auto [payloads, pPayloadBuffer] = makePayloads(ctx.getDevice(), count);
-    sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, count, sorterResource);
+    sorter.dispatch(ctx.getRenderContext(), {pKeyBuffer, pPayloadBuffer}, count, sorterResource);
     validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Pair_IsStableSort)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
-    auto sorter = DeviceSorter<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>(ctx.getDevice());
-    auto sorterResource = DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), count);
+    auto desc = DeviceSortDesc({DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload});
+    auto sorter = DeviceSorter<DeviceSortDispatchType::kDirect>(ctx.getDevice(), desc);
+    auto sorterResource = DeviceSortResource<DeviceSortDispatchType::kDirect>::create(ctx.getDevice(), desc, count);
     fmt::println("Count = {}", count);
     std::vector<uint32_t> keys(count);
     for (auto& key : keys)
@@ -169,15 +172,16 @@ GPU_TEST(DeviceSorter_Pair_IsStableSort)
         keys.data()
     );
     auto [payloads, pPayloadBuffer] = makePayloads(ctx.getDevice(), count);
-    sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, count, sorterResource);
+    sorter.dispatch(ctx.getRenderContext(), {pKeyBuffer, pPayloadBuffer}, count, sorterResource);
     validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, count);
 }
 
 GPU_TEST(DeviceSorter_Key_Indirect)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
-    auto sorter = DeviceSorter<DeviceSortType::kKey, DeviceSortDispatchType::kIndirect>(ctx.getDevice());
-    auto sorterResource = DeviceSorterResource<DeviceSortType::kKey, DeviceSortDispatchType::kIndirect>::create(ctx.getDevice(), count);
+    auto desc = DeviceSortDesc({DeviceSortBufferType::kPayloadKey32});
+    auto sorter = DeviceSorter<DeviceSortDispatchType::kIndirect>(ctx.getDevice(), desc);
+    auto sorterResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(ctx.getDevice(), desc, count);
     fmt::println("Count = {}", count);
 
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
@@ -187,7 +191,7 @@ GPU_TEST(DeviceSorter_Key_Indirect)
         sortCount = std::uniform_int_distribution<uint>{sortCount, count}(rand);
         fmt::println("Sort Count = {}", sortCount);
         auto [pCountBuffer, countBufferOffset] = makeCountBuffer(ctx.getDevice(), sortCount);
-        sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pCountBuffer, countBufferOffset, sorterResource);
+        sorter.dispatch(ctx.getRenderContext(), {pKeyBuffer}, pCountBuffer, countBufferOffset, sorterResource);
         validate(ctx, keys, pKeyBuffer, sortCount);
     }
 }
@@ -195,8 +199,9 @@ GPU_TEST(DeviceSorter_Key_Indirect)
 GPU_TEST(DeviceSorter_Pair_Indirect)
 {
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
-    auto sorter = DeviceSorter<DeviceSortType::kPair, DeviceSortDispatchType::kIndirect>(ctx.getDevice());
-    auto sorterResource = DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kIndirect>::create(ctx.getDevice(), count);
+    auto desc = DeviceSortDesc({DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload});
+    auto sorter = DeviceSorter<DeviceSortDispatchType::kIndirect>(ctx.getDevice(), desc);
+    auto sorterResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(ctx.getDevice(), desc, count);
     fmt::println("Count = {}", count);
 
     auto [keys, pKeyBuffer] = makeKeys(ctx.getDevice(), count);
@@ -207,7 +212,7 @@ GPU_TEST(DeviceSorter_Pair_Indirect)
         sortCount = std::uniform_int_distribution<uint>{sortCount, count}(rand);
         fmt::println("Sort Count = {}", sortCount);
         auto [pCountBuffer, countBufferOffset] = makeCountBuffer(ctx.getDevice(), sortCount);
-        sorter.dispatch(ctx.getRenderContext(), pKeyBuffer, pPayloadBuffer, pCountBuffer, countBufferOffset, sorterResource);
+        sorter.dispatch(ctx.getRenderContext(), {pKeyBuffer, pPayloadBuffer}, pCountBuffer, countBufferOffset, sorterResource);
         validate(ctx, keys, payloads, pKeyBuffer, pPayloadBuffer, sortCount);
     }
 }

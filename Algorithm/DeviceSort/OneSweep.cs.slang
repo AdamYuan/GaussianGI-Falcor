@@ -5,15 +5,15 @@
 globallycoherent RWStructuredBuffer<uint> gPassHists; // Size: divCeil(gKeyCount, SORT_PART_SIZE) * RADIX * PASS_COUNT
 globallycoherent RWStructuredBuffer<uint> gIndices;   // Size: PASS_COUNT
 
-StructuredBuffer<SortKey> gSortKeys;
-RWStructuredBuffer<SortKey> gAltKeys;
+StructuredBuffer<SortKey> gSrcKeys;
+RWStructuredBuffer<SortKey> gDstKeys;
 
-#if SORT_PAIRS == 1
-StructuredBuffer<SortPayload> gSortPayloads;
-RWStructuredBuffer<SortPayload> gAltPayloads;
+#if PAYLOAD_BUFFER_COUNT > 0
+StructuredBuffer<SortPayload> gSrcPayloads[PAYLOAD_BUFFER_COUNT];
+RWStructuredBuffer<SortPayload> gDstPayloads[PAYLOAD_BUFFER_COUNT];
 #endif
 
-uniform uint gPassIdx, gRadixShift;
+uniform uint gPassIdx, gRadixShift, gPayloadBufferCount;
 // Usually gRadixShift = gPassIdx * BITS_PER_PASS
 
 #define SHARED_WAVE_HIST_SIZE (WAVES_PER_GROUP * RADIX)
@@ -270,7 +270,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
 
     gGroupIdx = SHARED_GROUP_IDX;
 
-    SortKey keys[SORT_KEYS_PER_THREAD] = load(gSortKeys, 0xFFFFFFFF);
+    SortKey keys[SORT_KEYS_PER_THREAD] = load(gSrcKeys, 0xFFFFFFFF);
     // WAVE_HIST[0, ..., WAVES_PER_GROUP) are computed, along with waveOffsets
     Offset_T offsets[SORT_KEYS_PER_THREAD] = scanKeys(keys);
 
@@ -318,12 +318,15 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
         radices[i] = Radix_T(KEY_RADIX(SHARED_KEYS(s)));
 
-    storeShared(gAltKeys, radices);
+    storeShared(gDstKeys, radices);
 
-#if SORT_PAIRS == 1
-    GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: READ -> WRITE
-    scatterShared(offsets, load(gSortPayloads, 0));
-    GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: WRITE -> READ
-    storeShared(gAltPayloads, radices);
+#if PAYLOAD_BUFFER_COUNT > 0
+    for (uint i = 0; i < gPayloadBufferCount; ++i)
+    {
+        GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: READ -> WRITE
+        scatterShared(offsets, load(gSrcPayloads[i], 0));
+        GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: WRITE -> READ
+        storeShared(gDstPayloads[i], radices);
+    }
 #endif
 }

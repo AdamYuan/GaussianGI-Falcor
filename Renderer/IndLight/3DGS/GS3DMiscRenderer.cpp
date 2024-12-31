@@ -11,8 +11,16 @@
 namespace GSGI
 {
 
-GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(pDevice), mSplatViewSorter(pDevice)
+GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(pDevice)
 {
+    mSplatViewSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>{
+        pDevice,
+        DeviceSortDesc({
+            DeviceSortBufferType::kKey32,
+            DeviceSortBufferType::kPayload,
+        })
+    };
+
     auto pPointVao = Vao::create(Vao::Topology::PointList);
 
     mpPointPass = RasterPass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang", "vsMain", "psMain");
@@ -93,8 +101,8 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
             mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DPackedSplatView), mSplatViewCount);
             mpSplatViewSortKeyBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
             mpSplatViewSortPayloadBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
-            mSplatViewSorterResource =
-                DeviceSorterResource<DeviceSortType::kPair, DeviceSortDispatchType::kIndirect>::create(getDevice(), splatViewCount);
+            mSplatViewSortResource =
+                DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(getDevice(), mSplatViewSorter.getDesc(), splatViewCount);
         }
 
         // Reset Draw Args
@@ -125,11 +133,10 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
             FALCOR_PROFILE(pRenderContext, "sortSplat");
             mSplatViewSorter.dispatch(
                 pRenderContext,
-                mpSplatViewSortKeyBuffer,
-                mpSplatViewSortPayloadBuffer,
+                {mpSplatViewSortKeyBuffer, mpSplatViewSortPayloadBuffer},
                 mpSplatViewDrawArgBuffer,
                 offsetof(gfx::IndirectDrawArguments, InstanceCount),
-                mSplatViewSorterResource
+                mSplatViewSortResource
             );
         }
 
