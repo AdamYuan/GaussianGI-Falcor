@@ -41,11 +41,14 @@ DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTy
         {
             uint32_t keyPassCount = keyBitWidth / kBitsPerPass;
             uint32_t keyID = mKeyBufferDescs.size();
+            auto payloadBufferIDs = getActiveBufferIDs(bufferID);
+            FALCOR_CHECK(isPayload || !payloadBufferIDs.empty(), "Invalid DeviceSorter Pass with no data movement");
+
             mKeyBufferDescs.push_back({
                 .bufferID = bufferID,
                 .bitWidth = keyBitWidth,
                 .isPayload = isPayload,
-                .payloadBufferIDs = getActiveBufferIDs(bufferID),
+                .payloadBufferIDs = std::move(payloadBufferIDs),
                 .firstPassID = (uint32_t)mPassDescs.size(),
                 .passCount = keyPassCount,
             });
@@ -183,9 +186,7 @@ void DeviceSorter<DispatchType_V>::dispatchImpl(
             var["gPassDescs"][passID] = passDesc.keyID << 16 | passDesc.keyRadixShift;
         }
         var["gGlobalHists"] = resource.pGlobalHistBuffer;
-        /* bindCount(var, count, pCountBuffer, countBufferOffset);
-        var["b_sort"] = pKeyBuffer;
-        var["b_globalHist"] = resource.pGlobalHistBuffer; */
+
         if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
             pPass->execute(pComputeContext, div_round_up(count, kGlobalHistPartSize) * pPass->getThreadGroupSize().x, 1, 1);
         else
@@ -216,15 +217,14 @@ void DeviceSorter<DispatchType_V>::dispatchImpl(
             const auto& keyDesc = mDesc.getKeyBufferDesc(passDesc.keyID);
 
             if (passID == keyDesc.firstPassID)
-            {
                 var["gPayloadBufferCount"] = (uint32_t)keyDesc.payloadBufferIDs.size();
-            }
 
             const auto& getSrcBuffer = [&](uint32_t bufferID) { return flip ? resource.pTempBuffers[bufferID] : pBuffers[bufferID]; };
             const auto& getDstBuffer = [&](uint32_t bufferID) { return flip ? pBuffers[bufferID] : resource.pTempBuffers[bufferID]; };
 
             var["gPassIdx"] = passID;
             var["gRadixShift"] = passDesc.keyRadixShift;
+            var["gWriteKey"] = passDesc.keyWrite ? 1u : 0u;
             var["gSrcKeys"] = getSrcBuffer(keyDesc.bufferID);
             var["gDstKeys"] = getDstBuffer(keyDesc.bufferID);
 

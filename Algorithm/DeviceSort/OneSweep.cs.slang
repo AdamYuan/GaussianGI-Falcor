@@ -13,7 +13,7 @@ StructuredBuffer<SortPayload> gSrcPayloads[PAYLOAD_BUFFER_COUNT];
 RWStructuredBuffer<SortPayload> gDstPayloads[PAYLOAD_BUFFER_COUNT];
 #endif
 
-uniform uint gPassIdx, gRadixShift, gPayloadBufferCount;
+uniform uint gPassIdx, gRadixShift, gPayloadBufferCount, gWriteKey;
 // Usually gRadixShift = gPassIdx * BITS_PER_PASS
 
 #define SHARED_WAVE_HIST_SIZE (WAVES_PER_GROUP * RADIX)
@@ -318,7 +318,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
         radices[i] = Radix_T(KEY_RADIX(SHARED_KEYS(s)));
 
-    storeShared(gDstKeys, radices);
+    if (bool(gWriteKey))
+        storeShared(gDstKeys, radices);
 
 #if PAYLOAD_BUFFER_COUNT > 0
     for (uint i = 0; i < gPayloadBufferCount; ++i)
