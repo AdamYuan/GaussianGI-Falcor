@@ -106,7 +106,7 @@ Offset_T[SORT_KEYS_PER_THREAD] scanKeys(in const SortKey keys[SORT_KEYS_PER_THRE
 
         // Clear needed wave mask
         sharedWaveMaskStore(gGroupWaveIdx, keyRadix, WaveMask(0));
-        GroupMemoryBarrierWithWaveSync(); // Is this necessary?
+        GroupMemoryBarrierWithWaveSync();
 
         // atomicOr wave mask
         InterlockedOr(SHARED_WAVE_MASK(gGroupWaveIdx, keyRadix, gWaveLaneIdx / 32), 1 << (gWaveLaneIdx & 31));

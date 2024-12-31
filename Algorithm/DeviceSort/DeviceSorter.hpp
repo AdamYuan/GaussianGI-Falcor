@@ -22,6 +22,13 @@ enum class DeviceSortBufferType : uint8_t
     // Key exclusively don't guarantee ordering after sort
 };
 
+struct DeviceSortBufferTypeMethod
+{
+    static constexpr uint32_t getKeyBitWidth(DeviceSortBufferType type) { return static_cast<uint32_t>(type) & (~1u); }
+    static constexpr bool isKey(DeviceSortBufferType type) { return getKeyBitWidth(type); }
+    static constexpr bool isPayload(DeviceSortBufferType type) { return static_cast<uint32_t>(type) & 1u; }
+};
+
 class DeviceSortDesc
 {
 public:
@@ -120,7 +127,7 @@ private:
         const ref<Buffer>& pCountBuffer,
         uint64_t countBufferOffset,
         const DeviceSortResource<DispatchType_V>& resource
-    );
+    ) const;
 
 public:
     DeviceSorter() = default;
@@ -133,7 +140,7 @@ public:
         const std::vector<ref<Buffer>>& pBuffers,
         uint count,
         const DeviceSortResource<DispatchType_V>& resource
-    )
+    ) const
         requires(DispatchType_V == DeviceSortDispatchType::kDirect)
     {
         dispatchImpl(pComputeContext, pBuffers, count, nullptr, 0, resource);
@@ -145,7 +152,7 @@ public:
         const ref<Buffer>& pCountBuffer,
         uint64_t countBufferOffset,
         const DeviceSortResource<DispatchType_V>& resource
-    )
+    ) const
         requires(DispatchType_V == DeviceSortDispatchType::kIndirect)
     {
         dispatchImpl(pComputeContext, pBuffers, 0, pCountBuffer, countBufferOffset, resource);

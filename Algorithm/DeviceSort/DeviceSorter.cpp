@@ -33,12 +33,12 @@ DeviceSortDesc::DeviceSortDesc(const std::vector<DeviceSortBufferType>& bufferTy
     for (uint32_t bufferID = 0; bufferID < bufferTypes.size(); ++bufferID)
     {
         DeviceSortBufferType bufferType = bufferTypes[bufferID];
-        bool isPayload = static_cast<uint32_t>(bufferType) & 1u;
-        uint32_t keyBitWidth = static_cast<uint32_t>(bufferType) & (~1u);
+        bool isPayload = DeviceSortBufferTypeMethod::isPayload(bufferType);
+        bool isKey = DeviceSortBufferTypeMethod::isKey(bufferType);
 
-        bool isKey = keyBitWidth;
         if (isKey)
         {
+            uint32_t keyBitWidth = DeviceSortBufferTypeMethod::getKeyBitWidth(bufferType);
             uint32_t keyPassCount = keyBitWidth / kBitsPerPass;
             uint32_t keyID = mKeyBufferDescs.size();
             auto payloadBufferIDs = getActiveBufferIDs(bufferID);
@@ -152,7 +152,7 @@ void DeviceSorter<DispatchType_V>::dispatchImpl(
     const ref<Buffer>& pCountBuffer,
     uint64_t countBufferOffset,
     const DeviceSortResource<DispatchType_V>& resource
-)
+) const
 {
     if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
     {
