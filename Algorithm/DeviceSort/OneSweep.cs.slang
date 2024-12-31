@@ -14,20 +14,41 @@ RWStructuredBuffer<SortPayload> gAltPayloads;
 #endif
 
 uniform uint gPassIdx, gRadixShift;
-// gRadixShift = gPassIdx * BITS_PER_PASS
+// Usually gRadixShift = gPassIdx * BITS_PER_PASS
 
-#if WAVES_PER_GROUP * RADIX + 1 > SORT_PART_SIZE + RADIX
-groupshared uint gShared[WAVES_PER_GROUP * RADIX + 1];
+#define SHARED_WAVE_HIST_SIZE (WAVES_PER_GROUP * RADIX)
+#define SHARED_WAVE_MASK_SIZE (WAVES_PER_GROUP * RADIX * WAVE_MASK_SIZE)
+
+#if SHARED_WAVE_HIST_SIZE + SHARED_WAVE_MASK_SIZE > SORT_PART_SIZE + RADIX
+groupshared uint gShared[SHARED_WAVE_HIST_SIZE + SHARED_WAVE_MASK_SIZE];
 #else
 groupshared uint gShared[SORT_PART_SIZE + RADIX];
 #endif
 
 #define SHARED_WAVE_HIST(WAVE_IDX, HIST_IDX) gShared[((WAVE_IDX) * RADIX) + (HIST_IDX)]
+#define SHARED_GROUP_IDX SHARED_WAVE_HIST(WAVES_PER_GROUP, 0) // Not interfere with SHARED_WAVE_HIST
+#define SHARED_WAVE_MASK(WAVE_IDX, HIST_IDX, UINT_IDX) \
+    gShared[SHARED_WAVE_HIST_SIZE + ((WAVE_IDX) * WAVE_MASK_SIZE + (UINT_IDX)) * RADIX + (HIST_IDX)]
 #define SHARED_WAVE_OFFSET(WAVE_IDX, HIST_IDX) SHARED_WAVE_HIST(WAVE_IDX, HIST_IDX) // WAVE_IDX >= 1
 #define SHARED_GROUP_OFFSET(HIST_IDX) SHARED_WAVE_HIST(0, HIST_IDX)
 #define SHARED_DEVICE_OFFSET(HIST_IDX) gShared[SORT_PART_SIZE + (HIST_IDX)]
-#define SHARED_KEYS(IDX) gShared[IDX]                         // IDX < SORT_PART_SIZE
-#define SHARED_GROUP_IDX SHARED_WAVE_HIST(WAVES_PER_GROUP, 0) // Not interfere with SHARED_WAVE_HIST
+#define SHARED_KEYS(IDX) gShared[IDX] // IDX < SORT_PART_SIZE
+
+WaveMask sharedWaveMaskLoad(uint waveIdx, uint histIdx)
+{
+    WaveMask waveMask;
+    [ForceUnroll]
+    for (uint i = 0; i < WAVE_MASK_SIZE; ++i)
+        waveMask[i] = SHARED_WAVE_MASK(waveIdx, histIdx, i);
+    return waveMask;
+}
+
+void sharedWaveMaskStore(uint waveIdx, uint histIdx, WaveMask waveMask)
+{
+    [ForceUnroll]
+    for (uint i = 0; i < WAVE_MASK_SIZE; ++i)
+        SHARED_WAVE_MASK(waveIdx, histIdx, i) = waveMask[i];
+}
 
 #define PASS_HIST(PART_IDX, HIST_IDX) gPassHists[((gGroupCount * gPassIdx + (PART_IDX)) * RADIX) + (HIST_IDX)]
 #define KEY_RADIX(KEY) extractKeyRadix((KEY), gRadixShift)
@@ -75,9 +96,34 @@ Offset_T[SORT_KEYS_PER_THREAD] scanKeys(in const SortKey keys[SORT_KEYS_PER_THRE
     {
         uint keyRadix = KEY_RADIX(keys[i]);
 
-        // lane with equal key is set to true. TODO: is there a better solution?
         // for example: 1 2 3 3 2
-        // keyEqualMask for the 6 lanes are: 10000, 01001, 00110, 00110, 01001
+        // keyEqualMask for the 5 lanes are: 10000, 01001, 00110, 00110, 01001
+        // lane with equal key is set to true.
+
+#if 1
+        // Faster match as described in
+        // https://developer.download.nvidia.com/video/gputechconf/gtc/2020/presentations/s21572-a-faster-radix-sort-implementation.pdf
+
+        // Clear needed wave mask
+        sharedWaveMaskStore(gGroupWaveIdx, keyRadix, WaveMask(0));
+        GroupMemoryBarrierWithWaveSync(); // Is this necessary?
+
+        // atomicOr wave mask
+        InterlockedOr(SHARED_WAVE_MASK(gGroupWaveIdx, keyRadix, gWaveLaneIdx / 32), 1 << (gWaveLaneIdx & 31));
+        GroupMemoryBarrierWithWaveSync();
+
+        WaveMask keyEqualMask = sharedWaveMaskLoad(gGroupWaveIdx, keyRadix);
+        uint keyLowestLaneIdx = waveMaskLSB(keyEqualMask);
+        uint keyEqualLaneCount = waveMaskCountBits(keyEqualMask);
+        uint keyEqualLtLaneCount = waveMaskCountBits(keyEqualMask & gWaveLtMask);
+
+        uint keyOffset;
+        if (gWaveLaneIdx == keyLowestLaneIdx)
+            InterlockedAdd(SHARED_WAVE_HIST(gGroupWaveIdx, keyRadix), keyEqualLaneCount, keyOffset);
+        waveOffsets[i] = Offset_T(WaveReadLaneAt(keyOffset, keyLowestLaneIdx) + keyEqualLtLaneCount);
+
+#else
+
         WaveMask keyEqualMask = toWaveMask(uint4(-1, -1, -1, -1));
         [ForceUnroll]
         for (uint bitIdx = 0; bitIdx < BITS_PER_PASS; ++bitIdx)
@@ -96,6 +142,8 @@ Offset_T[SORT_KEYS_PER_THREAD] scanKeys(in const SortKey keys[SORT_KEYS_PER_THRE
         if (gWaveLaneIdx == keyLowestLaneIdx)
             InterlockedAdd(SHARED_WAVE_HIST(gGroupWaveIdx, keyRadix), keyEqualLaneCount, keyOffset);
         waveOffsets[i] = Offset_T(WaveReadLaneAt(keyOffset, keyLowestLaneIdx) + keyEqualLtLaneCount);
+
+#endif
     }
     return waveOffsets;
 }
@@ -115,7 +163,7 @@ uint scanWaveHists()
             groupHist += waveHist;
         }
     }
-    return groupHist;
+    return groupHist; // sum of all waveHists
 }
 
 uint scanGroupHist(uint groupHist)
@@ -231,6 +279,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     // WAVE_HIST[1, ..., WAVES_PER_GROUP) are scanned (exclusive prefix sum), WAVE_HIST[0] is left unused
     // WAVE_HIST[1, ..., WAVES_PER_GROUP) -> WAVE_OFFSET[1, ..., WAVES_PER_GROUP)
     uint groupHist = scanWaveHists(); // valid when gGroupThreadIdx < RADIX
+
     // Set FLAG_REDUCTION and data to next partition(group), for decoupled look-back
     if (gGroupThreadIdx < RADIX && gGroupIdx < gGroupCount - 1)
         InterlockedAdd(PASS_HIST(gGroupIdx + 1, gGroupThreadIdx), groupHist << 2 | FLAG_REDUCTION);
@@ -259,10 +308,12 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     uint passHistPrefix = lookbackScanPassHists();
     if (gGroupThreadIdx < RADIX)
         SHARED_DEVICE_OFFSET(gGroupThreadIdx) = passHistPrefix - groupHistPrefix;
+    // minus groupHistPrefix so that SHARED_KEYS(s) -> DST(SHARED_DEVICE_OFFSET + s)
+
     GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS, SHARED_DEVICE_OFFSET: WRITE -> READ
 
     Radix_T radices[SORT_KEYS_PER_THREAD];
-    // remap keys[i], and turn to radix
+    // Remap keys[i], and turn to radix
     [ForceUnroll]
     for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
         radices[i] = Radix_T(KEY_RADIX(SHARED_KEYS(s)));

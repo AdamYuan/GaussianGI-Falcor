@@ -61,15 +61,12 @@ uint extractKeyRadix(SortKey key, uint radixShift)
     return uint((key >> radixShift) & (RADIX - 1));
 }
 
-#if LANES_PER_WAVE == 32
-typedef uint WaveMask;
-#elif LANES_PER_WAVE == 64
-typedef uint2 WaveMask;
-#elif LANES_PER_WAVE == 128
-typedef uint4 WaveMask;
-#else
+#if LANES_PER_WAVE != 32 && LANES_PER_WAVE != 64 && LANES_PER_WAVE != 128
 #error Unsupported LANES_PER_WAVE
 #endif
+
+#define WAVE_MASK_SIZE (LANES_PER_WAVE / 32)
+typedef vector<uint, WAVE_MASK_SIZE> WaveMask;
 
 // toWaveMask: convert WaveActiveBallot result to a WaveMask
 WaveMask toWaveMask(uint4 generalWaveMask)
@@ -104,13 +101,13 @@ WaveMask getWaveLtMask(uint waveLaneIdx)
 }
 
 // waveMaskLSB: waveMask must not be all zero
-uint waveMaskLSB(uint waveMask)
+uint waveMaskLSB(uint1 waveMask)
 {
-    return firstbitlow(waveMask);
+    return firstbitlow(waveMask.x);
 }
 uint waveMaskLSB(uint2 waveMask)
 {
-    return bool(waveMask.x) ? waveMaskLSB(waveMask.x) : 32 + waveMaskLSB(waveMask.y);
+    return bool(waveMask.x) ? waveMaskLSB(uint1(waveMask.x)) : 32 + waveMaskLSB(uint1(waveMask.y));
 }
 uint waveMaskLSB(uint4 waveMask)
 {
@@ -118,13 +115,13 @@ uint waveMaskLSB(uint4 waveMask)
 }
 
 // waveMaskCountBits: count active bits in waveMask
-uint waveMaskCountBits(uint waveMask)
+uint waveMaskCountBits(uint1 waveMask)
 {
-    return countbits(waveMask);
+    return countbits(waveMask.x);
 }
 uint waveMaskCountBits(uint2 waveMask)
 {
-    return waveMaskCountBits(waveMask.x) + waveMaskCountBits(waveMask.y);
+    return waveMaskCountBits(uint1(waveMask.x)) + waveMaskCountBits(uint1(waveMask.y));
 }
 uint waveMaskCountBits(uint4 waveMask)
 {
