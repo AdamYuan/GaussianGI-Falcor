@@ -16,17 +16,18 @@ RWStructuredBuffer<SortPayload> gDstPayloads[PAYLOAD_BUFFER_COUNT];
 uniform uint gPassIdx, gRadixShift, gPayloadBufferCount, gWriteKey;
 
 // Shared Memory Layout:
-// PHASE 1: |      WAVE_HIST      |GROUP_IDX|
+// PHASE 1: |      WAVE_HIST      |GROUP_HIST|GROUP_IDX|
 // PHASE 2: |      WAVE_HIST      |                WAVE_MASK                |
 // PHASE 3: |GROUP_OFST| WAVE_OFST|
 // PHASE 4: |                      KEYS                      |  DEVICE_OFST |
 
 #define SHARED_WAVE_HIST_SIZE (WAVES_PER_GROUP * RADIX)
+#define SHARED_GROUP_HIST_SIZE (RADIX)
 #define SHARED_GROUP_IDX_SIZE (1)
 #define SHARED_WAVE_MASK_SIZE (WAVES_PER_GROUP * RADIX * WAVE_MASK_SIZE)
 #define SHARED_DEVICE_OFFSET_SIZE (RADIX)
 
-#define SHARED_PHASE1_SIZE (SHARED_WAVE_HIST_SIZE + SHARED_GROUP_IDX_SIZE)
+#define SHARED_PHASE1_SIZE (SHARED_WAVE_HIST_SIZE + SHARED_GROUP_HIST_SIZE + SHARED_GROUP_IDX_SIZE)
 #define SHARED_PHASE2_SIZE (SHARED_WAVE_HIST_SIZE + SHARED_WAVE_MASK_SIZE)
 #define SHARED_PHASE3_SIZE (SHARED_WAVE_HIST_SIZE)
 #define SHARED_PHASE4_SIZE (SORT_PART_SIZE + SHARED_DEVICE_OFFSET_SIZE)
@@ -44,7 +45,8 @@ groupshared uint gShared[SHARED_PHASE4_SIZE];
 #endif
 
 #define SHARED_WAVE_HIST(WAVE_IDX, DIGIT) gShared[((WAVE_IDX) * RADIX) + (DIGIT)]
-#define SHARED_GROUP_IDX SHARED_WAVE_HIST(WAVES_PER_GROUP + 1, 0) // Not interfere with SHARED_WAVE_HIST
+#define SHARED_GROUP_HIST(DIGIT) SHARED_WAVE_HIST(WAVES_PER_GROUP, DIGIT)
+#define SHARED_GROUP_IDX SHARED_WAVE_HIST(WAVES_PER_GROUP + 1, 0) // Not interfere with SHARED_WAVE_HIST and SHARED_GROUP_HIST
 #define SHARED_WAVE_MASK(WAVE_IDX, DIGIT, UINT_IDX) \
     gShared[SHARED_WAVE_HIST_SIZE + ((WAVE_IDX) * WAVE_MASK_SIZE + (UINT_IDX)) * RADIX + (DIGIT)]
 #define SHARED_WAVE_OFFSET(WAVE_IDX, DIGIT) SHARED_WAVE_HIST(WAVE_IDX, DIGIT) // WAVE_IDX >= 1
@@ -95,6 +97,19 @@ uint[SORT_KEYS_PER_THREAD] load(StructuredBuffer<uint> buffer, uint dummy)
         }
     }
     return keys;
+}
+
+SHARED_PHASE1 uint countGroupHist(in const SortKey keys[SORT_KEYS_PER_THREAD])
+{
+    [ForceUnroll]
+    for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i)
+        InterlockedAdd(SHARED_GROUP_HIST(KEY_RADIX(keys[i])), 1);
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if (gGroupThreadIdx < RADIX)
+        return SHARED_GROUP_HIST(gGroupThreadIdx);
+    return 0;
 }
 
 SHARED_PHASE2 Offset_T[SORT_KEYS_PER_THREAD] matchKeys(in const SortKey keys[SORT_KEYS_PER_THREAD])
@@ -159,7 +174,7 @@ SHARED_PHASE2 Offset_T[SORT_KEYS_PER_THREAD] matchKeys(in const SortKey keys[SOR
     return waveOffsets;
 }
 
-SHARED_PHASE3 uint scanWaveHists()
+SHARED_PHASE3 void scanWaveHists()
 {
     // Accumulate all per-wave histograms
     uint groupHist;
@@ -174,7 +189,6 @@ SHARED_PHASE3 uint scanWaveHists()
             groupHist += waveHist;
         }
     }
-    return groupHist;
 }
 
 SHARED_PHASE3 uint scanGroupHist(uint groupHist)
@@ -271,8 +285,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     gGroupCount = getSortPartCount();
 
     SHARED_PHASE1
-    // Clear WAVE_HIST
-    for (uint i = gGroupThreadIdx; i < SHARED_WAVE_HIST_SIZE; i += SORT_DIM)
+    // Clear WAVE_HIST and GROUP_HIST
+    for (uint i = gGroupThreadIdx; i < SHARED_WAVE_HIST_SIZE + SHARED_GROUP_HIST_SIZE; i += SORT_DIM)
         gShared[i] = 0;
     if (gGroupThreadIdx == 0)
         InterlockedAdd(gIndices[gPassIdx], 1, SHARED_GROUP_IDX);
@@ -281,6 +295,13 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     gGroupIdx = SHARED_GROUP_IDX;
 
     SortKey keys[SORT_KEYS_PER_THREAD] = load(gSrcKeys, 0xFFFFFFFF);
+
+    // Count group hist eariler to reduce blocking of decoupled look-back as described in
+    // https://developer.download.nvidia.com/video/gputechconf/gtc/2020/presentations/s21572-a-faster-radix-sort-implementation.pdf
+    uint groupHist = countGroupHist(keys);
+    // Set FLAG_REDUCTION and data to next partition(group), for decoupled look-back
+    if (gGroupThreadIdx < RADIX && gGroupIdx < gGroupCount - 1)
+        InterlockedAdd(PASS_HIST(gGroupIdx + 1, gGroupThreadIdx), groupHist << 2 | FLAG_REDUCTION);
 
     GroupMemoryBarrierWithGroupSync(); // End of SHARED_PHASE1
 
@@ -293,10 +314,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     SHARED_PHASE3
     // WAVE_HIST[1, ..., WAVES_PER_GROUP) are scanned (exclusive prefix sum), WAVE_HIST[0] is left unused
     // WAVE_HIST[1, ..., WAVES_PER_GROUP) -> WAVE_OFFSET[1, ..., WAVES_PER_GROUP)
-    uint groupHist = scanWaveHists();
-    // Set FLAG_REDUCTION and data to next partition(group), for decoupled look-back
-    if (gGroupThreadIdx < RADIX && gGroupIdx < gGroupCount - 1)
-        InterlockedAdd(PASS_HIST(gGroupIdx + 1, gGroupThreadIdx), groupHist << 2 | FLAG_REDUCTION);
+    scanWaveHists();
 
     GroupMemoryBarrierWithGroupSync(); // WAVE_HIST[0]/GROUP_OFFSET: READ -> READ/WRITE, WAVE_HIST[1..]/WAVE_OFFSET: WRITE -> READ
 
