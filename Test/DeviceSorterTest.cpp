@@ -41,7 +41,7 @@ void printDesc(const char* name, const DeviceSortDesc& desc)
 
 std::mt19937 rand{std::random_device{}()};
 
-template<DeviceSortDispatchType DispatchType_V, DeviceSortBufferType... BufferType_Vs>
+template<DeviceSortDispatchType, DeviceSortBufferType...>
 struct Config
 {};
 
@@ -50,25 +50,6 @@ using CpuItem = std::array<uint32_t, sizeof...(BufferType_Vs)>;
 
 template<DeviceSortBufferType... BufferType_Vs>
 using CpuBuffer = std::vector<CpuItem<BufferType_Vs...>>;
-
-template<DeviceSortBufferType BufferType_V, uint32_t Index_V>
-std::strong_ordering compareSingle(const auto& l, const auto& r)
-{
-    if constexpr (DeviceSortBufferTypeMethod::isKey(BufferType_V))
-    {
-        static constexpr auto kKeyBitWidth = DeviceSortBufferTypeMethod::getKeyBitWidth(BufferType_V);
-        uint32_t keyL = l[Index_V], keyR = r[Index_V];
-        if constexpr (kKeyBitWidth < 32)
-        {
-            static constexpr auto kKeyBitMask = (1u << kKeyBitWidth) - 1;
-            keyL &= kKeyBitMask;
-            keyR &= kKeyBitMask;
-        }
-        return std::strong_ordering{keyL <=> keyR};
-    }
-    else
-        return std::strong_ordering::equal;
-}
 
 template<uint32_t Index_V, DeviceSortBufferType FirstBufferType_V, DeviceSortBufferType... OtherBufferType_Vs>
 std::strong_ordering compare(const auto& l, const auto& r)
@@ -190,29 +171,6 @@ void runTest(
 
 } // namespace
 
-CPU_TEST(DeviceSorter_PrintDesc)
-{
-    printDesc("PayloadKey32", DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32}});
-    printDesc("PayloadKey32 + Payload32", DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload}});
-    printDesc("Key32 + Payload", DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}});
-    printDesc(
-        "Key32 + Key32 + Payload",
-        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}}
-    );
-    printDesc(
-        "Key32 + Key32Payload + Payload",
-        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kPayload}}
-    );
-    printDesc(
-        "PayloadKey32 + Key32 + Payload",
-        DeviceSortDesc{{DeviceSortBufferType::kPayloadKey32, DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}}
-    );
-    printDesc(
-        "Key32 + Payload + PayloadKey16",
-        DeviceSortDesc{{DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload, DeviceSortBufferType::kPayloadKey16}}
-    );
-}
-
 GPU_TEST(DeviceSorter_Key_Direct)
 {
     Config<DeviceSortDispatchType::kDirect, DeviceSortBufferType::kPayloadKey32> config;
@@ -246,7 +204,6 @@ GPU_TEST(DeviceSorter_Pair_IsStableSort)
 GPU_TEST(DeviceSorter_Key_Indirect)
 {
     Config<DeviceSortDispatchType::kIndirect, DeviceSortBufferType::kPayloadKey32> config;
-
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
     auto [sorter, sortResource] = makeSorter(config, ctx.getDevice(), count);
     auto [cpuBuffer, pGpuBuffers] = makeBuffers(config, ctx.getDevice(), count);
@@ -278,9 +235,9 @@ GPU_TEST(DeviceSorter_Mix_Direct)
 {
     Config<
         DeviceSortDispatchType::kDirect,
+        DeviceSortBufferType::kKey32,
+        DeviceSortBufferType::kPayloadKey32,
         DeviceSortBufferType::kPayload,
-        DeviceSortBufferType::kKey32,
-        DeviceSortBufferType::kKey32,
         DeviceSortBufferType::kKey16,
         DeviceSortBufferType::kPayloadKey16>
         config;
