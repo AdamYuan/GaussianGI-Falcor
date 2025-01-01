@@ -296,7 +296,9 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
 
     SortKey keys[SORT_KEYS_PER_THREAD] = load(gSrcKeys, 0xFFFFFFFF);
 
-    uint groupHist = countGroupHist(keys); // Count group hist eariler to reduce blocking of decoupled-lookback
+    // Count group hist eariler to reduce blocking of decoupled look-back as described in
+    // https://developer.download.nvidia.com/video/gputechconf/gtc/2020/presentations/s21572-a-faster-radix-sort-implementation.pdf
+    uint groupHist = countGroupHist(keys);
     // Set FLAG_REDUCTION and data to next partition(group), for decoupled look-back
     if (gGroupThreadIdx < RADIX && gGroupIdx < gGroupCount - 1)
         InterlockedAdd(PASS_HIST(gGroupIdx + 1, gGroupThreadIdx), groupHist << 2 | FLAG_REDUCTION);
