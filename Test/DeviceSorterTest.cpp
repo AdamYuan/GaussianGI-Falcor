@@ -278,9 +278,11 @@ GPU_TEST(DeviceSorter_Mix_Direct)
 {
     Config<
         DeviceSortDispatchType::kDirect,
-        DeviceSortBufferType::kPayloadKey32,
-        DeviceSortBufferType::kPayloadKey32,
-        DeviceSortBufferType::kPayload>
+        DeviceSortBufferType::kPayload,
+        DeviceSortBufferType::kKey32,
+        DeviceSortBufferType::kKey32,
+        DeviceSortBufferType::kKey16,
+        DeviceSortBufferType::kPayloadKey16>
         config;
     uint count = std::uniform_int_distribution<uint>{1024 * 1024, 8 * 1024 * 1024}(rand);
     auto [sorter, sortResource] = makeSorter(config, ctx.getDevice(), count);

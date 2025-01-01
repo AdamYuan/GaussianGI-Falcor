@@ -228,10 +228,11 @@ void DeviceSorter<DispatchType_V>::dispatchImpl(
             var["gSrcKeys"] = getSrcBuffer(keyDesc.bufferID);
             var["gDstKeys"] = getDstBuffer(keyDesc.bufferID);
 
-            for (uint32_t payloadBufferID : keyDesc.payloadBufferIDs)
+            for (uint32_t payloadSlotID = 0; payloadSlotID < keyDesc.payloadBufferIDs.size(); ++payloadSlotID)
             {
-                var["gSrcPayloads"] = getSrcBuffer(payloadBufferID);
-                var["gDstPayloads"] = getDstBuffer(payloadBufferID);
+                uint32_t payloadBufferID = keyDesc.payloadBufferIDs[payloadSlotID];
+                var["gSrcPayloads"][payloadSlotID] = getSrcBuffer(payloadBufferID);
+                var["gDstPayloads"][payloadSlotID] = getDstBuffer(payloadBufferID);
             }
 
             if constexpr (DispatchType_V == DeviceSortDispatchType::kDirect)
