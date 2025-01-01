@@ -77,7 +77,6 @@ static uint gWaveLaneIdx, gGroupWaveIdx, gGroupThreadIdx, gGroupCount, gGroupIdx
 static WaveMask gWaveLtMask;
 
 typedef uint16_t Offset_T; // Offset within the threadGroup
-typedef uint8_t Radix_T;
 
 uint[SORT_KEYS_PER_THREAD] load(StructuredBuffer<uint> buffer, uint dummy)
 {
@@ -104,10 +103,7 @@ SHARED_PHASE1 uint countGroupHist(in const SortKey keys[SORT_KEYS_PER_THREAD])
 {
     [ForceUnroll]
     for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i)
-    {
-        uint keyRadix = KEY_RADIX(keys[i]);
-        InterlockedAdd(SHARED_GROUP_HIST(keyRadix), 1);
-    }
+        InterlockedAdd(SHARED_GROUP_HIST(KEY_RADIX(keys[i])), 1);
 
     GroupMemoryBarrierWithGroupSync();
 
@@ -261,19 +257,19 @@ SHARED_PHASE4 void scatterShared(in const Offset_T groupOffsets[SORT_KEYS_PER_TH
         SHARED_KEYS(uint(groupOffsets[i])) = keys[i];
 }
 
-SHARED_PHASE4 void storeShared(RWStructuredBuffer<uint> buffer, in const Radix_T radices[SORT_KEYS_PER_THREAD])
+SHARED_PHASE4 void storeShared(RWStructuredBuffer<uint> buffer, in const uint deviceOffsets[SORT_KEYS_PER_THREAD])
 {
     uint lastGroupKeyCount = gKeyCount - (gGroupCount - 1) * SORT_PART_SIZE;
 
     if (gGroupIdx < gGroupCount - 1)
-        [ForceUnroll] for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
-            buffer[SHARED_DEVICE_OFFSET(uint(radices[i])) + s] = SHARED_KEYS(s);
+        [ForceUnroll] for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM) //
+            buffer[deviceOffsets[i] + s] = SHARED_KEYS(s);
     else
         [ForceUnroll] for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
         {
             if (s >= lastGroupKeyCount)
                 break;
-            buffer[SHARED_DEVICE_OFFSET(uint(radices[i])) + s] = SHARED_KEYS(s);
+            buffer[deviceOffsets[i] + s] = SHARED_KEYS(s);
         }
 }
 
@@ -305,13 +301,13 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     if (gGroupThreadIdx < RADIX && gGroupIdx < gGroupCount - 1)
         InterlockedAdd(PASS_HIST(gGroupIdx + 1, gGroupThreadIdx), groupHist << 2 | FLAG_REDUCTION);
 
-    GroupMemoryBarrierWithGroupSync(); // End of PHASE1
+    GroupMemoryBarrierWithGroupSync(); // End of SHARED_PHASE1
 
     SHARED_PHASE2
     // WAVE_HIST[0, ..., WAVES_PER_GROUP) are computed, along with waveOffsets
     Offset_T offsets[SORT_KEYS_PER_THREAD] = matchKeys(keys);
 
-    GroupMemoryBarrierWithGroupSync(); // End of PHASE2
+    GroupMemoryBarrierWithGroupSync(); // End of SHARED_PHASE2
 
     SHARED_PHASE3
     // WAVE_HIST[1, ..., WAVES_PER_GROUP) are scanned (exclusive prefix sum), WAVE_HIST[0] is left unused
@@ -327,12 +323,13 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
     // Adjust offsets
     // waveOffsets -> groupOffsets
     if (gGroupWaveIdx > 0)
-        [ForceUnroll] for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i) offsets[i] +=
-            Offset_T(SHARED_WAVE_OFFSET(gGroupWaveIdx, KEY_RADIX(keys[i])) + SHARED_GROUP_OFFSET(KEY_RADIX(keys[i])));
+        [ForceUnroll] for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i) //
+            offsets[i] += Offset_T(SHARED_WAVE_OFFSET(gGroupWaveIdx, KEY_RADIX(keys[i])) + SHARED_GROUP_OFFSET(KEY_RADIX(keys[i])));
     else
-        [ForceUnroll] for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i) offsets[i] += Offset_T(SHARED_GROUP_OFFSET(KEY_RADIX(keys[i])));
+        [ForceUnroll] for (uint i = 0; i < SORT_KEYS_PER_THREAD; ++i) //
+            offsets[i] += Offset_T(SHARED_GROUP_OFFSET(KEY_RADIX(keys[i])));
 
-    GroupMemoryBarrierWithGroupSync(); // End of PHASE3
+    GroupMemoryBarrierWithGroupSync(); // End of SHARED_PHASE3
 
     SHARED_PHASE4
     // Scatter keys to shared memory (to make the final memory write ordered, utilizing GPU write coalescing)
@@ -344,14 +341,14 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
 
     GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS, SHARED_DEVICE_OFFSET: WRITE -> READ
 
-    Radix_T radices[SORT_KEYS_PER_THREAD];
-    // Remap keys[i], and turn to radix
+    // Remap and fetch deviceOffsets
+    uint deviceOffsets[SORT_KEYS_PER_THREAD];
     [ForceUnroll]
     for (uint i = 0, s = gGroupThreadIdx; i < SORT_KEYS_PER_THREAD; ++i, s += SORT_DIM)
-        radices[i] = Radix_T(KEY_RADIX(SHARED_KEYS(s)));
+        deviceOffsets[i] = SHARED_DEVICE_OFFSET(KEY_RADIX(SHARED_KEYS(s)));
 
     if (bool(gWriteKey))
-        storeShared(gDstKeys, radices);
+        storeShared(gDstKeys, deviceOffsets);
 
 #if PAYLOAD_BUFFER_COUNT > 0
     for (uint i = 0; i < gPayloadBufferCount; ++i)
@@ -359,7 +356,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID)
         GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: READ -> WRITE
         scatterShared(offsets, load(gSrcPayloads[i], 0));
         GroupMemoryBarrierWithGroupSync(); // SHARED_KEYS: WRITE -> READ
-        storeShared(gDstPayloads[i], radices);
+        storeShared(gDstPayloads[i], deviceOffsets);
     }
 #endif
+    // End of SHARED_PHASE4
 }
