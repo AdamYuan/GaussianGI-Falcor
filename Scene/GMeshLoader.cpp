@@ -34,7 +34,7 @@ struct GMeshLoaderContext
 
     ref<Device> pDevice;
     std::filesystem::path basePath;
-    GMesh mesh;
+    GMesh::Data meshData;
     std::unordered_map<TextureKey, GMesh::TextureID, TextureKeyHash> textureIDMap;
 
     bool processNode(const aiNode* pAiNode, const aiScene* pAiScene)
@@ -59,7 +59,7 @@ struct GMeshLoaderContext
     }
     bool processMesh(const aiMesh* pAiMesh, const aiScene* pAiScene)
     {
-        uint indexOffset = this->mesh.vertices.size();
+        uint indexOffset = this->meshData.vertices.size();
         // process vertex positions, normals and texture coordinates
         for (uint i = 0; i < pAiMesh->mNumVertices; i++)
         {
@@ -74,8 +74,8 @@ struct GMeshLoaderContext
                 const auto& aiTexcoord = pAiMesh->mTextureCoords[0][i];
                 gVertex.texcoord = {aiTexcoord.x, aiTexcoord.y};
             }
-            this->mesh.vertices.push_back(gVertex);
-            this->mesh.bound.include(gVertex.position);
+            this->meshData.vertices.push_back(gVertex);
+            this->meshData.bound.include(gVertex.position);
         }
         // process texture
         if (pAiMesh->mMaterialIndex >= pAiScene->mNumMaterials)
@@ -92,15 +92,15 @@ struct GMeshLoaderContext
         {
             aiFace face = pAiMesh->mFaces[i];
             for (uint j = 0; j < face.mNumIndices; j++)
-                this->mesh.indices.push_back(face.mIndices[j] + indexOffset);
-            this->mesh.textureIDs.push_back(textureID);
+                this->meshData.indices.push_back(face.mIndices[j] + indexOffset);
+            this->meshData.textureIDs.push_back(textureID);
         }
         return true;
     }
     std::optional<GMesh::TextureID> registerTexture(aiMaterial* pAiMat)
     {
         TextureKey textureKey;
-        GMesh::TextureInfo textureInfo{};
+        GMesh::TextureData textureData{};
 
         // Load texture from file
         if (aiString aiPath; pAiMat->GetTexture(aiTextureType_DIFFUSE, 0, &aiPath) == aiReturn_SUCCESS)
@@ -115,22 +115,22 @@ struct GMeshLoaderContext
                 for (int size = width * height, i = 0; i < size; ++i)
                     if (data[i * 4 + 3] < 255)
                     {
-                        textureInfo.isOpaque = false;
+                        textureData.isOpaque = false;
                         break;
                     }
-                textureInfo.pTexture = pDevice->createTexture2D(
+                textureData.pTexture = pDevice->createTexture2D(
                     width, height, ResourceFormat::RGBA8Unorm, 1, Resource::kMaxPossible, data, ResourceBindFlags::ShaderResource
                 );
-                textureInfo.pTexture->setSourcePath(path);
+                textureData.pTexture->setSourcePath(path);
                 textureKey = path;
                 stbi_image_free(data);
-                logInfo("Loaded {} texture {}", textureInfo.isOpaque ? "opaque" : "non-opaque", path);
+                logInfo("Loaded {} texture {}", textureData.isOpaque ? "opaque" : "non-opaque", path);
             }
             else
                 logWarning("Failed to load texture {}", path);
         }
         // Fallback to color
-        if (textureInfo.pTexture == nullptr)
+        if (textureData.pTexture == nullptr)
         {
             std::array<uint8_t, 4> rgba = {255, 255, 255, 255};
 
@@ -141,20 +141,20 @@ struct GMeshLoaderContext
                 rgba[2] = (uint8_t)math::clamp(aiColor.b * 255.0f, 0.0f, 255.0f);
             }
 
-            textureInfo.pTexture = createColorTexture(pDevice, rgba.data(), ResourceBindFlags::ShaderResource);
+            textureData.pTexture = createColorTexture(pDevice, rgba.data(), ResourceBindFlags::ShaderResource);
             textureKey = std::bit_cast<uint32_t>(rgba);
         }
 
         auto it = textureIDMap.find(textureKey);
         if (it != textureIDMap.end())
             return it->second;
-        uint uintTextureID = this->mesh.textures.size();
+        uint uintTextureID = this->meshData.textures.size();
         if (uintTextureID > GMesh::kMaxTextureID)
         {
             logError("Too many textures.");
             return std::nullopt;
         }
-        this->mesh.textures.push_back(std::move(textureInfo));
+        this->meshData.textures.push_back(std::move(textureData));
         GMesh::TextureID textureID = uintTextureID;
         textureIDMap[textureKey] = textureID;
         return textureID;
@@ -163,7 +163,7 @@ struct GMeshLoaderContext
 
 } // namespace
 
-GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::path& filename)
+ref<GMesh> GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::path& filename)
 {
     TimeReport timeReport;
 
@@ -191,41 +191,35 @@ GMesh::Ptr GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
     GMeshLoaderContext ctx = {
         .pDevice = pDevice,
         .basePath = filename.parent_path(),
-        .mesh =
+        .meshData =
             {
                 .path = filename,
                 .bound = AABB{},
             },
     };
-    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.mesh.getPrimitiveCount() == 0)
+    if (!ctx.processNode(pScene->mRootNode, pScene) || ctx.meshData.getPrimitiveCount() == 0)
     {
         logError("Failed to create mesh for: {}", importer.GetErrorString());
         return nullptr;
     }
     timeReport.measure("Creating mesh");
 
-    // Reorder indices and textureIDs based on isOpaque property
-    {
-        ctx.mesh.reorderOpaque();
-        timeReport.measure("Reorder primitives");
-    }
-
     // Normalize mesh through Y direction
     {
-        float3 center = ctx.mesh.bound.center();
-        float3 halfExtent = ctx.mesh.bound.extent() * 0.5f;
+        float3 center = ctx.meshData.bound.center();
+        float3 halfExtent = ctx.meshData.bound.extent() * 0.5f;
         float invHalfExtentY = 1.0f / halfExtent.y;
         const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtentY; };
-        for (auto& vertex : ctx.mesh.vertices)
+        for (auto& vertex : ctx.meshData.vertices)
             normalizeFloat3(vertex.position);
-        normalizeFloat3(ctx.mesh.bound.minPoint);
-        normalizeFloat3(ctx.mesh.bound.maxPoint);
+        normalizeFloat3(ctx.meshData.bound.minPoint);
+        normalizeFloat3(ctx.meshData.bound.maxPoint);
         timeReport.measure("Normalizing mesh");
     }
 
     timeReport.printToLog();
 
-    return GMesh::createPtr(std::move(ctx.mesh));
+    return make_ref<GMesh>(pDevice, std::move(ctx.meshData));
 }
 
 } // namespace GSGI

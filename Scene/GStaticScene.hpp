@@ -33,11 +33,11 @@ public:
     };
 
 private:
-    void import(std::vector<GMesh::Ptr>&& pMeshes);
+    void import(std::vector<ref<GMesh>>&& pMeshes);
     void buildBLAS(RenderContext* pRenderContext);
     void buildTLAS(RenderContext* pRenderContext);
 
-    std::vector<GMesh::Ptr> mpMeshes;
+    std::vector<ref<GMesh>> mpMeshes;
     std::vector<MeshInfo> mMeshInfos;
     std::vector<InstanceInfo> mInstanceInfos;
     ref<Buffer> mpIndexBuffer, mpVertexBuffer, mpTextureIDBuffer, mpDrawCmdBuffer, mpInstanceInfoBuffer, mpMeshInfoBuffer;
@@ -50,10 +50,10 @@ private:
 
     ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
 
-    static std::vector<GMesh::Ptr> getSceneMeshes(const ref<GScene>& pScene);
+    static std::vector<ref<GMesh>> getSceneMeshes(const ref<GScene>& pScene);
 
 public:
-    GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext, std::vector<GMesh::Ptr>&& pAlternateMeshes)
+    GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext, std::vector<ref<GMesh>>&& pAlternateMeshes)
         : GDeviceObject(pScene->getDevice()), mpScene{pScene}
     {
         import(std::move(pAlternateMeshes));

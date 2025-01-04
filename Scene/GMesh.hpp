@@ -6,7 +6,9 @@
 #ifndef GSGI_GMESH_HPP
 #define GSGI_GMESH_HPP
 
+#include "../Common/GDeviceObject.hpp"
 #include <Falcor.h>
+#include <Core/Pass/RasterPass.h>
 #include <Utils/Math/AABB.h>
 
 using namespace Falcor;
@@ -14,10 +16,9 @@ using namespace Falcor;
 namespace GSGI
 {
 
-struct GMesh
+class GMesh final : public GDeviceObject<GMesh>
 {
-    using Ptr = std::shared_ptr<const GMesh>;
-
+public:
     struct Vertex
     {
         float3 position;
@@ -30,35 +31,62 @@ struct GMesh
     static constexpr uint32_t kMaxTextureCount = uint32_t(kMaxTextureID) + 1;
     using Index = uint32_t;
 
-    struct TextureInfo
+    struct TextureData
     {
         ref<Texture> pTexture;
-        bool isOpaque = true;
+        bool isOpaque;
     };
 
-    std::filesystem::path path;
-    AABB bound;
+    struct Data
+    {
+        std::filesystem::path path;
+        AABB bound;
+        std::vector<Vertex> vertices;
+        std::vector<Index> indices;
+        std::vector<TextureID> textureIDs; // per-triangle
+        std::vector<TextureData> textures;
+        uint firstOpaquePrimitiveID = -1; // -1 means not computed
 
-    std::vector<Vertex> vertices;
-    std::vector<Index> indices;
-    std::vector<TextureID> textureIDs; // per-triangle
-    std::vector<TextureInfo> textures;
+        uint getIndexCount() const { return indices.size(); }
+        uint getPrimitiveCount() const { return indices.size() / 3; }
+        uint getVertexCount() const { return vertices.size(); }
+        uint getTextureCount() const { return textures.size(); }
+        bool hasOpaquePrimitive() const { return firstOpaquePrimitiveID < getPrimitiveCount(); }
+        uint getOpaquePrimitiveCount() const { return getPrimitiveCount() - firstOpaquePrimitiveID; }
+        bool hasNonOpaquePrimitive() const { return firstOpaquePrimitiveID > 0; }
+        uint getNonOpaquePrimitiveCount() const { return firstOpaquePrimitiveID; }
+    };
 
-    uint firstOpaquePrimitiveID = -1; // -1 means not computed
+private:
+    Data mData;
+    ref<Vao> mpVao;
+    ref<Buffer> mpVertexBuffer, mpIndexBuffer, mpTextureIDBuffer;
+    inline static ref<VertexLayout> spVertexLayout = nullptr;
 
-    uint getIndexCount() const { return indices.size(); }
-    uint getPrimitiveCount() const { return indices.size() / 3; }
-    uint getVertexCount() const { return vertices.size(); }
-    uint getTextureCount() const { return textures.size(); }
-    bool hasOpaquePrimitive() const { return firstOpaquePrimitiveID < getPrimitiveCount(); }
-    uint getOpaquePrimitiveCount() const { return getPrimitiveCount() - firstOpaquePrimitiveID; }
-    bool hasNonOpaquePrimitive() const { return firstOpaquePrimitiveID > 0; }
-    uint getNonOpaquePrimitiveCount() const { return firstOpaquePrimitiveID; }
+    static void dataReorderOpaque(Data& data);
+    static void dataUpdateBound(Data& data);
+    void prepareDraw();
 
-    void reorderOpaque();
-    void updateBound();
+public:
+    GMesh(ref<Device> pDevice, Data data);
 
-    static ref<VertexLayout> createVertexLayout();
+    const auto& getData() const { return mData; }
+    const std::filesystem::path& getSourcePath() const { return mData.path; }
+
+#define GMESH_DATA_FUNC(X) \
+    auto X() const { return mData.X(); }
+    GMESH_DATA_FUNC(getIndexCount)
+    GMESH_DATA_FUNC(getPrimitiveCount)
+    GMESH_DATA_FUNC(getVertexCount)
+    GMESH_DATA_FUNC(getTextureCount)
+    GMESH_DATA_FUNC(hasOpaquePrimitive)
+    GMESH_DATA_FUNC(getOpaquePrimitiveCount)
+    GMESH_DATA_FUNC(hasNonOpaquePrimitive)
+    GMESH_DATA_FUNC(getNonOpaquePrimitiveCount)
+#undef GMESH_DATA_FUNC
+    const AABB& getBound() const { return mData.bound; }
+
+    static ref<VertexLayout> getVertexLayout() { return spVertexLayout; }
     static ResourceFormat getIndexFormat() { return ResourceFormat::R32Uint; }
     template<RtGeometryFlags Flags>
     RtGeometryDesc getRTGeometryDesc(DeviceAddress transform3x4Addr, DeviceAddress indexBufferAddr, DeviceAddress vertexBufferAddr) const
@@ -75,21 +103,16 @@ struct GMesh
                          .vertexFormat = ResourceFormat::RGB32Float,
                          .indexCount = 3 * (Flags == RtGeometryFlags::Opaque ? getOpaquePrimitiveCount() : getNonOpaquePrimitiveCount()),
                          .vertexCount = 0, // Seems to work (at least on Vulkan)
-                         .indexData = indexBufferAddr + sizeof(Index) * 3 * (Flags == RtGeometryFlags::Opaque ? firstOpaquePrimitiveID : 0),
+                         .indexData =
+                             indexBufferAddr + sizeof(Index) * 3 * (Flags == RtGeometryFlags::Opaque ? mData.firstOpaquePrimitiveID : 0),
                          .vertexData = vertexBufferAddr,
                          .vertexStride = sizeof(Vertex),
                      }}
         };
     }
 
-    static Ptr createPtr(GMesh&& mesh)
-    {
-        if (mesh.firstOpaquePrimitiveID == -1)
-            mesh.reorderOpaque();
-        if (!mesh.bound.valid())
-            mesh.updateBound();
-        return std::make_shared<const GMesh>(std::move(mesh));
-    }
+    void renderUIImpl(Gui::Widgets& widget) const;
+    void draw(RenderContext* pRenderContext, const ref<RasterPass>& pRasterPass, const ShaderVar& rasterDataVar);
 };
 
 } // namespace GSGI

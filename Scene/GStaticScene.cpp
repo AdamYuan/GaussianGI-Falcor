@@ -9,7 +9,7 @@
 namespace GSGI
 {
 
-void GStaticScene::import(std::vector<GMesh::Ptr>&& pMeshes)
+void GStaticScene::import(std::vector<ref<GMesh>>&& pMeshes)
 {
     FALCOR_CHECK(mpScene->getMeshEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getMeshEntries()");
 
@@ -52,16 +52,18 @@ void GStaticScene::import(std::vector<GMesh::Ptr>&& pMeshes)
         drawCommands.push_back(drawCmd);
         mMeshInfos.push_back(meshInfo);
         // Vertex buffer
-        vertices.insert(vertices.end(), pMesh->vertices.begin(), pMesh->vertices.end());
+        vertices.insert(vertices.end(), pMesh->getData().vertices.begin(), pMesh->getData().vertices.end());
         // Index buffer
-        auto paddedIndices = pMesh->indices | std::views::transform([&](GMesh::Index x) -> GMesh::Index { return x + baseIndex; });
+        auto paddedIndices =
+            pMesh->getData().indices | std::views::transform([&](GMesh::Index x) -> GMesh::Index { return x + baseIndex; });
         indices.insert(indices.end(), paddedIndices.begin(), paddedIndices.end());
         // Texture ID buffer
         auto paddedTextureIDs =
-            pMesh->textureIDs | std::views::transform([&](GMesh::TextureID x) -> GMesh::TextureID { return x + baseTextureID; });
+            pMesh->getData().textureIDs | std::views::transform([&](GMesh::TextureID x) -> GMesh::TextureID { return x + baseTextureID; });
         textureIDs.insert(textureIDs.end(), paddedTextureIDs.begin(), paddedTextureIDs.end());
         // Textures
-        auto textures = pMesh->textures | std::views::transform([&](const GMesh::TextureInfo& x) -> ref<Texture> { return x.pTexture; });
+        auto textures =
+            pMesh->getData().textures | std::views::transform([&](const GMesh::TextureData& x) -> ref<Texture> { return x.pTexture; });
         mpTextures.insert(mpTextures.end(), textures.begin(), textures.end());
         // Instance buffer
         for (const auto& instance : entry.instances)
@@ -91,7 +93,7 @@ void GStaticScene::import(std::vector<GMesh::Ptr>&& pMeshes)
         indices.data()
     );
 
-    mpVao = Vao::create(Vao::Topology::TriangleList, mpScene->getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, GMesh::getIndexFormat());
+    mpVao = Vao::create(Vao::Topology::TriangleList, GMesh::getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, GMesh::getIndexFormat());
 
     static_assert(std::same_as<GMesh::TextureID, uint8_t>);
     mpTextureIDBuffer = getDevice()->createTypedBuffer(
@@ -129,9 +131,9 @@ void GStaticScene::import(std::vector<GMesh::Ptr>&& pMeshes)
     }
 }
 
-std::vector<GMesh::Ptr> GStaticScene::getSceneMeshes(const ref<GScene>& pScene)
+std::vector<ref<GMesh>> GStaticScene::getSceneMeshes(const ref<GScene>& pScene)
 {
-    std::vector<GMesh::Ptr> meshes;
+    std::vector<ref<GMesh>> meshes;
     meshes.reserve(pScene->getMeshEntries().size());
     for (const auto& entry : pScene->getMeshEntries())
         meshes.push_back(entry.pMesh);

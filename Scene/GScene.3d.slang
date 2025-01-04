@@ -37,7 +37,7 @@ GSIn vsMain(GMesh::VSIn vIn)
 void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout TriangleStream<PSIn> output)
 {
     PSIn o;
-    o.textureID = gGScene.getTextureID(primitiveID);
+    o.textureID = gGScene.rasterData.getTextureID(primitiveID);
 
     [ForceUnroll]
     for (int i = 0; i < 3; ++i)
@@ -54,7 +54,7 @@ float4 psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
 {
     float3 normal = normalize(pIn.normal);
     normal = select(isFrontFace, normal, -normal);
-    float4 texColor = gGScene.textures[pIn.textureID].Sample(gGScene.sampler, pIn.texcoord);
+    float4 texColor = gGScene.rasterData.textures[pIn.textureID].Sample(gGScene.sampler, pIn.texcoord);
     if (alphaShouldDiscard(texColor.a))
         discard;
 

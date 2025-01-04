@@ -29,17 +29,12 @@ public:
     };
     struct MeshEntry
     {
-        GMesh::Ptr pMesh;
+        ref<GMesh> pMesh;
         std::vector<Instance> instances;
-
-        ref<Vao> pVao;
-        ref<Buffer> pVertexBuffer, pIndexBuffer, pTextureIDBuffer;
     };
     using Version = uint64_t;
 
 private:
-    ref<VertexLayout> mpVertexLayout;
-    ref<Texture> mpDefaultTexture;
     ref<RasterPass> mpDefaultRasterPass;
     ref<RasterizerState> mpDefaultRasterState;
 
@@ -52,7 +47,6 @@ private:
 
     void update_countInstance();
     void update_makeUnique();
-    void update_createBuffer();
 
     void renderUI_entry(Gui::Widgets& widget, bool& modified);
 
@@ -72,7 +66,6 @@ public:
     void setLighting(ref<GLighting> pLighting) { mpLighting = std::move(pLighting); }
     const auto& getLighting() const { return mpLighting; }
 
-    const auto& getVertexLayout() const { return mpVertexLayout; }
     const auto& getDefaultRasterState() const { return mpDefaultRasterState; }
 
     void renderUIImpl(Gui::Widgets& widget);

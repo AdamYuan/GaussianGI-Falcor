@@ -44,10 +44,10 @@ void GScene::update_makeUnique()
     for (std::size_t i = 0; i < mMeshEntries.size(); ++i)
     {
         auto& entry = mMeshEntries[i];
-        auto mapIt = meshPathIndexMap.find(entry.pMesh->path);
+        auto mapIt = meshPathIndexMap.find(entry.pMesh->getSourcePath());
         if (mapIt == meshPathIndexMap.end())
         {
-            meshPathIndexMap[entry.pMesh->path] = i;
+            meshPathIndexMap[entry.pMesh->getSourcePath()] = i;
             continue;
         }
         auto& uniqueEntry = mMeshEntries[mapIt->second];
@@ -63,58 +63,9 @@ void GScene::update_makeUnique()
     removeVectorIndices(mMeshEntries, removeIndexSet);
 }
 
-void GScene::update_createBuffer()
-{
-    for (auto& entry : mMeshEntries)
-    {
-        const auto& pMesh = entry.pMesh;
-
-        if (entry.pIndexBuffer == nullptr)
-        {
-            static_assert(std::same_as<GMesh::Index, uint32_t>);
-            entry.pIndexBuffer = getDevice()->createStructuredBuffer(
-                sizeof(GMesh::Index), //
-                pMesh->getIndexCount(),
-                ResourceBindFlags::Index,
-                MemoryType::DeviceLocal,
-                pMesh->indices.data()
-            );
-        }
-        if (entry.pVertexBuffer == nullptr)
-        {
-            entry.pVertexBuffer = getDevice()->createStructuredBuffer(
-                sizeof(GMesh::Vertex), //
-                pMesh->getVertexCount(),
-                ResourceBindFlags::Vertex,
-                MemoryType::DeviceLocal,
-                pMesh->vertices.data()
-            );
-        }
-        if (entry.pTextureIDBuffer == nullptr)
-        {
-            static_assert(std::same_as<GMesh::TextureID, uint8_t>);
-            entry.pTextureIDBuffer = getDevice()->createTypedBuffer(
-                ResourceFormat::R8Uint,
-                pMesh->getPrimitiveCount(),
-                ResourceBindFlags::ShaderResource,
-                MemoryType::DeviceLocal,
-                pMesh->textureIDs.data()
-            );
-        }
-        if (entry.pVao == nullptr)
-        {
-            if (mpVertexLayout == nullptr)
-                mpVertexLayout = GMesh::createVertexLayout();
-            entry.pVao = Vao::create(
-                Vao::Topology::TriangleList, mpVertexLayout, {entry.pVertexBuffer}, entry.pIndexBuffer, GMesh::getIndexFormat()
-            );
-        }
-    }
-}
-
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
-    const auto loadMesh = [this](const std::filesystem::path& path, std::invocable<GMesh::Ptr&&> auto&& onSuccess)
+    const auto loadMesh = [this](const std::filesystem::path& path, std::invocable<ref<GMesh>&&> auto&& onSuccess)
     {
         auto pMesh = GMeshLoader::load(getDevice(), path);
         if (pMesh == nullptr)
@@ -137,7 +88,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             modified = true;
             loadMesh(
                 path,
-                [&](GMesh::Ptr&& pMesh)
+                [&](ref<GMesh>&& pMesh)
                 {
                     mMeshEntries.push_back({
                         .pMesh = std::move(pMesh),
@@ -154,7 +105,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
         auto& entry = mMeshEntries[entryID];
         ImGui::PushID((int)entryID);
 
-        if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.pMesh->path.filename()), true))
+        if (auto meshGrp = widget.group(fmt::format("Mesh {}", entry.pMesh->getSourcePath().filename()), true))
         {
             if (meshGrp.button("Delete"))
             {
@@ -165,14 +116,10 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             if (meshGrp.button("Reload"))
             {
                 modified = true;
-                loadMesh(entry.pMesh->path, [&](GMesh::Ptr&& pMesh) { entry.pMesh = std::move(pMesh); });
+                loadMesh(entry.pMesh->getSourcePath(), [&](ref<GMesh>&& pMesh) { entry.pMesh = std::move(pMesh); });
             }
 
-            meshGrp.text(fmt::format("Path: {}", entry.pMesh->path.string()));
-            meshGrp.text(fmt::format("Vertex Count: {}", entry.pMesh->getVertexCount()));
-            meshGrp.text(fmt::format("Index Count: {}", entry.pMesh->getIndexCount()));
-            meshGrp.text(fmt::format("Texture Count: {}", entry.pMesh->getTextureCount()));
-            meshGrp.text(fmt::format("AABB: ({}, {})", entry.pMesh->bound.minPoint, entry.pMesh->bound.maxPoint));
+            entry.pMesh->renderUI(meshGrp);
 
             if (meshGrp.button("Add Instance"))
             {
@@ -224,7 +171,6 @@ void GScene::update()
 {
     update_countInstance();
     update_makeUnique();
-    update_createBuffer();
 }
 
 void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const
@@ -237,19 +183,11 @@ void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref
     pRasterPass->getState()->setFbo(pFbo);
 
     for (const auto& entry : mMeshEntries)
-    {
-        for (uint i = 0; i < entry.pMesh->textures.size(); ++i)
-            var["textures"][i] = entry.pMesh->textures[i].pTexture;
-        var["textureIDs"] = entry.pTextureIDBuffer;
-
-        pRasterPass->getState()->setVao(entry.pVao);
-
         for (const auto& instance : entry.instances)
         {
             instance.transform.bindShaderData(var["transform"]);
-            pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), entry.pMesh->getIndexCount(), 0, 0);
+            entry.pMesh->draw(pRenderContext, pRasterPass, var["rasterData"]);
         }
-    }
 }
 
 } // namespace GSGI

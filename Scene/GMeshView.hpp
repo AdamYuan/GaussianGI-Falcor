@@ -19,7 +19,7 @@ struct GMeshVertexView
     const GMesh& mesh;
     uint32_t vertexID;
 
-    const float3& getPosition() const { return mesh.vertices[vertexID].position; }
+    const float3& getPosition() const { return mesh.getData().vertices[vertexID].position; }
 };
 
 struct GMeshPrimitiveView
@@ -31,7 +31,7 @@ struct GMeshPrimitiveView
     {
         return GMeshVertexView{
             .mesh = mesh,
-            .vertexID = mesh.indices[primitiveID * 3 + id],
+            .vertexID = mesh.getData().indices[primitiveID * 3 + id],
         };
     }
 };
@@ -40,7 +40,7 @@ struct GMeshView
 {
     const GMesh& mesh;
 
-    explicit GMeshView(const GMesh::Ptr& pMesh) : mesh{*pMesh} {}
+    explicit GMeshView(const ref<GMesh>& pMesh) : mesh{*pMesh} {}
 
     uint getPrimitiveCount() const { return mesh.getPrimitiveCount(); }
     GMeshPrimitiveView getPrimitive(uint primitiveID) const
@@ -50,7 +50,7 @@ struct GMeshView
             .primitiveID = primitiveID,
         };
     }
-    const AABB& getAABB() const { return mesh.bound; }
+    const AABB& getAABB() const { return mesh.getBound(); }
 };
 
 static_assert(Concepts::MeshView<GMeshView>);

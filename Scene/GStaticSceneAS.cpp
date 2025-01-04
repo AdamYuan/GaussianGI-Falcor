@@ -151,7 +151,7 @@ void GStaticScene::buildTLAS(RenderContext* pRenderContext)
         {
             const auto& instanceInfo = mInstanceInfos[instanceID];
             auto instanceDesc = RtInstanceDesc{
-                .instanceID = mpMeshes[instanceInfo.meshID]->firstOpaquePrimitiveID, // Custom InstanceID
+                .instanceID = mpMeshes[instanceInfo.meshID]->getData().firstOpaquePrimitiveID, // Custom InstanceID
                 .instanceMask = 0xFF,
                 .instanceContributionToHitGroupIndex = 0,
                 .flags = RtGeometryInstanceFlags::TriangleFacingCullDisable,
