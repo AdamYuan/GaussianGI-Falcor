@@ -120,4 +120,11 @@ void GMesh::draw(RenderContext* pRenderContext, const ref<RasterPass>& pRasterPa
     pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), getIndexCount(), 0, 0);
 }
 
+std::filesystem::path GMesh::getPersistPath(std::string_view keyStr) const
+{
+    std::string filename = mData.path.filename().string();
+    std::replace(filename.begin(), filename.end(), '.', '_');
+    return getSourcePath().parent_path() / fmt::format("{}_GSGI_GMesh_{}.bin", filename, keyStr);
+}
+
 } // namespace GSGI

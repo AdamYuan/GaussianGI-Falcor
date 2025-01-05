@@ -15,14 +15,14 @@ namespace GSGI
 namespace Concepts
 {
 template<typename T>
-concept POD = std::is_trivial_v<T> && std::is_standard_layout_v<T>;
+concept StandardLayout = std::is_standard_layout_v<T>;
 }
 
 template<typename>
 struct Serializer;
 
 // Ignore big/little-endian for simplicity
-template<Concepts::POD T>
+template<Concepts::StandardLayout T>
 struct Serializer<T>
 {
     static void write(auto&& ostr, const T& val)
@@ -38,38 +38,21 @@ struct Serializer<T>
     }
 };
 
-template<typename T, std::size_t S>
-struct Serializer<std::array<T, S>>
-{
-    static void write(auto&& ostr, const std::array<T, S>& val)
-    {
-        for (std::size_t i = 0; i < S; ++i)
-            Serializer<T>::write(ostr, val[i]);
-    }
-    static std::array<T, S> read(auto&& istr)
-    {
-        std::array<T, S> ret;
-        for (std::size_t i = 0; i < S; ++i)
-            ret[i] = Serializer<T>::read(istr);
-        return ret;
-    }
-};
-
 template<typename T>
 struct Serializer<std::vector<T>>
 {
     static void write(auto&& ostr, const std::vector<T>& val)
     {
-        Serializer<std::size_t>::write(ostr, val.size());
+        Serializer<uint32_t>::write(ostr, val.size());
         for (const auto& i : val)
             Serializer<T>::write(ostr, i);
     }
     static std::vector<T> read(auto&& istr)
     {
-        std::size_t size = Serializer<std::size_t>::read(istr);
+        uint32_t size = Serializer<uint32_t>::read(istr);
         std::vector<T> ret;
         ret.reserve(size);
-        while (size--)
+        while (size--) // Might cause problem
             ret.push_back(Serializer<T>::read(istr));
         return ret;
     }
@@ -80,16 +63,16 @@ struct Serializer<std::string>
 {
     static void write(auto&& ostr, std::string_view val)
     {
-        Serializer<std::size_t>::write(ostr, val.size());
+        Serializer<uint32_t>::write(ostr, val.size());
         for (const auto& i : val)
             Serializer<char>::write(ostr, i);
     }
     static std::string read(auto&& istr)
     {
-        std::size_t size = Serializer<std::size_t>::read(istr);
+        uint32_t size = Serializer<uint32_t>::read(istr);
         std::string ret;
         ret.reserve(size);
-        while (size--)
+        while (size--) // Might cause problem
             ret.push_back(Serializer<char>::read(istr));
         return ret;
     }
@@ -125,6 +108,36 @@ struct Serializer<std::tuple<Ts...>>
         std::tuple<Ts...> val;
         std::apply([&istr](Ts&... args) { ((args = Serializer<Ts>::read(istr)), ...); }, val);
         return val;
+    }
+};
+
+struct SerializePersist
+{
+    template<typename Version_T, typename... Ts>
+    static void store(auto&& ostr, const Version_T& version, const Ts&... vals)
+    {
+        if (!ostr)
+            return;
+        Serializer<std::string>::write(ostr, typeid(std::tuple<Version_T, Ts...>).name());
+        Serializer<std::size_t>::write(ostr, sizeof(Version_T));
+        (Serializer<std::size_t>::write(ostr, sizeof(Ts)), ...);
+        Serializer<Version_T>::write(ostr, version);
+        (Serializer<Ts>::write(ostr, vals), ...);
+    }
+
+    template<typename Version_T, typename... Ts>
+    static bool load(auto&& istr, const Version_T& version, Ts&... vals)
+    {
+        if (!istr)
+            return false;
+        if (Serializer<std::string>::read(istr) != typeid(std::tuple<Version_T, Ts...>).name())
+            return false;
+        if (Serializer<std::size_t>::read(istr) != sizeof(Version_T) || ((Serializer<std::size_t>::read(istr) != sizeof(Ts)) || ...))
+            return false;
+        if (Serializer<Version_T>::read(istr) != version)
+            return false;
+        ((vals = Serializer<Ts>::read(istr)), ...);
+        return true;
     }
 };
 

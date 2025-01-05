@@ -23,9 +23,11 @@ private:
     ref<GS3DMiscRenderer> mpMiscRenderer;
     ref<Buffer> mpSplatBuffer;
 
-    struct
+    struct Config
     {
         uint splatsPerMesh = 65536;
+
+        bool operator==(const Config&) const = default;
     } mConfig = {};
 
 public:

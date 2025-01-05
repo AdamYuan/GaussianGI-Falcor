@@ -72,6 +72,7 @@ public:
 
     const auto& getData() const { return mData; }
     const std::filesystem::path& getSourcePath() const { return mData.path; }
+    std::filesystem::path getPersistPath(std::string_view keyStr) const;
 
 #define GMESH_DATA_FUNC(X) \
     auto X() const { return mData.X(); }
