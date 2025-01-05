@@ -61,7 +61,7 @@ private:
     Data mData;
     ref<Vao> mpVao;
     ref<Buffer> mpVertexBuffer, mpIndexBuffer, mpTextureIDBuffer;
-    inline static ref<VertexLayout> spVertexLayout = nullptr;
+    static ref<VertexLayout> spVertexLayout;
 
     static void dataReorderOpaque(Data& data);
     static void dataUpdateBound(Data& data);

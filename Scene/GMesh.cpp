@@ -10,6 +10,17 @@ namespace GSGI
 
 static_assert(GMesh::kMaxTextureCount == GMESH_MAX_TEXTURE_COUNT);
 
+ref<VertexLayout> GMesh::spVertexLayout = []
+{
+    auto vertexBufferLayout = VertexBufferLayout::create();
+    vertexBufferLayout->addElement(GMESH_VERTEX_POSITION_NAME, 0, ResourceFormat::RGB32Float, 1, GMESH_VERTEX_POSITION_LOC);
+    vertexBufferLayout->addElement(GMESH_VERTEX_NORMAL_NAME, 3 * sizeof(float), ResourceFormat::RGB32Float, 1, GMESH_VERTEX_NORMAL_LOC);
+    vertexBufferLayout->addElement(GMESH_VERTEX_TEXCOORD_NAME, 6 * sizeof(float), ResourceFormat::RG32Float, 1, GMESH_VERTEX_TEXCOORD_LOC);
+    auto pVertexLayout = VertexLayout::create();
+    pVertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
+    return pVertexLayout;
+}();
+
 GMesh::GMesh(ref<Device> pDevice, Data data) : GDeviceObject(std::move(pDevice))
 {
     if (data.firstOpaquePrimitiveID == -1)
@@ -17,18 +28,6 @@ GMesh::GMesh(ref<Device> pDevice, Data data) : GDeviceObject(std::move(pDevice))
     if (!data.bound.valid())
         dataUpdateBound(data);
     mData = std::move(data);
-
-    if (spVertexLayout == nullptr)
-    {
-        auto vertexBufferLayout = VertexBufferLayout::create();
-        vertexBufferLayout->addElement(GMESH_VERTEX_POSITION_NAME, 0, ResourceFormat::RGB32Float, 1, GMESH_VERTEX_POSITION_LOC);
-        vertexBufferLayout->addElement(GMESH_VERTEX_NORMAL_NAME, 3 * sizeof(float), ResourceFormat::RGB32Float, 1, GMESH_VERTEX_NORMAL_LOC);
-        vertexBufferLayout->addElement(
-            GMESH_VERTEX_TEXCOORD_NAME, 6 * sizeof(float), ResourceFormat::RG32Float, 1, GMESH_VERTEX_TEXCOORD_LOC
-        );
-        spVertexLayout = VertexLayout::create();
-        spVertexLayout->addBufferLayout(0, std::move(vertexBufferLayout));
-    }
 }
 
 void GMesh::dataReorderOpaque(Data& data)
