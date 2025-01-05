@@ -13,6 +13,7 @@ target_sources(GaussianGI PRIVATE
         Util/ShaderUtil.slang
         Util/TextureUtil.hpp
         Util/EnumUtil.hpp
+        Util/SerializeUtil.hpp
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp
