@@ -3,15 +3,14 @@ import GaussianGI.Scene.GTransform;
 
 public namespace GS3D
 {
-    public struct Splat
+    public struct PackedSplat
     {
-        public float2 barycentrics;
-        public uint primitiveID;
+        public float3 position;
         public float16_t4 rotate;
         public float16_t2 scaleXY;
     }
 
-    public struct SplatView
+    public struct PackedSplatView
     {
         public float16_t2 axis0, axis1;
         public float16_t2 clipXY;

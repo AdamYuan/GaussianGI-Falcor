@@ -10,6 +10,11 @@ public bool alphaShouldDiscard(float alpha)
     return alpha < 0.5;
 }
 
+public float3 thermal(float x)
+{
+    return sin(clamp(x, 0.0, 1.0) * 3.0 - float3(1, 2, 3)) * 0.5 + 0.5;
+}
+
 /*
  * Copyright (c) 2020-2024, NVIDIA CORPORATION. All rights reserved.
  *

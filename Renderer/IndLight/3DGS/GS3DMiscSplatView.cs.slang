@@ -2,11 +2,11 @@ import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import GS3D;
 
-StructuredBuffer<GS3D::Splat> gSplats;
+StructuredBuffer<GS3D::PackedSplat> gSplats;
 uniform uint gSplatsPerMesh;
 uniform float2 gResolution;
 
-RWStructuredBuffer<GS3D::SplatView> gSplatViews;
+RWStructuredBuffer<GS3D::PackedSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewDrawArgs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
@@ -28,18 +28,10 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (instanceID >= gGStaticScene.instanceCount)
         return;
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
-    GS3D::Splat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + idx % gSplatsPerMesh];
+    GS3D::PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + idx % gSplatsPerMesh];
+    float3 position = instanceInfo.transform.apply(splat.position);
 
-    var hitInfo = (GStaticScene::HitInfo)0;
-    hitInfo.isHit = true;
-    hitInfo.isFrontFace = true;
-    hitInfo.instanceID = instanceID;
-    hitInfo.meshPrimitiveID = splat.primitiveID;
-    hitInfo.barycentrics = splat.barycentrics;
-
-    var hitPoint = gGStaticScene.getHitPoint(hitInfo, instanceInfo);
-
-    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(hitPoint.position, 1)).xyz;
+    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(position, 1)).xyz;
     float4 clipPos = mul(gGStaticScene.camera.data.projMat, float4(viewPos, 1));
     if (clipPos.w <= 0) // Behind Camera
         return;
@@ -56,12 +48,12 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     float2 axis1 = eigen2d.eigen[1] * sqrt(2.0 * eigen2d.lambda[1]);
     // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
     // Let a = 2\sqrt{2} \sigma < 3 \sigma, then d = 2
-    GS3D::SplatView view;
+    GS3D::PackedSplatView view;
     view.axis0 = float16_t2(axis0);
     view.axis1 = float16_t2(axis1);
     view.clipXY = float16_t2(clipPos.xy);
-    float4 texColor = gGStaticScene.textures[hitPoint.textureID].SampleLevel(gGStaticScene.sampler, hitPoint.texcoord, 0);
-    view.color = packUnorm4x8_unsafe(texColor);
+    float viewZRemap = -viewPos.z / gGStaticScene.camera.data.farZ;
+    view.color = asuint(viewZRemap);
 
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount

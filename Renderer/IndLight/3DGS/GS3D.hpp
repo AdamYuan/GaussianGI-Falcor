@@ -12,10 +12,16 @@ using namespace Falcor;
 namespace GSGI
 {
 
+struct GS3D
+{
+    float3 position;
+    float4 rotate;
+    float2 scale;
+};
+
 struct GS3DPackedSplat
 {
-    float2 barycentrics;
-    uint32_t primitiveID;
+    float3 position;
     float16_t4 rotate;
     float16_t2 scale;
 };

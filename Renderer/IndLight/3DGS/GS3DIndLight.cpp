@@ -18,6 +18,8 @@ namespace GSGI
 
 // static MeshClosestPointBVH meshBvh;
 
+static constexpr uint32_t kSplatPersistVersion = 1;
+
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
     mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
@@ -34,7 +36,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             std::vector<GS3DPackedSplat> meshSplats;
 
             auto meshSplatPersistPath = pMesh->getPersistPath("GS3D");
-            if (!SerializePersist::load(std::ifstream{meshSplatPersistPath}, mConfig, meshSplats))
+            if (!SerializePersist::load(std::ifstream{meshSplatPersistPath}, kSplatPersistVersion, mConfig, meshSplats))
             {
                 auto view = GMeshView{pMesh};
                 auto sampleResult = MeshSample::sample(
@@ -82,8 +84,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
                                 }
                             );
                             return GS3DPackedSplat{
-                                .barycentrics = meshPoint.barycentrics,
-                                .primitiveID = meshPoint.primitiveID,
+                                .position = meshPoint.getPosition(view),
                                 .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
                                 .scale = float16_t2(result.scaleXY),
                             };
@@ -91,7 +92,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
                     }
                 );
 
-                SerializePersist::store(std::ofstream{meshSplatPersistPath}, mConfig, meshSplats);
+                SerializePersist::store(std::ofstream{meshSplatPersistPath}, kSplatPersistVersion, mConfig, meshSplats);
             }
             splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
         }

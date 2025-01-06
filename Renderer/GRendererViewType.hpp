@@ -22,6 +22,7 @@ enum class GRendererViewType
     kAlbedo,
     kNormal,
     kShadow,
+    kViewZRemap,
     GSGI_ENUM_COUNT
 };
 
@@ -85,6 +86,14 @@ GSGI_ENUM_REGISTER(
     "Shadow",
     GRendererViewTypeProperty,
     .varName = "shadow",
+    .gammaCorrection = false
+);
+GSGI_ENUM_REGISTER(
+    GRendererViewType::kViewZRemap, //
+    void,
+    "View-Z Remap",
+    GRendererViewTypeProperty,
+    .varName = "viewZRemap",
     .gammaCorrection = false
 );
 
