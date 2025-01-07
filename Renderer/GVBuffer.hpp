@@ -8,7 +8,7 @@
 
 #include <Falcor.h>
 #include <Core/Pass/RasterPass.h>
-#include "../Common/GDeviceObject.hpp"
+#include "../GDeviceObject.hpp"
 #include "../Scene/GStaticScene.hpp"
 
 using namespace Falcor;

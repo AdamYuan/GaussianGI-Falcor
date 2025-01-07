@@ -39,7 +39,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (any(abs(clipPos.xy) > 1.3) || clipPos.z > 1 || clipPos.z < 0) // Frustum Culled
         return;
 
-    float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, float3(splat.scaleXY, splat.scaleXY.x * 0.1), instanceInfo.transform);
+    float2x3 cov3d = GS3D::getCovariance3D(
+        splat.rotate, float3(splat.scaleXY, splat.scaleXY.x * 0.1), instanceInfo.transform.getRotateMatrix(), instanceInfo.transform.scale
+    );
     float3 cov2d =
         GS3D::getCovariance2D(cov3d, viewPos, float3x3(gGStaticScene.camera.data.viewMat), gGStaticScene.camera.data.projMat, gResolution);
     GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);

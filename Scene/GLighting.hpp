@@ -7,7 +7,7 @@
 #define GSGI_GLIGHTING_HPP
 
 #include <Falcor.h>
-#include "../Common/GDeviceObject.hpp"
+#include "../GDeviceObject.hpp"
 
 using namespace Falcor;
 

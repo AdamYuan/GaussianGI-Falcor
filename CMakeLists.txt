@@ -3,14 +3,11 @@ set_target_properties(GaussianGI PROPERTIES CXX_STANDARD 20)
 target_sources(GaussianGI PRIVATE
         GaussianGI.cpp
         GaussianGI.h
-
-        Common/GDeviceObject.hpp
+        GDeviceObject.hpp
 
         Util/DeviceUtil.hpp
         Util/DeviceUtil.cpp
-        Util/WaveOps.cs.slang
         Util/ShaderUtil.hpp
-        Util/ShaderUtil.slang
         Util/TextureUtil.hpp
         Util/EnumUtil.hpp
         Util/SerializeUtil.hpp
@@ -22,6 +19,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshBVH.hpp
         Algorithm/MeshClosestPoint.hpp
         Algorithm/MeshGSOptimize.hpp
+        Algorithm/ShaderMisc.slang
+        Algorithm/GS3D.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
@@ -31,6 +30,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/DeviceSort/GlobalHist.cs.slang
         Algorithm/DeviceSort/ScanHist.cs.slang
         Algorithm/DeviceSort/OneSweep.cs.slang
+
+        Algorithm/MeshGSTrainer/SplatView.cs.slang
 
         Scene/GScene.hpp
         Scene/GScene.cpp
@@ -109,7 +110,6 @@ target_sources(GaussianGITest PRIVATE
 
         Util/DeviceUtil.hpp
         Util/DeviceUtil.cpp
-        Util/WaveOps.cs.slang
 
         Test/DeviceSorterTest.cpp
         Algorithm/DeviceSort/DeviceSorter.hpp

@@ -2,7 +2,7 @@
 #include "Utils/Math/MathConstants.slangh"
 
 import GaussianGI.Scene.GStaticScene;
-import GaussianGI.Util.ShaderUtil;
+import GaussianGI.Algorithm.ShaderMisc;
 import GS3D;
 
 StructuredBuffer<GS3D::PackedSplat> gSplats;

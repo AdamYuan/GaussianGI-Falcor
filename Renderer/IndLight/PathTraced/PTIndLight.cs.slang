@@ -1,5 +1,5 @@
 #include "Utils/Math/MathConstants.slangh"
-import GaussianGI.Util.ShaderUtil;
+import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.GVBuffer;
 import GaussianGI.Renderer.Shadow.GShadow;

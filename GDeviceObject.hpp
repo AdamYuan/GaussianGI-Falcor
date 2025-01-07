@@ -6,7 +6,7 @@
 #ifndef GSGI_DEVICEOBJECTBASE_HPP
 #define GSGI_DEVICEOBJECTBASE_HPP
 
-#include <Falcor.h>
+#include <../Falcor/Falcor.h>
 
 using namespace Falcor;
 

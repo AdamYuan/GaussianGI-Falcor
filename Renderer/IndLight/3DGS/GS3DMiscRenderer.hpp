@@ -7,7 +7,7 @@
 
 #include <Falcor.h>
 #include "../../../Util/EnumUtil.hpp"
-#include "../../../Common/GDeviceObject.hpp"
+#include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../../../Algorithm/DeviceSort/DeviceSorter.hpp"
 

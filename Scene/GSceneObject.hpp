@@ -7,7 +7,7 @@
 #define GSGI_GSCENEOBJECT_HPP
 
 #include <Falcor.h>
-#include "../Common/GDeviceObject.hpp"
+#include "../GDeviceObject.hpp"
 #include "GScene.hpp"
 
 using namespace Falcor;

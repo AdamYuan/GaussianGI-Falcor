@@ -6,7 +6,7 @@
 #define GSGI_GS3DINDLIGHT_HPP
 
 #include <Falcor.h>
-#include "../../../Common/GDeviceObject.hpp"
+#include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../GIndLightArgs.hpp"
 #include "GS3DMiscRenderer.hpp"

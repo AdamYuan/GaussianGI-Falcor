@@ -6,7 +6,7 @@
 #define GSGI_PTINDLIGHT_HPP
 
 #include <Falcor.h>
-#include "../../../Common/GDeviceObject.hpp"
+#include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../GIndLightArgs.hpp"
 

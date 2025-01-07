@@ -6,7 +6,7 @@
 #ifndef GSGI_GMESH_HPP
 #define GSGI_GMESH_HPP
 
-#include "../Common/GDeviceObject.hpp"
+#include "../GDeviceObject.hpp"
 #include <Falcor.h>
 #include <Core/Pass/RasterPass.h>
 #include <Utils/Math/AABB.h>

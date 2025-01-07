@@ -6,7 +6,7 @@
 #define GSGI_EVSMSHADOW_HPP
 
 #include <Falcor.h>
-#include "../../../Common/GDeviceObject.hpp"
+#include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 
 using namespace Falcor;

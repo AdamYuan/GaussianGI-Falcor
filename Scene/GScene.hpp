@@ -12,7 +12,7 @@
 #include "GMesh.hpp"
 #include "GTransform.hpp"
 #include "GLighting.hpp"
-#include "../Common/GDeviceObject.hpp"
+#include "../GDeviceObject.hpp"
 
 using namespace Falcor;
 

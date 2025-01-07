@@ -4,7 +4,7 @@ __exported import GLighting;
 __exported import GTransform;
 __exported import Scene.Camera.Camera;
 __exported import Utils.Math.Ray;
-import GaussianGI.Util.ShaderUtil;
+import GaussianGI.Algorithm.ShaderMisc;
 import Utils.Geometry.GeometryHelpers;
 import Utils.Attributes;
 
