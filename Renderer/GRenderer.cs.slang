@@ -1,5 +1,5 @@
 #include "Utils/Math/MathConstants.slangh"
-import GaussianGI.Algorithm.ShaderMisc;
+import GaussianGI.Algorithm.ThreadGroupTilingX;
 import GaussianGI.Scene.GStaticScene;
 import GVBuffer;
 import Shadow.GShadow;
