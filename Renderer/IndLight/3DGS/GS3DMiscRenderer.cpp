@@ -50,7 +50,7 @@ GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(p
     mpSplatDrawPass = RasterPass::create(getDevice(), splatDrawDesc);
     mpSplatDrawPass->getState()->setVao(pPointVao);
     mpSplatDrawPass->getState()->setRasterizerState(RasterizerState::create(splatRasterDesc));
-    mpSplatDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
+    // mpSplatDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
     mpSplatDrawPass->getState()->setDepthStencilState(DepthStencilState::create(splatDepthDesc));
 
     gfx::IndirectDrawArguments splatViewDrawArgs = {
@@ -105,11 +105,30 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
                 DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(getDevice(), mSplatViewSorter.getDesc(), splatViewCount);
         }
 
+        auto resolution = getTextureResolution2(pTargetFbo);
+
+        updateTextureSize(
+            mpSplatColorTexture,
+            resolution,
+            [this](uint width, uint height)
+            {
+                return getDevice()->createTexture2D(
+                    width,
+                    height,
+                    ResourceFormat::RGBA16Unorm,
+                    1,
+                    1,
+                    nullptr,
+                    ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+                );
+            }
+        );
+
         // Reset Draw Args
         static_assert(offsetof(gfx::IndirectDrawArguments, InstanceCount) == sizeof(uint32_t));
         mpSplatViewDrawArgBuffer->setElement<uint32_t>(offsetof(gfx::IndirectDrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
 
-        float2 resolutionFloat = float2(getTextureResolution2(pTargetFbo));
+        auto resolutionFloat = float2(resolution);
 
         // Splat View Pass
         {
@@ -151,11 +170,14 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
             float d = math::sqrt(math::log(math::max(255.0f * alpha, 1.0f)));
             var["gAlpha"] = alpha;
             var["gD"] = d;
+            var["gColor"] = mpSplatColorTexture;
 
-            mpSplatDrawPass->getState()->setFbo(pTargetFbo);
+            pRenderContext->clearTexture(mpSplatColorTexture.get());
+            mpSplatDrawPass->getState()->setViewport(0, GraphicsState::Viewport{0, 0, resolutionFloat.x, resolutionFloat.y, 0, 0}, true);
             pRenderContext->drawIndirect(
                 mpSplatDrawPass->getState().get(), mpSplatDrawPass->getVars().get(), 1, mpSplatViewDrawArgBuffer.get(), 0, nullptr, 0
             );
+            pRenderContext->blit(mpSplatColorTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
         }
     }
 }

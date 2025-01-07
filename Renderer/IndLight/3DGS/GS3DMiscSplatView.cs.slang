@@ -58,6 +58,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount
     gSplatViews[viewID] = view;
-    gSplatViewSortKeys[viewID] = float2Uint(viewPos.z);
+    gSplatViewSortKeys[viewID] = float2Uint(-viewPos.z);
     gSplatViewSortPayloads[viewID] = viewID;
 }
