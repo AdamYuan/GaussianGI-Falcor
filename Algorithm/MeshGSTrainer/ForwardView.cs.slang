@@ -1,13 +1,11 @@
-import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
-import GS3DMiscData;
 import GaussianGI.Algorithm.GS3D;
 
-StructuredBuffer<PackedSplat> gSplats;
+StructuredBuffer<GS3D::PackedSplat> gSplats;
 uniform uint gSplatsPerMesh;
 uniform float2 gResolution;
 
-RWStructuredBuffer<PackedSplatView> gSplatViews;
+RWStructuredBuffer<GS3D::PackedSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewDrawArgs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
@@ -29,7 +27,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (instanceID >= gGStaticScene.instanceCount)
         return;
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
-    PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + idx % gSplatsPerMesh];
+    GS3D::PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + idx % gSplatsPerMesh];
     float3 position = instanceInfo.transform.apply(splat.position);
 
     float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(position, 1)).xyz;
@@ -51,7 +49,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     float2 axis1 = eigen2d.eigen[1] * sqrt(2.0 * eigen2d.lambda[1]);
     // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
     // Let a = 2\sqrt{2} \sigma < 3 \sigma, then d = 2
-    PackedSplatView view;
+    GS3D::PackedSplatView view;
     view.axis0 = float16_t2(axis0);
     view.axis1 = float16_t2(axis1);
     view.clipXY = float16_t2(clipPos.xy);

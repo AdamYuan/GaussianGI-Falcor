@@ -4,7 +4,7 @@
 
 #include "GS3DMiscRenderer.hpp"
 
-#include "GS3D.hpp"
+#include "GS3DMiscData.hpp"
 #include "../../../Util/ShaderUtil.hpp"
 #include "../../../Util/TextureUtil.hpp"
 

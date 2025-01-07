@@ -32,7 +32,10 @@ target_sources(GaussianGI PRIVATE
         Algorithm/DeviceSort/ScanHist.cs.slang
         Algorithm/DeviceSort/OneSweep.cs.slang
 
-        Algorithm/MeshGSTrainer/SplatView.cs.slang
+        Algorithm/MeshGSTrainer/ForwardView.cs.slang
+        Algorithm/MeshGSTrainer/ForwardDraw.3d.slang
+        Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
+        Algorithm/MeshGSTrainer/BackwardView.cs.slang
 
         Scene/GScene.hpp
         Scene/GScene.cpp
@@ -89,11 +92,11 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/PathTraced/PTIndLight.cpp
         Renderer/IndLight/PathTraced/PTIndLight.cs.slang
 
-        Renderer/IndLight/3DGS/GS3D.hpp
-        Renderer/IndLight/3DGS/GS3D.slang
         Renderer/IndLight/3DGS/GS3DIndLight.hpp
         Renderer/IndLight/3DGS/GS3DIndLight.cpp
         Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
+        Renderer/IndLight/3DGS/GS3DMiscData.hpp
+        Renderer/IndLight/3DGS/GS3DMiscData.slang
         Renderer/IndLight/3DGS/GS3DMiscRenderer.hpp
         Renderer/IndLight/3DGS/GS3DMiscRenderer.cpp
         Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang

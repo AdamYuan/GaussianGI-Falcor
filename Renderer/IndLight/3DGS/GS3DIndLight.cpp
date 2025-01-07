@@ -4,7 +4,7 @@
 
 #include "GS3DIndLight.hpp"
 
-#include "GS3D.hpp"
+#include "GS3DMiscData.hpp"
 #include "../../../Util/SerializeUtil.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Algorithm/MeshGSOptimize.hpp"

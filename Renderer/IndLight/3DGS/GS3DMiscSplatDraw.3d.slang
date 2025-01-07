@@ -1,7 +1,7 @@
 import Utils.Math.FormatConversion;
-import GS3D;
+import GS3DMiscData;
 
-RWStructuredBuffer<GS3D::PackedSplatView> gSplatViews;
+RWStructuredBuffer<PackedSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d = \sqrt{\ln{255 \alpha}}
@@ -13,15 +13,15 @@ struct PSIn
     linear float4 clipPos : SV_Position;
 }
 
-GS3D::PackedSplatView vsMain(uint vertexID: SV_VertexID, uint instanceID: SV_InstanceID)
+PackedSplatView vsMain(uint vertexID: SV_VertexID, uint instanceID: SV_InstanceID)
 {
     return gSplatViews[gSplatViewSortPayloads[instanceID]];
 }
 
 [maxvertexcount(4)]
-void gsMain(point GS3D::PackedSplatView gIn[1], uint instanceID: SV_InstanceID, inout TriangleStream<PSIn> output)
+void gsMain(point PackedSplatView gIn[1], uint instanceID: SV_InstanceID, inout TriangleStream<PSIn> output)
 {
-    GS3D::PackedSplatView splatView = gIn[0];
+    PackedSplatView splatView = gIn[0];
 
     float2 clip = float2(splatView.clipXY);
     float2 deltaClip0 = float2(splatView.axis0) * 2 / gResolution.xy;

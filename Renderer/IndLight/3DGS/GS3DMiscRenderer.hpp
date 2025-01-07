@@ -42,7 +42,7 @@ private:
     struct
     {
         GS3DMiscType type = GS3DMiscType::kSplat;
-        float splatOpacity = 0.5f;
+        float splatOpacity = 1.0f;
     } mConfig = {};
 
 public:
