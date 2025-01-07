@@ -5,7 +5,6 @@ RWStructuredBuffer<GS3D::PackedSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d = \sqrt{\ln{255 \alpha}}
-globallycoherent RasterizerOrderedTexture2D<float4> gColor;
 
 struct PSIn
 {
@@ -49,19 +48,11 @@ void gsMain(point GS3D::PackedSplatView gIn[1], uint instanceID: SV_InstanceID, 
     output.Append(o);
 }
 
-[shader("fragment")]
-void psMain(PSIn pIn)
+float4 psMain(PSIn pIn)
 {
     float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
-    // if (alpha < 1.0 / 255.0)
-    //     discard;
-
-    int2 ipos = int2(pIn.clipPos.xy);
-
-    beginInvocationInterlock();
-    float4 prevColor = gColor[ipos];
-    float4 color = float4(prevColor.rgb + float3(pIn.depth * alpha * prevColor.a), (1.0 - alpha) * prevColor.a);
-    gColor[ipos] = color;
-    endInvocationInterlock();
+    if (alpha < 1.0 / 255.0)
+        discard;
+    return float4(float3(pIn.depth), alpha);
 }
 

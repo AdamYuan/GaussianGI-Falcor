@@ -35,7 +35,6 @@ private:
     ref<RasterPass> mpSplatDrawPass;
     ref<Buffer> mpSplatViewBuffer, mpSplatViewSortKeyBuffer, mpSplatViewSortPayloadBuffer;
     ref<Buffer> mpSplatViewDrawArgBuffer;
-    ref<Texture> mpSplatColorTexture;
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSplatViewSorter;
     DeviceSortResource<DeviceSortDispatchType::kIndirect> mSplatViewSortResource;
     uint mSplatViewCount{};
