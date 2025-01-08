@@ -1,5 +1,6 @@
 public namespace GS3D
 {
+    [Differentiable]
     public float3x3 getQuatMatrix(float4 quat)
     {
         float x = quat.x;
@@ -13,11 +14,12 @@ public namespace GS3D
         );
     }
 
+    [Differentiable]
     public float2x3 getCovariance3D(
         float4 splatRotate,
         float3 splatScale,
-        float3x3 modelRotateMat = float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1),
-        float modelScale = 1.0
+        no_diff float3x3 modelRotateMat = float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1),
+        no_diff float modelScale = 1.0
     )
     {
         float3 scale = splatScale * modelScale;
@@ -29,17 +31,24 @@ public namespace GS3D
         return float2x3(float3(sigma._m00, sigma._m01, sigma._m02), float3(sigma._m11, sigma._m12, sigma._m22));
     }
 
-    public float3 getCovariance2D(float2x3 cov3d, float3 viewPos, float3x3 viewRotMatrix, float4x4 projMatrix, float2 resolution)
+    [Differentiable]
+    public float3 getCovariance2D(
+        float2x3 cov3d,
+        float3 viewPos,
+        no_diff float3x3 camViewRotMat,
+        no_diff float4x4 camProjMat,
+        no_diff float2 camResolution
+    )
     {
         // focal = 0.5 * h / tan(fov * 0.5),
         // projMatrix._m00 = h / (w * tan(fov * 0.5))
-        float focal = resolution.x * projMatrix._m00 * 0.5;
+        float focal = camResolution.x * camProjMat._m00 * 0.5;
         float3x3 J = float3x3(
             float3(focal / viewPos.z, 0, -(focal * viewPos.x) / (viewPos.z * viewPos.z)),
             float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),
             float3(0, 0, 0)
         );
-        float3x3 W = viewRotMatrix;
+        float3x3 W = camViewRotMat;
         float3x3 T = mul(J, W);
         float3x3 V = float3x3(
             float3(cov3d[0].x, cov3d[0].y, cov3d[0].z),
@@ -50,12 +59,21 @@ public namespace GS3D
         return float3(cov._m00, cov._m01, cov._m11);
     }
 
-    public struct Eigen<let N : int>
+    [Differentiable]
+    public float3 getConic(float3 cov2d)
+    {
+        // Inverse matrix of cov2d
+        float det = cov2d.x * cov2d.z - cov2d.y * cov2d.y;
+        return float3(cov2d.z, -cov2d.y, cov2d.x) / det;
+    }
+
+    public struct Eigen<let N : int> : IDifferentiable
     {
         public vector<float, N> lambda;
         public matrix<float, N, N> eigen;
     };
 
+    [Differentiable]
     public Eigen<2> decomposeCovariance2D(float3 cov2d)
     {
         // [a, b]
