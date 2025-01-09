@@ -79,8 +79,13 @@ struct MeshGSTrainSplatBuf
 
         const void* getData(uint idx, uint splatCount) const
         {
-            FALCOR_CHECK(splatCount <= bufferSplatCount, "Read exceed buffer size");
-            return buffers[idx].empty() ? nullptr : buffers[idx].data();
+            if (buffers[idx].empty())
+                return nullptr;
+            else
+            {
+                FALCOR_CHECK(splatCount <= bufferSplatCount, "Read exceed buffer size");
+                return buffers[idx].data();
+            }
         }
         static InitData create(std::ranges::input_range auto&& splats, uint splatCount)
         {

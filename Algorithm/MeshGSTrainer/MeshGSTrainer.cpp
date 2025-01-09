@@ -124,4 +124,6 @@ void MeshGSTrainer<TrainType_V>::forward(
     }
 }
 
+template struct MeshGSTrainer<MeshGSTrainType::kDepth>;
+
 } // namespace GSGI

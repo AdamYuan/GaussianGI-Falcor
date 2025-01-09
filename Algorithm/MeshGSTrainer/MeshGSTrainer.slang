@@ -2,8 +2,8 @@ import GaussianGI.Algorithm.GS3D;
 
 namespace MeshGSTrainer
 {
-    public const float kAlphaThreshold = 1.0 / 255.0;
-    public const float kQuadPosBound = 2.3539888583335364; // Q
+    public const static float kAlphaThreshold = 1.0 / 255.0;
+    public const static float kQuadPosBound = 2.3539888583335364; // Q
     // \alpha = \exp{-Q^2} = \frac{1}{255} = \text{ALPHA_THRESHOLD}
     // \Rightarrow Q = \sqrt{\ln{255}}
 
