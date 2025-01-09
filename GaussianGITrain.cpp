@@ -89,7 +89,7 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                     },
                     kMaxSplatCount
                 );
-                float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount);
+                float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
                 mTrainResource.splatBuf = MeshGSTrainSplatBuf<MeshGSTrainType::kDepth>::create(
                     getDevice(),
                     kMaxSplatCount,
@@ -145,7 +145,7 @@ int runMain(int argc, char** argv)
     SampleAppConfig config;
     config.windowDesc.title = "GaussianGITrain";
     config.windowDesc.resizableWindow = false;
-    config.windowDesc.width = 720;
+    config.windowDesc.width = 1280;
     config.windowDesc.height = 720;
     config.deviceDesc.type = Device::Vulkan;
     config.generateShaderDebugInfo = true;
