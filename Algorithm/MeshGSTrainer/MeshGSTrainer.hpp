@@ -6,6 +6,7 @@
 #define GSGI_MESHGSTRAINER_HPP
 
 #include <Falcor.h>
+#include <Core/Pass/RasterPass.h>
 #include "../DeviceSort/DeviceSorter.hpp"
 
 using namespace Falcor;
@@ -23,6 +24,13 @@ struct MeshGSTrainDesc
 {
     uint maxSplatCount;
     uint2 resolution;
+};
+
+struct MeshGSTrainSplat
+{
+    quatf rotate;
+    float3 scale;
+    float3 mean;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -64,7 +72,47 @@ struct MeshGSTrainSplatBuf
     static constexpr uint kBufferCount = TrainType_V == MeshGSTrainType::kDepth ? 3 : 4;
     std::array<ref<Buffer>, kBufferCount> pBuffers;
 
-    static MeshGSTrainSplatBuf create(const ref<Device>& pDevice, uint splatCount);
+    struct InitData
+    {
+        uint bufferSplatCount;
+        std::array<std::vector<float>, kBufferCount> buffers;
+
+        const void* getData(uint idx, uint splatCount) const
+        {
+            FALCOR_CHECK(splatCount <= bufferSplatCount, "Read exceed buffer size");
+            return buffers[idx].empty() ? nullptr : buffers[idx].data();
+        }
+        static InitData create(std::ranges::input_range auto&& splats, uint splatCount)
+        {
+            InitData initData{.bufferSplatCount = splatCount};
+            if constexpr (TrainType_V == MeshGSTrainType::kDepth)
+            {
+                // MeshGSTrainType::kDepth
+                // Quat(4) + Mean(3) + Scale(3) = 4 + 4 + 2
+                initData.buffers[0].resize(4 * splatCount);
+                initData.buffers[1].resize(4 * splatCount);
+                initData.buffers[2].resize(2 * splatCount);
+                auto pRotates = reinterpret_cast<float4*>(initData.buffers[0].data());
+                auto pMeans_ScaleXs = reinterpret_cast<float4*>(initData.buffers[1].data());
+                auto pScaleYZs = reinterpret_cast<float2*>(initData.buffers[2].data());
+
+                for (uint idx = 0; const auto& splat : splats)
+                {
+                    if (idx >= splatCount)
+                        break;
+                    pRotates[idx] = float4(splat.rotate.x, splat.rotate.y, splat.rotate.z, splat.rotate.w);
+                    pMeans_ScaleXs[idx] = float4(splat.mean.x, splat.mean.y, splat.mean.z, splat.scale.x);
+                    pScaleYZs[idx] = float2(splat.scale.y, splat.scale.z);
+                    ++idx;
+                }
+            }
+            else
+                FALCOR_CHECK(false, "Unimplemented");
+            return initData;
+        }
+    };
+
+    static MeshGSTrainSplatBuf create(const ref<Device>& pDevice, uint splatCount, const InitData& initData = {});
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatCount) const;
 };
@@ -104,10 +152,19 @@ struct MeshGSTrainResource
     ref<Buffer> pSplatViewCountBuffer, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
     ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
-    static MeshGSTrainResource create(const ref<Device>& pDevice, uint splatCount, uint2 resolution);
-    static MeshGSTrainResource create(const ref<Device>& pDevice, const MeshGSTrainDesc& desc)
+    static MeshGSTrainResource create(
+        const ref<Device>& pDevice,
+        uint splatCount,
+        uint2 resolution,
+        const typename MeshGSTrainSplatBuf<TrainType_V>::InitData& splatInitData = {}
+    );
+    static MeshGSTrainResource create(
+        const ref<Device>& pDevice,
+        const MeshGSTrainDesc& desc,
+        const typename MeshGSTrainSplatBuf<TrainType_V>::InitData& splatInitData = {}
+    )
     {
-        return create(pDevice, desc.maxSplatCount, desc.resolution);
+        return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
     }
     bool isCapable(uint splatCount, uint2 resolution) const;
     bool isCapable(const MeshGSTrainDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
@@ -115,7 +172,21 @@ struct MeshGSTrainResource
 
 template<MeshGSTrainType TrainType_V>
 class MeshGSTrainer
-{};
+{
+private:
+    MeshGSTrainDesc mDesc{};
+    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpDLossPass, mpAdamPass;
+    ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
+
+public:
+    MeshGSTrainer() = default;
+    MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc);
+    static DeviceSortDesc getSortDesc() { return DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}); }
+
+    const auto& getDesc() const { return mDesc; }
+
+    void forward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+};
 
 } // namespace GSGI
 

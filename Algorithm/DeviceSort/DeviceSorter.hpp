@@ -131,7 +131,7 @@ private:
 
 public:
     DeviceSorter() = default;
-    explicit DeviceSorter(const ref<Device>& pDevice, DeviceSortDesc desc);
+    DeviceSorter(const ref<Device>& pDevice, DeviceSortDesc desc);
 
     const auto& getDesc() const { return mDesc; }
 

@@ -112,7 +112,7 @@ MeshGSTrainSplatRT<TrainType_V> MeshGSTrainSplatRT<TrainType_V>::create(const re
         // Tex1 RGBA32F: Color + T
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return splatRT;
 }
 template<MeshGSTrainType TrainType_V>
@@ -121,7 +121,7 @@ void MeshGSTrainSplatRT<TrainType_V>::bindShaderData(const ShaderVar& var) const
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
         var["depths_Ts"] = pTextures[0];
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatRT<TrainType_V>::isCapable(uint2 resolution) const
@@ -146,7 +146,7 @@ MeshGSTrainMeshRT<TrainType_V> MeshGSTrainMeshRT<TrainType_V>::create(const ref<
         // RGBA32F: Depth + Color
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return meshRT;
 }
 template<MeshGSTrainType TrainType_V>
@@ -155,7 +155,7 @@ void MeshGSTrainMeshRT<TrainType_V>::bindShaderData(const ShaderVar& var) const
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
         var["depths"] = pTexture;
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainMeshRT<TrainType_V>::isCapable(uint2 resolution) const
@@ -179,7 +179,7 @@ MeshGSTrainSplatTex<TrainType_V> MeshGSTrainSplatTex<TrainType_V>::create(const 
         // RGBA32F: Depth + Color(R22G22B20) + T
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return splatTex;
 }
 template<MeshGSTrainType TrainType_V>
@@ -188,7 +188,7 @@ void MeshGSTrainSplatTex<TrainType_V>::bindShaderData(const ShaderVar& var) cons
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
         var["depths_Ts"] = pTexture;
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatTex<TrainType_V>::isCapable(uint2 resolution) const
@@ -197,19 +197,29 @@ bool MeshGSTrainSplatTex<TrainType_V>::isCapable(uint2 resolution) const
 }
 
 template<MeshGSTrainType TrainType_V>
-MeshGSTrainSplatBuf<TrainType_V> MeshGSTrainSplatBuf<TrainType_V>::create(const ref<Device>& pDevice, uint splatCount)
+MeshGSTrainSplatBuf<TrainType_V> MeshGSTrainSplatBuf<TrainType_V>::create(
+    const ref<Device>& pDevice,
+    uint splatCount,
+    const InitData& initData
+)
 {
     MeshGSTrainSplatBuf splatBuf;
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         // MeshGSTrainType::kDepth
         // Quat(4) + Mean(3) + Scale(3) = 4 + 4 + 2
-        splatBuf.pBuffers = createBuffers<sizeof(float4), sizeof(float4), sizeof(float2)>(
-            pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+        splatBuf.pBuffers[0] = createBuffer<sizeof(float4)>(
+            pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess, initData.getData(0, splatCount)
+        );
+        splatBuf.pBuffers[1] = createBuffer<sizeof(float4)>(
+            pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess, initData.getData(1, splatCount)
+        );
+        splatBuf.pBuffers[2] = createBuffer<sizeof(float2)>(
+            pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess, initData.getData(2, splatCount)
         );
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return splatBuf;
 }
 template<MeshGSTrainType TrainType_V>
@@ -222,7 +232,7 @@ void MeshGSTrainSplatBuf<TrainType_V>::bindShaderData(const ShaderVar& var) cons
         var["scaleYZs"] = pBuffers[2];
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatBuf<TrainType_V>::isCapable(uint splatCount) const
@@ -243,7 +253,7 @@ MeshGSTrainSplatAdamBuf<TrainType_V> MeshGSTrainSplatAdamBuf<TrainType_V>::creat
         );
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return splatAdamBuf;
 }
 template<MeshGSTrainType TrainType_V>
@@ -270,7 +280,7 @@ MeshGSTrainSplatViewBuf<TrainType_V> MeshGSTrainSplatViewBuf<TrainType_V>::creat
         );
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
     return splatViewBuf;
 }
 template<MeshGSTrainType TrainType_V>
@@ -282,7 +292,7 @@ void MeshGSTrainSplatViewBuf<TrainType_V>::bindShaderData(const ShaderVar& var) 
         var["axes_scales"] = pBuffers[1];
     }
     else
-        FALCOR_CHECK(false, "");
+        FALCOR_CHECK(false, "Unimplemented");
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatViewBuf<TrainType_V>::isCapable(uint splatViewCount) const
@@ -291,7 +301,12 @@ bool MeshGSTrainSplatViewBuf<TrainType_V>::isCapable(uint splatViewCount) const
 }
 
 template<MeshGSTrainType TrainType_V>
-MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(const ref<Device>& pDevice, uint splatCount, uint2 resolution)
+MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
+    const ref<Device>& pDevice,
+    uint splatCount,
+    uint2 resolution,
+    const typename MeshGSTrainSplatBuf<TrainType_V>::InitData& splatInitData
+)
 {
     DrawArguments drawArgs = {
         .VertexCountPerInstance = 1,
@@ -309,7 +324,7 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(const 
         .meshRT = MeshGSTrainMeshRT<TrainType_V>::create(pDevice, resolution),
         .splatDLossTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatTmpTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
-        .splatBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount),
+        .splatBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount, splatInitData),
         .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount),
         .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
