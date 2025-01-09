@@ -16,9 +16,7 @@
 namespace GSGI
 {
 
-// static MeshClosestPointBVH meshBvh;
-
-static constexpr uint32_t kSplatPersistVersion = 1;
+static constexpr uint32_t kSplatPersistVersion = 2;
 
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
@@ -54,8 +52,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
                     mConfig.splatsPerMesh
                 );
 
-                static constexpr float kEpsilon = 0.05f, kK = 16.0f;
-                float initialScale = kEpsilon * kK * math::sqrt(sampleResult.totalArea / float(mConfig.splatsPerMesh));
+                float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, mConfig.splatsPerMesh);
                 logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
 
                 auto bvh = MeshClosestPoint::buildBVH(view);

@@ -74,6 +74,29 @@ struct MeshGSOptimize
         return {rotateX, rotateY};
     }
 
+    static float getInitialScale(float meshTotalArea, uint32_t splatCount, float coef = 1.0f)
+    {
+        return coef * math::sqrt(meshTotalArea / float(splatCount));
+    }
+
+    static Result runNoSample(const Concepts::MeshView auto& meshView, const MeshPoint& meshPoint, float scale)
+    {
+        float3 rotateZ = PrimitiveViewMethod::getGeomNormal(meshPoint.getPrimitive(meshView));
+        auto [rotateX, rotateY] = getRotateXY(rotateZ);
+        return Result{
+            .rotate =
+                [rotateX, rotateY, rotateZ]()
+            {
+                float3x3 rotateMat;
+                rotateMat.setCol(0, rotateX);
+                rotateMat.setCol(1, rotateY);
+                rotateMat.setCol(2, rotateZ);
+                return math::quatFromMatrix(rotateMat);
+            }(),
+            .scaleXY = {scale, scale},
+        };
+    }
+
     static Result run(
         const Concepts::MeshView auto& meshView,
         const MeshPoint& meshPoint,
