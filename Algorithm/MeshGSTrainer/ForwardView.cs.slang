@@ -1,7 +1,9 @@
-#include "Trainer.slangh"
 import Scene.Camera.Camera;
 import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
+import MeshGSTrainer;
+
+using namespace MeshGSTrainer;
 
 uniform uint gSplatCount;
 SplatBuffer gSplats;

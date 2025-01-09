@@ -36,6 +36,10 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshGSTrainer/ForwardDraw.3d.slang
         Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
         Algorithm/MeshGSTrainer/BackwardView.cs.slang
+        Algorithm/MeshGSTrainer/MeshGSTrainer.slang
+        Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
+        Algorithm/MeshGSTrainer/MeshGSTrainer.cpp
+        Algorithm/MeshGSTrainer/MeshGSTrainResource.cpp
 
         Scene/GScene.hpp
         Scene/GScene.cpp

@@ -1,5 +1,7 @@
 import Utils.Math.FormatConversion;
-#include "Trainer.slangh"
+import MeshGSTrainer;
+
+using namespace MeshGSTrainer;
 
 SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
@@ -7,7 +9,7 @@ uniform float2 gCamResolution;
 
 struct PSIn
 {
-    nointerpolation SplatViewColor color;
+    nointerpolation SplatChannel channel;
     linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 }
@@ -26,17 +28,17 @@ void gsMain(point SplatView gIn[1], uint instanceID: SV_InstanceID, inout Triang
     float2x2 deltaClip = getDeltaClip(splatView.geom, gCamResolution);
 
     PSIn o;
-    o.color = splatView.color;
-    o.quadPos = float2(-QUAD_POS_BOUND, -QUAD_POS_BOUND);
+    o.channel = splatView.channel;
+    o.quadPos = float2(-kQuadPosBound, -kQuadPosBound);
     o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(QUAD_POS_BOUND, -QUAD_POS_BOUND);
+    o.quadPos = float2(kQuadPosBound, -kQuadPosBound);
     o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(-QUAD_POS_BOUND, QUAD_POS_BOUND);
+    o.quadPos = float2(-kQuadPosBound, kQuadPosBound);
     o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(QUAD_POS_BOUND, QUAD_POS_BOUND);
+    o.quadPos = float2(kQuadPosBound, kQuadPosBound);
     o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
     output.Append(o);
 }
@@ -44,8 +46,8 @@ void gsMain(point SplatView gIn[1], uint instanceID: SV_InstanceID, inout Triang
 float4 psMain(PSIn pIn)
 {
     float alpha = exp(-dot(pIn.quadPos, pIn.quadPos));
-    if (alpha < ALPHA_THRESHOLD)
+    if (alpha < kAlphaThreshold)
         discard;
-    return float4(float3(pIn.color.depth), alpha);
+    return float4(float3(pIn.channel.depth), alpha);
 }
 
