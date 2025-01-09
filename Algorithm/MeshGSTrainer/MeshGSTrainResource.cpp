@@ -100,9 +100,7 @@ MeshGSTrainSplatRT<TrainType_V> MeshGSTrainSplatRT<TrainType_V>::create(const re
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         // MeshGSTrainType::kDepth
-        // Tex0 RGBA32F: Depth + T (Use RGBA32F instead of RG32F temporarily because slang-gfx don't support RGBA Swizzling)
-        // TODO: Modify slang-gfx and Falcor to support RGBA Swizzling
-        splatRT.pTextures = createTextures<ResourceFormat::RGBA32Float>(
+        splatRT.pTextures = createTextures<ResourceFormat::RG32Float>(
             pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget
         );
         splatRT.pFbo = Fbo::create(pDevice, {splatRT.pTextures[0]});

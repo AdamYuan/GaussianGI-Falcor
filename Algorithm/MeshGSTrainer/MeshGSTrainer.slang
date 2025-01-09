@@ -113,14 +113,14 @@ namespace MeshGSTrainer
 
     public struct SplatRTTexture
     {
-        Texture2D<float4> depths_Ts;
+        Texture2D<float2> depths_Ts;
 
         public SplatChannel load(uint2 coord, out float o_T)
         {
-            float4 depth_T = depths_Ts[coord];
+            float2 depth_T = depths_Ts[coord];
             SplatChannel ch;
             ch.depth = depth_T.x;
-            o_T = depth_T.w;
+            o_T = depth_T.y;
             return ch;
         }
     };
