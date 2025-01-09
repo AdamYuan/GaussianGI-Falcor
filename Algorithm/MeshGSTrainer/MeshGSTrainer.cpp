@@ -106,6 +106,8 @@ void MeshGSTrainer<TrainType_V>::forward(
     }
     {
         FALCOR_PROFILE(pRenderContext, "draw");
+        pRenderContext->clearFbo(resource.splatRT.pFbo.get(), float4{}, 0.0f, 0, FboAttachmentType::Color);
+
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;

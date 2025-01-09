@@ -134,3 +134,51 @@ target_sources(GaussianGITest PRIVATE
 target_link_libraries(GaussianGITest PRIVATE args)
 target_copy_shaders(GaussianGITest GaussianGI)
 target_source_group(GaussianGITest "GaussianGI")
+
+add_falcor_executable(GaussianGITrain)
+set_target_properties(GaussianGITrain PROPERTIES CXX_STANDARD 20)
+target_sources(GaussianGITrain PRIVATE
+        GaussianGITrain.hpp
+        GaussianGITrain.cpp
+
+        Util/DeviceUtil.hpp
+        Util/DeviceUtil.cpp
+
+        Scene/GMesh.hpp
+        Scene/GMesh.cpp
+        Scene/GMeshLoader.hpp
+        Scene/GMeshLoader.cpp
+        Scene/GMeshView.hpp
+
+        Algorithm/AliasTable.hpp
+        Algorithm/AliasTable.cpp
+        Algorithm/MeshView.hpp
+        Algorithm/MeshSample.hpp
+        Algorithm/MeshBVH.hpp
+        Algorithm/MeshClosestPoint.hpp
+        Algorithm/MeshGSOptimize.hpp
+        Algorithm/ThreadGroupTilingX.slang
+        Algorithm/ShaderMisc.slang
+        Algorithm/GS3D.slang
+
+        Algorithm/DeviceSort/DeviceSorter.hpp
+        Algorithm/DeviceSort/DeviceSorter.cpp
+        Algorithm/DeviceSort/DeviceSorter.slangh
+        Algorithm/DeviceSort/DeviceSorterSizes.slangh
+        Algorithm/DeviceSort/Reset.cs.slang
+        Algorithm/DeviceSort/GlobalHist.cs.slang
+        Algorithm/DeviceSort/ScanHist.cs.slang
+        Algorithm/DeviceSort/OneSweep.cs.slang
+
+        Algorithm/MeshGSTrainer/ForwardView.cs.slang
+        Algorithm/MeshGSTrainer/ForwardDraw.3d.slang
+        Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
+        Algorithm/MeshGSTrainer/BackwardView.cs.slang
+        Algorithm/MeshGSTrainer/MeshGSTrainer.slang
+        Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
+        Algorithm/MeshGSTrainer/MeshGSTrainer.cpp
+        Algorithm/MeshGSTrainer/MeshGSTrainResource.cpp
+)
+target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
+target_copy_shaders(GaussianGITrain GaussianGI)
+target_source_group(GaussianGITrain "GaussianGI")
