@@ -7,6 +7,7 @@
 
 #include <Falcor.h>
 #include <Utils/Math/QuaternionMath.h>
+#include <random>
 #include "MeshClosestPoint.hpp"
 #include "MeshView.hpp"
 
