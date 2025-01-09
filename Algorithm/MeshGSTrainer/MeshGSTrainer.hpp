@@ -139,6 +139,30 @@ struct MeshGSTrainSplatViewBuf
     bool isCapable(uint splatViewCount) const;
 };
 
+struct MeshGSTrainCamera
+{
+    float4x4 viewMat, projMat;
+    float nearZ, farZ;
+
+    static MeshGSTrainCamera create(const Camera& falcorCamera)
+    {
+        return {
+            .viewMat = falcorCamera.getViewMatrix(),
+            .projMat = falcorCamera.getProjMatrix(),
+            .nearZ = falcorCamera.getNearPlane(),
+            .farZ = falcorCamera.getFarPlane(),
+        };
+    }
+    void bindShaderData(const ShaderVar& var, float2 resolution) const
+    {
+        var["resolution"] = resolution;
+        var["viewMat"] = viewMat;
+        var["projMat"] = projMat;
+        var["nearZ"] = nearZ;
+        var["farZ"] = farZ;
+    }
+};
+
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainResource
 {
@@ -149,7 +173,7 @@ struct MeshGSTrainResource
     MeshGSTrainSplatAdamBuf<TrainType_V> splatAdamBuf;
     MeshGSTrainSplatViewBuf<TrainType_V> splatViewBuf, splatViewDLossBuf;
     // DeviceSortResource<DeviceSortDispatchType::kIndirect> sortResource;
-    ref<Buffer> pSplatViewCountBuffer, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
+    ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
     ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
     static MeshGSTrainResource create(
@@ -185,7 +209,13 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
-    void forward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void forward(
+        RenderContext* pRenderContext,
+        const MeshGSTrainCamera& camera,
+        const MeshGSTrainResource<TrainType_V>& resource,
+        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+    ) const;
 };
 
 } // namespace GSGI

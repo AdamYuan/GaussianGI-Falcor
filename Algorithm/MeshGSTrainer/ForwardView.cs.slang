@@ -1,21 +1,19 @@
-import Scene.Camera.Camera;
 import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
 import MeshGSTrainer;
 
 using namespace MeshGSTrainer;
 
+uniform Camera gCamera;
+
 uniform uint gSplatCount;
 SplatBuffer gSplats;
 
-RWStructuredBuffer<uint> gSplatViewCount;
+RWStructuredBuffer<uint> gSplatViewDrawArgs; // drawArgs[1] is instanceCount also splatViewCount
 RWSplatViewBuffer gSplatViews;
-RWStructuredBuffer<uint> gSplatViewSplatID;
+RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
-
-uniform float2 gCamResolution;
-uniform Camera gCamera;
 
 // Radix Tricks by Michael Herf
 // http://stereopsis.com/radix.html
@@ -34,8 +32,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     Splat splat = gSplats.load(splatID);
 
-    float3 viewPos = mul(gCamera.data.viewMat, float4(splat.mean, 1)).xyz;
-    float4 clipPos = mul(gCamera.data.projMat, float4(viewPos, 1));
+    float3 viewPos = mul(gCamera.viewMat, float4(splat.mean, 1)).xyz;
+    float4 clipPos = mul(gCamera.projMat, float4(viewPos, 1));
     if (clipPos.w <= 0) // Behind Camera
         return;
     clipPos /= clipPos.w;
@@ -46,16 +44,16 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         splat, //
         viewPos,
         clipPos.xyz,
-        gCamera.data.viewMat,
-        gCamera.data.projMat,
-        gCamera.data.nearZ,
-        gCamera.data.farZ,
-        gCamResolution
+        gCamera.viewMat,
+        gCamera.projMat,
+        gCamera.nearZ,
+        gCamera.farZ,
+        gCamera.resolution
     );
 
     uint splatViewID;
-    InterlockedAdd(gSplatViewCount[0], 1, splatViewID);
-    gSplatViewSplatID[splatViewID] = splatID;
+    InterlockedAdd(gSplatViewDrawArgs[1], 1, splatViewID);
+    gSplatViewSplatIDs[splatViewID] = splatID;
     gSplatViewSortPayloads[splatViewID] = splatViewID;
     gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
     gSplatViews.store(splatViewID, splatView);

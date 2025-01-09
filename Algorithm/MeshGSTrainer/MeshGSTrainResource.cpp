@@ -332,8 +332,6 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         /* .sortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(
             pDevice, DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}), splatCount
         ), */
-        .pSplatViewCountBuffer =
-            createBuffer<sizeof(uint)>(pDevice, 1, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSplatIDBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSortKeyBuffer =
@@ -371,7 +369,7 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
                splatViewDLossBuf
            ) &&
            isBufferCapable(splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer) &&
-           isBufferCapable(1, pSplatViewCountBuffer, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer);
+           isBufferCapable(1, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer);
     // Don't need to check sortResource since it is checked in DeviceSorter
 }
 

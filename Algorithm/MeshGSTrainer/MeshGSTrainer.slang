@@ -7,6 +7,13 @@ namespace MeshGSTrainer
     // \alpha = \exp{-Q^2} = \frac{1}{255} = \text{ALPHA_THRESHOLD}
     // \Rightarrow Q = \sqrt{\ln{255}}
 
+    public struct Camera
+    {
+        public float2 resolution; // TODO: Replace with aspectRatio
+        public float4x4 viewMat, projMat;
+        public float nearZ, farZ;
+    };
+
     public struct Splat : IDifferentiable
     {
         public float3 mean;

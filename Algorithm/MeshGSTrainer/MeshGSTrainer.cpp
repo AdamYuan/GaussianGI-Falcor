@@ -4,6 +4,8 @@
 
 #include "MeshGSTrainer.hpp"
 
+#include "../../Util/ShaderUtil.hpp"
+
 namespace GSGI
 {
 
@@ -64,11 +66,62 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
     );
     mpForwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
 }
-
 template<MeshGSTrainType TrainType_V>
-void MeshGSTrainer<TrainType_V>::forward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
+void MeshGSTrainer<TrainType_V>::forward(
+    RenderContext* pRenderContext,
+    const MeshGSTrainCamera& camera,
+    const MeshGSTrainResource<TrainType_V>& resource,
+    const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+    const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+) const
 {
+    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::forward");
+    {
+        FALCOR_PROFILE(pRenderContext, "view");
 
+        auto [prog, var] = getShaderProgVar(mpForwardViewPass);
+        camera.bindShaderData(var["gCamera"], float2(mDesc.resolution));
+        var["gSplatCount"] = mDesc.maxSplatCount;
+        resource.splatBuf.bindShaderData(var["gSplats"]);
+        var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
+        resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
+        var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
+        var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
+        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        // Reset counter (pRenderContext->updateBuffer)
+        static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint));
+        resource.pSplatViewDrawArgBuffer->template setElement<uint>(offsetof(DrawArguments, InstanceCount) / sizeof(uint), 0);
+        // Dispatch
+        mpForwardViewPass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+    }
+    {
+        FALCOR_PROFILE(pRenderContext, "sortView");
+        sorter.dispatch(
+            pRenderContext,
+            {resource.pSplatViewSortKeyBuffer, resource.pSplatViewSortPayloadBuffer},
+            resource.pSplatViewDrawArgBuffer,
+            offsetof(DrawArguments, InstanceCount),
+            sortResource
+        );
+    }
+    {
+        FALCOR_PROFILE(pRenderContext, "draw");
+        auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
+        resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
+        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gCamResolution"] = float2(mDesc.resolution);
+
+        mpForwardDrawPass->getState()->setFbo(resource.splatRT.pFbo);
+        pRenderContext->drawIndirect(
+            mpForwardDrawPass->getState().get(),
+            mpForwardDrawPass->getVars().get(),
+            1,
+            resource.pSplatViewDrawArgBuffer.get(),
+            0,
+            nullptr,
+            0
+        );
+    }
 }
 
 } // namespace GSGI
