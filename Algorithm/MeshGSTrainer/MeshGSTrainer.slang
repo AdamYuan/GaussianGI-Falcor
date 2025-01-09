@@ -216,23 +216,30 @@ namespace MeshGSTrainer
 
     public float2x2 getDeltaClip(SplatViewGeom splatViewGeom, float2 camResolution)
     {
-        float2 deltaClip0 = splatViewGeom.scale[0] * splatViewGeom.axis * 2 / camResolution;
-        float2 deltaClip1 = splatViewGeom.scale[1] * float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) * 2 / camResolution;
-        // deltaClip * 2 to scale from [0, 1] to [-1, 1]
-        return float2x2(deltaClip0, deltaClip1);
+        float2x2 deltaScreen = float2x2(
+            splatViewGeom.axis * splatViewGeom.scale[0],                                  //
+            float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) * splatViewGeom.scale[1], //
+        );
+        float2x2 deltaClip = deltaScreen;
+        deltaClip[0] *= 2.0 / camResolution;
+        deltaClip[1] *= 2.0 / camResolution;
+        // * 2 to scale from [0, 1] to [-1, 1]
+        return deltaClip;
     }
 
     [Differentiable]
     public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 camResolution)
     {
         // clipMean to screenMean
-        float2 screenMean = (0.5 * splatViewGeom.clipMean + 0.5) * camResolution;
+        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * camResolution;
+        float2 deltaScreen = screenPos - screenMean;
+        deltaScreen.y = -deltaScreen.y;
         float2 quadPos =
             mul(float2x2(
-                    splatViewGeom.axis / splatViewGeom.scale[0],                                 //
-                    float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) / splatViewGeom.scale[1] //
+                    splatViewGeom.axis / splatViewGeom.scale[0],                                  //
+                    float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) / splatViewGeom.scale[1], //
                 ),
-                screenPos - screenMean);
+                deltaScreen);
         return exp(-dot(quadPos, quadPos));
     }
 }
