@@ -49,15 +49,18 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
             BlendState::Desc desc;
             if constexpr (TrainType_V == MeshGSTrainType::kDepth)
             {
-                desc.setRtBlend(0, true).setRtParams(
-                    0,
-                    BlendState::BlendOp::Add,
-                    BlendState::BlendOp::Add,
-                    BlendState::BlendFunc::SrcAlpha,
-                    BlendState::BlendFunc::OneMinusSrcAlpha,
-                    BlendState::BlendFunc::One,
-                    BlendState::BlendFunc::OneMinusSrcAlpha
-                );
+                desc.setRtBlend(0, true)
+                    .setRtParams(
+                        0,
+                        BlendState::BlendOp::Add,
+                        BlendState::BlendOp::Add,
+                        BlendState::BlendFunc::SrcAlpha,
+                        BlendState::BlendFunc::OneMinusSrcAlpha,
+                        BlendState::BlendFunc::One,
+                        BlendState::BlendFunc::OneMinusSrcAlpha
+                    )
+                    .setRenderTargetWriteMask(0, true, false, false, true)
+                    .setIndependentBlend(true);
             }
             else
                 FALCOR_CHECK(false, "Unimplemented");
