@@ -14,15 +14,15 @@ struct PSIn
     linear float4 clipPos : SV_Position;
 }
 
-SplatView vsMain(uint instanceID: SV_InstanceID)
+uint vsMain(uint instanceID: SV_InstanceID)
 {
-    return gSplatViews.load(gSplatViewSortPayloads[instanceID]);
+    return instanceID;
 }
 
 [maxvertexcount(4)]
-void gsMain(point SplatView gIn[1], uint instanceID: SV_InstanceID, inout TriangleStream<PSIn> output)
+void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
-    SplatView splatView = gIn[0];
+    SplatView splatView = gSplatViews.load(gSplatViewSortPayloads[gIn[0]]);
 
     float2 clip = splatView.geom.clipMean;
     float2x2 deltaClip = getDeltaClip(splatView.geom, gCamResolution);
@@ -45,7 +45,7 @@ void gsMain(point SplatView gIn[1], uint instanceID: SV_InstanceID, inout Triang
 
 SplatRTOut psMain(PSIn pIn)
 {
-    float alpha = exp(-dot(pIn.quadPos, pIn.quadPos));
+    float alpha = kOpacity * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < kAlphaThreshold)
         discard;
     return SplatRTOut::create(pIn.channel.depth, alpha);

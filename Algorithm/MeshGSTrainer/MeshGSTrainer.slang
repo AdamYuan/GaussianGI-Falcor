@@ -2,10 +2,11 @@ import GaussianGI.Algorithm.GS3D;
 
 namespace MeshGSTrainer
 {
-    public const static float kAlphaThreshold = 1.0 / 255.0;
-    public const static float kQuadPosBound = 2.3539888583335364; // Q
-    // \alpha = \exp{-Q^2} = \frac{1}{255} = \text{ALPHA_THRESHOLD}
-    // \Rightarrow Q = \sqrt{\ln{255}}
+    public const static float kOpacity = 0.975;                   // O
+    public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
+    public const static float kQuadPosBound = 2.3486050619834185; // Q
+    // \alpha = O \exp{-Q^2} = \alpha_T
+    // \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
 
     public struct Camera
     {
@@ -151,6 +152,18 @@ namespace MeshGSTrainer
         }
     };
 
+    public struct MeshRTOut
+    {
+        public float4 depth : SV_Target0;
+
+        public static MeshRTOut create(float depth)
+        {
+            MeshRTOut o;
+            o.depth = float4(depth, depth, depth, 1);
+            return o;
+        }
+    };
+
     public struct SplatTexture
     {
         Texture2D<float2> depths_Ts;
@@ -253,6 +266,6 @@ namespace MeshGSTrainer
                     float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) / splatViewGeom.scale[1], //
                 ),
                 deltaScreen);
-        return exp(-dot(quadPos, quadPos));
+        return kOpacity * exp(-dot(quadPos, quadPos));
     }
 }
