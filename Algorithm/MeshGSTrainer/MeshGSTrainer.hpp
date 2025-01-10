@@ -206,7 +206,7 @@ class MeshGSTrainer
 {
 private:
     MeshGSTrainDesc mDesc{};
-    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpDLossPass, mpAdamPass;
+    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpZeroGradPass, mpAdamPass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
 public:
@@ -216,6 +216,7 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
+    void zeroGrad(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void forward(
         RenderContext* pRenderContext,
         const MeshGSTrainCamera& camera,

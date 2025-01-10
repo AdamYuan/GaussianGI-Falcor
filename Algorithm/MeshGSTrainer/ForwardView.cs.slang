@@ -1,4 +1,3 @@
-import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
 import MeshGSTrainer;
 
@@ -11,6 +10,7 @@ SplatBuffer gSplats;
 
 RWStructuredBuffer<uint> gSplatViewDrawArgs; // drawArgs[1] is instanceCount also splatViewCount
 RWSplatViewBuffer gSplatViews;
+RWSplatViewBuffer gDLossDSplatViews;
 RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
@@ -57,4 +57,5 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     gSplatViewSortPayloads[splatViewID] = splatViewID;
     gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
     gSplatViews.store(splatViewID, splatView);
+    gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
 }

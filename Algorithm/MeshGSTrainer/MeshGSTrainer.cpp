@@ -14,7 +14,11 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 {
     auto pPointVao = Vao::create(Vao::Topology::PointList);
 
+    // Compute Passes
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain");
+    mpZeroGradPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ZeroGrad.cs.slang", "csMain");
+
+    // Raster Passes
     mpForwardDrawPass = RasterPass::create(
         pDevice,
         []
@@ -27,7 +31,6 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
             return desc;
         }()
     );
-
     ref<DepthStencilState> pSplatDepthState = []
     {
         DepthStencilState::Desc desc;
@@ -40,12 +43,23 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
         desc.setCullMode(RasterizerState::CullMode::None);
         return RasterizerState::create(desc);
     }();
-
     mpForwardDrawPass->getState()->setVao(pPointVao);
     mpForwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
     mpForwardDrawPass->getState()->setBlendState(BlendState::create(MeshGSTrainSplatRT<TrainType_V>::getBlendStateDesc()));
     mpForwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
 }
+
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainer<TrainType_V>::zeroGrad(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
+{
+    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::zeroGrad");
+
+    auto [prog, var] = getShaderProgVar(mpZeroGradPass);
+    var["gSplatCount"] = mDesc.maxSplatCount;
+    resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
+    mpZeroGradPass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+}
+
 template<MeshGSTrainType TrainType_V>
 void MeshGSTrainer<TrainType_V>::forward(
     RenderContext* pRenderContext,
@@ -65,6 +79,7 @@ void MeshGSTrainer<TrainType_V>::forward(
         resource.splatBuf.bindShaderData(var["gSplats"]);
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
+        resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
         var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
         var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
