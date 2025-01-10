@@ -210,9 +210,9 @@ namespace MeshGSTrainer
         }
     };
 
-    public struct CoherentRWSplatTexture
+    public struct CoherentRasterizerOrderedSplatTexture
     {
-        globallycoherent RWTexture2D<float2> depths_Ts;
+        globallycoherent RasterizerOrderedTexture2D<float2> depths_Ts;
 
         public SplatChannel load(uint2 coord, out float o_T)
         {

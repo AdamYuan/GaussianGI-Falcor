@@ -12,7 +12,7 @@ struct PSIn
     nointerpolation SplatChannel channel;
     linear float2 quadPos;
     linear float4 clipPos : SV_Position;
-}
+};
 
 uint vsMain(uint instanceID: SV_InstanceID)
 {

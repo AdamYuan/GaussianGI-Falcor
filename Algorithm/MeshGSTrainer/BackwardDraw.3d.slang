@@ -8,7 +8,7 @@ StructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gCamResolution;
 
 SplatTexture gDLossDCs_Ts;
-CoherentRWSplatTexture gRs_Ms;
+CoherentRasterizerOrderedSplatTexture gRs_Ms;
 
 RWSplatViewBuffer gDLossDSplatViews;
 
@@ -53,7 +53,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
 void psMain(PSIn pIn)
 {
-    float alpha = kOpacity * exp(-dot(pIn.quadPos, pIn.quadPos));
+    float alpha = kOpacity * exp(-dot(pIn.quadPos, pIn.quadPos)); // \alpha_i
     if (alpha < kAlphaThreshold)
         discard;
 
@@ -74,9 +74,9 @@ void psMain(PSIn pIn)
 
     float Ti = T / Ri_1;
 
-    float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum();
     SplatView dL_dsplatView;
-    dL_dsplatView.channel = alpha * Ti * dL_dC; // \dfrac{dL}{dc_i}
+    dL_dsplatView.channel = alpha * Ti * dL_dC;       // \dfrac{dL}{dc_i}
+    float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
     {
         var p = diffPair(pIn.splatView.geom);
         bwd_diff(getAlpha)(p, pIn.clipPos.xy, gCamResolution, dL_dalpha);
