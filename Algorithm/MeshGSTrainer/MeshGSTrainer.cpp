@@ -19,18 +19,6 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
     mpZeroGradPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ZeroGrad.cs.slang", "csMain");
 
     // Raster Passes
-    mpForwardDrawPass = RasterPass::create(
-        pDevice,
-        []
-        {
-            ProgramDesc desc;
-            desc.addShaderLibrary("GaussianGI/Algorithm/MeshGSTrainer/ForwardDraw.3d.slang")
-                .vsEntry("vsMain")
-                .gsEntry("gsMain")
-                .psEntry("psMain");
-            return desc;
-        }()
-    );
     ref<DepthStencilState> pSplatDepthState = []
     {
         DepthStencilState::Desc desc;
@@ -43,10 +31,41 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
         desc.setCullMode(RasterizerState::CullMode::None);
         return RasterizerState::create(desc);
     }();
+    mpForwardDrawPass = RasterPass::create(
+        pDevice,
+        []
+        {
+            ProgramDesc desc;
+            desc.addShaderLibrary("GaussianGI/Algorithm/MeshGSTrainer/ForwardDraw.3d.slang")
+                .vsEntry("vsMain")
+                .gsEntry("gsMain")
+                .psEntry("psMain");
+            return desc;
+        }()
+    );
     mpForwardDrawPass->getState()->setVao(pPointVao);
     mpForwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
     mpForwardDrawPass->getState()->setBlendState(BlendState::create(MeshGSTrainSplatRT<TrainType_V>::getBlendStateDesc()));
     mpForwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
+
+    mpBackwardDrawPass = RasterPass::create(
+        pDevice,
+        []
+        {
+            ProgramDesc desc;
+            desc.addShaderLibrary("GaussianGI/Algorithm/MeshGSTrainer/BackwardDraw.3d.slang")
+                .vsEntry("vsMain")
+                .gsEntry("gsMain")
+                .psEntry("psMain");
+            return desc;
+        }()
+    );
+    mpBackwardDrawPass->getState()->setVao(pPointVao);
+    mpBackwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
+    mpBackwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
+    mpBackwardDrawPass->getState()->setViewport(
+        0, GraphicsState::Viewport{0.0f, 0.0f, float(mDesc.resolution.x), float(mDesc.resolution.y), 0.0f, 0.0f}
+    );
 }
 
 template<MeshGSTrainType TrainType_V>

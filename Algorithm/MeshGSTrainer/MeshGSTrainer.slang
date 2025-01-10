@@ -74,6 +74,27 @@ namespace MeshGSTrainer
     public struct SplatChannel : IDifferentiable
     {
         public float depth;
+
+        public float sum()
+        {
+            return depth; // For BackwardDraw
+        }
+    };
+    public SplatChannel operator +(SplatChannel l, SplatChannel r)
+    {
+        return SplatChannel(l.depth + r.depth);
+    }
+    public SplatChannel operator -(SplatChannel l, SplatChannel r)
+    {
+        return SplatChannel(l.depth - r.depth);
+    }
+    public SplatChannel operator*(float l, SplatChannel r)
+    {
+        return SplatChannel(l * r.depth);
+    }
+    public SplatChannel operator*(SplatChannel l, SplatChannel r)
+    {
+        return SplatChannel(l.depth * r.depth);
     }
 
     public struct SplatView : IDifferentiable
@@ -109,6 +130,17 @@ namespace MeshGSTrainer
         {
             clipMeans_depths[splatViewID] = float4(splatView.geom.clipMean, splatView.channel.depth, 0);
             axes_scales[splatViewID] = float4(splatView.geom.axis, splatView.geom.scale);
+        }
+
+        public void atomicAdd(uint splatViewID, in const SplatView splatView)
+        {
+            __atomicAdd(clipMeans_depths[splatViewID].x, splatView.geom.clipMean.x);
+            __atomicAdd(clipMeans_depths[splatViewID].y, splatView.geom.clipMean.y);
+            __atomicAdd(clipMeans_depths[splatViewID].z, splatView.channel.depth);
+            __atomicAdd(axes_scales[splatViewID].x, splatView.geom.axis.x);
+            __atomicAdd(axes_scales[splatViewID].y, splatView.geom.axis.y);
+            __atomicAdd(axes_scales[splatViewID].z, splatView.geom.scale.x);
+            __atomicAdd(axes_scales[splatViewID].w, splatView.geom.scale.y);
         }
     };
 
@@ -178,19 +210,20 @@ namespace MeshGSTrainer
         }
     };
 
-    /* struct Pixel
+    public struct CoherentRWSplatTexture
     {
-        float depth;
-        float prodT;
-    };
+        globallycoherent RWTexture2D<float2> depths_Ts;
 
-    struct PixelImage
-    {
-        Texture2D<float2> depths_prodTs;
-        Pixel load(uint2 coord) {
-            float2 depth_prodT =
+        public SplatChannel load(uint2 coord, out float o_T)
+        {
+            float2 depth_T = depths_Ts[coord];
+            SplatChannel ch;
+            ch.depth = depth_T.x;
+            o_T = depth_T.y;
+            return ch;
         }
-    } */
+        public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
+    };
 
     [Differentiable]
     public float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
