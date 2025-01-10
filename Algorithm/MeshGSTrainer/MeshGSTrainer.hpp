@@ -36,11 +36,13 @@ struct MeshGSTrainSplat
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainSplatRT
 {
-    static constexpr uint kTextureCount = TrainType_V == MeshGSTrainType::kDepth ? 1 : 2;
+    static constexpr uint kTextureCount = TrainType_V == MeshGSTrainType::kDepth ? 2 : 3;
     std::array<ref<Texture>, kTextureCount> pTextures;
     ref<Fbo> pFbo;
 
     static MeshGSTrainSplatRT create(const ref<Device>& pDevice, uint2 resolution);
+    static BlendState::Desc getBlendStateDesc();
+    void clear(RenderContext* pRenderContext) const;
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
 };

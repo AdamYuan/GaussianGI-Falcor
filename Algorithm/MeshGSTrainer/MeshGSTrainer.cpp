@@ -43,30 +43,7 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 
     mpForwardDrawPass->getState()->setVao(pPointVao);
     mpForwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
-    mpForwardDrawPass->getState()->setBlendState(
-        []
-        {
-            BlendState::Desc desc;
-            if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-            {
-                desc.setRtBlend(0, true)
-                    .setRtParams(
-                        0,
-                        BlendState::BlendOp::Add,
-                        BlendState::BlendOp::Add,
-                        BlendState::BlendFunc::SrcAlpha,
-                        BlendState::BlendFunc::OneMinusSrcAlpha,
-                        BlendState::BlendFunc::One,
-                        BlendState::BlendFunc::OneMinusSrcAlpha
-                    )
-                    .setRenderTargetWriteMask(0, true, false, false, true)
-                    .setIndependentBlend(true);
-            }
-            else
-                FALCOR_CHECK(false, "Unimplemented");
-            return BlendState::create(desc);
-        }()
-    );
+    mpForwardDrawPass->getState()->setBlendState(BlendState::create(MeshGSTrainSplatRT<TrainType_V>::getBlendStateDesc()));
     mpForwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
 }
 template<MeshGSTrainType TrainType_V>
@@ -109,7 +86,7 @@ void MeshGSTrainer<TrainType_V>::forward(
     }
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        pRenderContext->clearFbo(resource.splatRT.pFbo.get(), float4{}, 0.0f, 0, FboAttachmentType::Color);
+        resource.splatRT.clear(pRenderContext);
 
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);

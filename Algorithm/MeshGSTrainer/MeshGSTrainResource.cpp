@@ -100,24 +100,75 @@ MeshGSTrainSplatRT<TrainType_V> MeshGSTrainSplatRT<TrainType_V>::create(const re
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         // MeshGSTrainType::kDepth
-        splatRT.pTextures = createTextures<ResourceFormat::RG32Float>(
+        // Tex0 R32F: Depth
+        // Tex1 R32F: T
+        splatRT.pTextures = createTextures<ResourceFormat::R32Float, ResourceFormat::R32Float>(
             pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget
         );
-        splatRT.pFbo = Fbo::create(pDevice, {splatRT.pTextures[0]});
+        splatRT.pFbo = Fbo::create(pDevice, {splatRT.pTextures[0], splatRT.pTextures[1]});
 
         // MeshGSTrainType::kDepthColor:
-        // Tex0 RGBA32F: Depth + T (Use RGBA32F instead of RG32F temporarily because slang-gfx don't support RGBA Swizzling)
-        // Tex1 RGBA32F: Color + T
+        // Tex0 RGBA32F: Color
+        // Tex1 R32F: Depth
+        // Tex2 R32F: T
     }
     else
         FALCOR_CHECK(false, "Unimplemented");
     return splatRT;
 }
 template<MeshGSTrainType TrainType_V>
+BlendState::Desc MeshGSTrainSplatRT<TrainType_V>::getBlendStateDesc()
+{
+    BlendState::Desc desc;
+    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
+    {
+        desc.setIndependentBlend(true);
+        desc.setRtBlend(0, true)
+            .setRtParams(
+                0,
+                BlendState::BlendOp::Add,
+                BlendState::BlendOp::Add,
+                BlendState::BlendFunc::SrcAlpha,
+                BlendState::BlendFunc::OneMinusSrcAlpha,
+                BlendState::BlendFunc::One,
+                BlendState::BlendFunc::OneMinusSrcAlpha
+            )
+            .setRenderTargetWriteMask(0, true, false, false, false);
+        desc.setRtBlend(1, true)
+            .setRtParams(
+                1,
+                BlendState::BlendOp::Add,
+                BlendState::BlendOp::Add, // Ignore
+                BlendState::BlendFunc::Zero,
+                BlendState::BlendFunc::OneMinusSrcAlpha,
+                BlendState::BlendFunc::Zero, // Ignore
+                BlendState::BlendFunc::Zero  // Ignore
+            )
+            .setRenderTargetWriteMask(1, true, false, false, false);
+    }
+    else
+        FALCOR_CHECK(false, "Unimplemented");
+    return desc;
+}
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainSplatRT<TrainType_V>::clear(RenderContext* pRenderContext) const
+{
+    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
+    {
+        pRenderContext->clearRtv(pTextures[0]->getRTV().get(), float4{});
+        pRenderContext->clearRtv(pTextures[1]->getRTV().get(), float4{1.0f});
+    }
+    else
+        FALCOR_CHECK(false, "Unimplemented");
+}
+template<MeshGSTrainType TrainType_V>
 void MeshGSTrainSplatRT<TrainType_V>::bindShaderData(const ShaderVar& var) const
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-        var["depths_Ts"] = pTextures[0];
+    {
+        var["depths"] = pTextures[0];
+        var["Ts"] = pTextures[1];
+    }
     else
         FALCOR_CHECK(false, "Unimplemented");
 }

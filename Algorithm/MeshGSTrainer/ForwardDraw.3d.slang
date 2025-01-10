@@ -43,11 +43,11 @@ void gsMain(point SplatView gIn[1], uint instanceID: SV_InstanceID, inout Triang
     output.Append(o);
 }
 
-float4 psMain(PSIn pIn)
+SplatRTOut psMain(PSIn pIn)
 {
     float alpha = exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < kAlphaThreshold)
         discard;
-    return float4(float3(pIn.channel.depth), alpha);
+    return SplatRTOut::create(pIn.channel.depth, alpha);
 }
 

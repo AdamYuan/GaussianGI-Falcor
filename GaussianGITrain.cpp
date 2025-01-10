@@ -62,7 +62,7 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     mpCamera->beginFrame();
 
     mTrainer.forward(pRenderContext, MeshGSTrainCamera::create(*mpCamera), mTrainResource, mSorter, mSortResource);
-    pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+    pRenderContext->blit(mTrainResource.splatRT.pTextures[1]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
