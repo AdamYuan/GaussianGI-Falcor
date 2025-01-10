@@ -3,9 +3,9 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.ShaderMisc;
-import GS3D;
+import GS3DMiscData;
 
-StructuredBuffer<GS3D::PackedSplat> gSplats;
+StructuredBuffer<PackedSplat> gSplats;
 uniform uint gSplatsPerMesh;
 
 struct PSIn
@@ -19,7 +19,7 @@ PSIn vsMain(uint vertexID: SV_VertexID)
     uint instanceID = vertexID / gSplatsPerMesh;
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
 
-    GS3D::PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + vertexID % gSplatsPerMesh];
+    PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + vertexID % gSplatsPerMesh];
     float3 position = instanceInfo.transform.apply(splat.position);
     float viewZ = mul(gGStaticScene.camera.data.viewMat, float4(position, 1.0)).z;
     float viewZRemap = -viewZ / gGStaticScene.camera.data.farZ;
