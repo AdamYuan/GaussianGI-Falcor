@@ -6,6 +6,7 @@
 
 #include <ranges>
 #include "../../Util/TextureUtil.hpp"
+#include "MeshGSTrainer.slangh"
 
 namespace GSGI
 {
@@ -374,7 +375,7 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         .splatDLossTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatTmpTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount, splatInitData),
-        .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount),
+        .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount * DLOSS_ATOMIC_TILE_DIM_X * DLOSS_ATOMIC_TILE_DIM_Y),
         .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),

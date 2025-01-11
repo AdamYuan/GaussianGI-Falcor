@@ -14,6 +14,9 @@ using namespace Falcor;
 namespace GSGI
 {
 
+namespace Concepts
+{}
+
 enum class MeshGSTrainType
 {
     kDepth,
@@ -24,6 +27,12 @@ struct MeshGSTrainDesc
 {
     uint maxSplatCount;
     uint2 resolution;
+    uint batchSize;
+};
+
+struct MeshGSTrainState
+{
+    uint iteration;
 };
 
 struct MeshGSTrainSplat
@@ -160,9 +169,8 @@ struct MeshGSTrainCamera
             .farZ = falcorCamera.getFarPlane(),
         };
     }
-    void bindShaderData(const ShaderVar& var, float2 resolution) const
+    void bindShaderData(const ShaderVar& var) const
     {
-        var["resolution"] = resolution;
         var["viewMat"] = viewMat;
         var["projMat"] = projMat;
         var["nearZ"] = nearZ;
@@ -206,7 +214,7 @@ class MeshGSTrainer
 {
 private:
     MeshGSTrainDesc mDesc{};
-    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpZeroGradPass, mpAdamPass;
+    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpZeroGradPass, mpOptimizePass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
 public:
@@ -224,6 +232,8 @@ public:
         const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const;
+    void loss(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource);
 };
 
 } // namespace GSGI

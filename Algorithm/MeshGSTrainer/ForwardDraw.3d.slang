@@ -5,7 +5,7 @@ using namespace MeshGSTrainer;
 
 SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
-uniform float2 gCamResolution;
+uniform float2 gResolution;
 
 struct PSIn
 {
@@ -25,7 +25,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     SplatView splatView = gSplatViews.load(gSplatViewSortPayloads[gIn[0]]);
 
     float2 clip = splatView.geom.clipMean;
-    float2x2 deltaClip = getDeltaClip(splatView.geom, gCamResolution);
+    float2x2 deltaClip = getDeltaClip(splatView.geom, gResolution);
 
     PSIn o;
     o.channel = splatView.channel;

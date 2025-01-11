@@ -1,5 +1,7 @@
 import GaussianGI.Algorithm.GS3D;
 
+#include "MeshGSTrainer.slangh"
+
 namespace MeshGSTrainer
 {
     public const static float kOpacity = 0.975;                   // O
@@ -10,7 +12,6 @@ namespace MeshGSTrainer
 
     public struct Camera
     {
-        public float2 resolution; // TODO: Replace with aspectRatio
         public float4x4 viewMat, projMat;
         public float nearZ, farZ;
     };
@@ -241,11 +242,11 @@ namespace MeshGSTrainer
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
         no_diff float camFarZ,
-        no_diff float2 camResolution
+        no_diff float2 screenResolution
     )
     {
         float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, splat.scale);
-        float3 cov2d = GS3D::getCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat, camResolution);
+        float3 cov2d = GS3D::getCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat, screenResolution);
         GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
         SplatView splatView;
         splatView.geom.clipMean = splatClipPos.xy;
@@ -264,33 +265,33 @@ namespace MeshGSTrainer
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
         no_diff float camFarZ,
-        no_diff float2 camResolution
+        no_diff float2 screenResolution
     )
     {
         float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
-        return splat2splatView(splat, viewPos, clipPos.xyz, camViewMat, camProjMat, camNearZ, camFarZ, camResolution);
+        return splat2splatView(splat, viewPos, clipPos.xyz, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
     }
 
-    public float2x2 getDeltaClip(SplatViewGeom splatViewGeom, float2 camResolution)
+    public float2x2 getDeltaClip(SplatViewGeom splatViewGeom, float2 screenResolution)
     {
         float2x2 deltaScreen = float2x2(
             splatViewGeom.axis * splatViewGeom.scale[0],                                  //
             float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) * splatViewGeom.scale[1], //
         );
         float2x2 deltaClip = deltaScreen;
-        deltaClip[0] *= 2.0 / camResolution;
-        deltaClip[1] *= 2.0 / camResolution;
+        deltaClip[0] *= 2.0 / screenResolution;
+        deltaClip[1] *= 2.0 / screenResolution;
         // * 2 to scale from [0, 1] to [-1, 1]
         return deltaClip;
     }
 
     [Differentiable]
-    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 camResolution)
+    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
     {
         // clipMean to screenMean
-        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * camResolution;
+        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
         float2 deltaScreen = screenPos - screenMean;
         deltaScreen.y = -deltaScreen.y;
         float2 quadPos =

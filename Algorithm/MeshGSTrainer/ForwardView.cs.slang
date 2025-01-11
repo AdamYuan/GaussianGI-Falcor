@@ -4,6 +4,7 @@ import MeshGSTrainer;
 using namespace MeshGSTrainer;
 
 uniform Camera gCamera;
+uniform float2 gResolution;
 
 uniform uint gSplatCount;
 SplatBuffer gSplats;
@@ -48,7 +49,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         gCamera.projMat,
         gCamera.nearZ,
         gCamera.farZ,
-        gCamera.resolution
+        gResolution
     );
 
     uint splatViewID;

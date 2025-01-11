@@ -37,12 +37,12 @@ public namespace GS3D
         float3 viewPos,
         no_diff float3x3 camViewRotMat,
         no_diff float4x4 camProjMat,
-        no_diff float2 camResolution
+        no_diff float2 screenResolution
     )
     {
         // focal = 0.5 * h / tan(fov * 0.5),
         // projMatrix._m00 = h / (w * tan(fov * 0.5))
-        float focal = camResolution.x * camProjMat._m00 * 0.5;
+        float focal = screenResolution.x * camProjMat._m00 * 0.5;
         float3x3 J = float3x3(
             float3(focal / viewPos.z, 0, -(focal * viewPos.x) / (viewPos.z * viewPos.z)),
             float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),

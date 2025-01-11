@@ -93,7 +93,8 @@ void MeshGSTrainer<TrainType_V>::forward(
         FALCOR_PROFILE(pRenderContext, "view");
 
         auto [prog, var] = getShaderProgVar(mpForwardViewPass);
-        camera.bindShaderData(var["gCamera"], float2(mDesc.resolution));
+        camera.bindShaderData(var["gCamera"]);
+        var["gResolution"] = float2(mDesc.resolution);
         var["gSplatCount"] = mDesc.maxSplatCount;
         resource.splatBuf.bindShaderData(var["gSplats"]);
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
@@ -125,12 +126,44 @@ void MeshGSTrainer<TrainType_V>::forward(
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
-        var["gCamResolution"] = float2(mDesc.resolution);
+        var["gResolution"] = float2(mDesc.resolution);
 
         mpForwardDrawPass->getState()->setFbo(resource.splatRT.pFbo);
         pRenderContext->drawIndirect(
             mpForwardDrawPass->getState().get(),
             mpForwardDrawPass->getVars().get(),
+            1,
+            resource.pSplatViewDrawArgBuffer.get(),
+            0,
+            nullptr,
+            0
+        );
+    }
+}
+
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainer<TrainType_V>::backward(
+    RenderContext* pRenderContext,
+    const MeshGSTrainCamera& camera,
+    const MeshGSTrainResource<TrainType_V>& resource
+)
+{
+    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
+    {
+        FALCOR_PROFILE(pRenderContext, "draw");
+        // resource.splatRT.clear(pRenderContext);
+
+        auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
+        resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
+        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gResolution"] = float2(mDesc.resolution);
+        resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
+        resource.splatTmpTex.bindShaderData(var["gRs_Ms"]);
+        resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
+
+        pRenderContext->drawIndirect(
+            mpBackwardDrawPass->getState().get(),
+            mpBackwardDrawPass->getVars().get(),
             1,
             resource.pSplatViewDrawArgBuffer.get(),
             0,

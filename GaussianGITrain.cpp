@@ -37,6 +37,7 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     MeshGSTrainDesc trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
+        .batchSize = 1,
     };
     mTrainResource = MeshGSTrainResource<MeshGSTrainType::kDepth>::create(getDevice(), trainDesc);
     mTrainer = MeshGSTrainer<MeshGSTrainType::kDepth>(getDevice(), trainDesc);
@@ -62,6 +63,7 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     mpCamera->beginFrame();
 
     mTrainer.forward(pRenderContext, MeshGSTrainCamera::create(*mpCamera), mTrainResource, mSorter, mSortResource);
+    mTrainer.backward(pRenderContext, MeshGSTrainCamera::create(*mpCamera), mTrainResource);
     pRenderContext->blit(mTrainResource.splatRT.pTextures[1]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 

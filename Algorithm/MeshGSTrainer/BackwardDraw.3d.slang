@@ -5,7 +5,7 @@ using namespace MeshGSTrainer;
 
 SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
-uniform float2 gCamResolution;
+uniform float2 gResolution;
 
 SplatTexture gDLossDCs_Ts;
 CoherentRasterizerOrderedSplatTexture gRs_Ms;
@@ -32,7 +32,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     SplatView splatView = gSplatViews.load(splatViewID);
 
     float2 clip = splatView.geom.clipMean;
-    float2x2 deltaClip = getDeltaClip(splatView.geom, gCamResolution);
+    float2x2 deltaClip = getDeltaClip(splatView.geom, gResolution);
 
     PSIn o;
     o.splatViewID = splatViewID;
@@ -79,9 +79,10 @@ void psMain(PSIn pIn)
     float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
     {
         var p = diffPair(pIn.splatView.geom);
-        bwd_diff(getAlpha)(p, pIn.clipPos.xy, gCamResolution, dL_dalpha);
+        bwd_diff(getAlpha)(p, pIn.clipPos.xy, gResolution, dL_dalpha);
         dL_dsplatView.geom = p.d;
     }
-    gDLossDSplatViews.atomicAdd(pIn.splatViewID, dL_dsplatView);
+    uint subID = (coord.x & 7) << 3 | (coord.y & 7);
+    gDLossDSplatViews.atomicAdd(pIn.splatViewID << 6 | subID, dL_dsplatView);
 }
 
