@@ -16,7 +16,6 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 
     // Compute Passes
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain");
-    mpZeroGradPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ZeroGrad.cs.slang", "csMain");
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
@@ -69,14 +68,11 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 }
 
 template<MeshGSTrainType TrainType_V>
-void MeshGSTrainer<TrainType_V>::zeroGrad(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
+void MeshGSTrainer<TrainType_V>::reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
 {
-    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::zeroGrad");
-
-    auto [prog, var] = getShaderProgVar(mpZeroGradPass);
-    var["gSplatCount"] = mDesc.maxSplatCount;
-    resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
-    mpZeroGradPass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+    resource.splatDLossBuf.clearUAV(pRenderContext);
+    resource.splatViewDLossBuf.clearUAV(pRenderContext);
+    resource.splatAdamBuf.clearUAV(pRenderContext);
 }
 
 template<MeshGSTrainType TrainType_V>

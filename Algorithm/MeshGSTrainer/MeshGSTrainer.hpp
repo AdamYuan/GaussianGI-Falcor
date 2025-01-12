@@ -160,6 +160,7 @@ struct MeshGSTrainSplatBuf
     static MeshGSTrainSplatBuf create(const ref<Device>& pDevice, uint splatCount, const InitData& initData = {});
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatCount) const;
+    void clearUAV(RenderContext *pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -171,6 +172,7 @@ struct MeshGSTrainSplatAdamBuf
     static MeshGSTrainSplatAdamBuf create(const ref<Device>& pDevice, uint splatCount);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatCount) const;
+    void clearUAV(RenderContext *pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -182,6 +184,7 @@ struct MeshGSTrainSplatViewBuf
     static MeshGSTrainSplatViewBuf create(const ref<Device>& pDevice, uint splatViewCount);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatViewCount) const;
+    void clearUAV(RenderContext *pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -220,7 +223,7 @@ class MeshGSTrainer
 {
 private:
     MeshGSTrainDesc mDesc{};
-    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpZeroGradPass, mpOptimizePass;
+    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
 public:
@@ -230,7 +233,7 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
-    void zeroGrad(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void forward(
         RenderContext* pRenderContext,
         const MeshGSTrainCamera& camera,

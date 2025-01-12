@@ -75,6 +75,17 @@ bool isBufferCapable(uint elementCount, const std::array<ref<Buffer>, BufferCoun
            isBufferCapable(elementCount, pOtherBuffers...);
 }
 
+void clearUAVBuffer(RenderContext* pRenderContext, const ref<Buffer>& pBuffer)
+{
+    pRenderContext->clearUAV(pBuffer->getUAV().get(), uint4{0});
+}
+template<std::size_t Count_V>
+void clearUAVBuffers(RenderContext* pRenderContext, const std::array<ref<Buffer>, Count_V>& pBuffers)
+{
+    for (const auto& pBuffer : pBuffers)
+        clearUAVBuffer(pRenderContext, pBuffer);
+}
+
 bool isResourceCapable(uint elementCount, uint2 resolution)
 {
     return true;
@@ -308,6 +319,11 @@ bool MeshGSTrainSplatBuf<TrainType_V>::isCapable(uint splatCount) const
 {
     return isBufferCapable(splatCount, pBuffers);
 }
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainSplatBuf<TrainType_V>::clearUAV(RenderContext* pRenderContext) const
+{
+    clearUAVBuffers(pRenderContext, pBuffers);
+}
 
 template<MeshGSTrainType TrainType_V>
 MeshGSTrainSplatAdamBuf<TrainType_V> MeshGSTrainSplatAdamBuf<TrainType_V>::create(const ref<Device>& pDevice, uint splatCount)
@@ -334,6 +350,11 @@ template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatAdamBuf<TrainType_V>::isCapable(uint splatCount) const
 {
     return isBufferCapable(splatCount, pBuffers);
+}
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainSplatAdamBuf<TrainType_V>::clearUAV(RenderContext* pRenderContext) const
+{
+    clearUAVBuffers(pRenderContext, pBuffers);
 }
 
 template<MeshGSTrainType TrainType_V>
@@ -367,6 +388,11 @@ template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainSplatViewBuf<TrainType_V>::isCapable(uint splatViewCount) const
 {
     return isBufferCapable(splatViewCount, pBuffers);
+}
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainSplatViewBuf<TrainType_V>::clearUAV(RenderContext* pRenderContext) const
+{
+    clearUAVBuffers(pRenderContext, pBuffers);
 }
 
 template<MeshGSTrainType TrainType_V>
