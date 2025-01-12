@@ -103,11 +103,13 @@ void psMain(PSIn pIn)
     [branch]
     if (WaveActiveAllEqual(pIn.splatViewID))
     {
+        // Wave reduction
         callAtomicAdd = WaveIsFirstLane();
         dL_dsplatView = dL_dsplatView.waveActiveSum();
     }
     else
     {
+        // Quad reduction
         uint waveLaneIdx = WaveGetLaneIndex();
         callAtomicAdd = waveLaneIdx == QuadReadLaneAt(waveLaneIdx, 0);
         dL_dsplatView = dL_dsplatView.quadSum();

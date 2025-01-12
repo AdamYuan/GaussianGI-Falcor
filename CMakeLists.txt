@@ -51,6 +51,9 @@ target_sources(GaussianGI PRIVATE
         Scene/GMesh.slang
         Scene/GMesh.slangh
         Scene/GMeshView.hpp
+        Scene/GMeshGSTrainDataset.3d.slang
+        Scene/GMeshGSTrainDataset.hpp
+        Scene/GMeshGSTrainDataset.cpp
         Scene/GMeshLoader.hpp
         Scene/GMeshLoader.cpp
         Scene/GTransform.hpp
@@ -147,9 +150,14 @@ target_sources(GaussianGITrain PRIVATE
 
         Scene/GMesh.hpp
         Scene/GMesh.cpp
+        Scene/GMesh.slang
+        Scene/GMesh.slangh
         Scene/GMeshLoader.hpp
         Scene/GMeshLoader.cpp
         Scene/GMeshView.hpp
+        Scene/GMeshGSTrainDataset.3d.slang
+        Scene/GMeshGSTrainDataset.hpp
+        Scene/GMeshGSTrainDataset.cpp
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp

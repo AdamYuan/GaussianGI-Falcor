@@ -33,6 +33,10 @@ public:
     void onHotReload(HotReloadFlags reloaded) override;
 
 private:
+    struct
+    {
+        bool drawMeshData = false;
+    } mConfig = {};
     ref<GMesh> mpMesh;
     ref<Camera> mpCamera;
     std::unique_ptr<CameraController> mpCameraController;

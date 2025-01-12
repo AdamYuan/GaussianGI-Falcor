@@ -6,6 +6,7 @@
 
 #include "Algorithm/MeshGSOptimize.hpp"
 #include "Algorithm/MeshSample.hpp"
+#include "Scene/GMeshGSTrainDataset.hpp"
 #include "Scene/GMeshLoader.hpp"
 #include "Scene/GMeshView.hpp"
 
@@ -62,9 +63,17 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     mpCameraController->update();
     mpCamera->beginFrame();
 
-    mTrainer.forward(pRenderContext, MeshGSTrainCamera::create(*mpCamera), mTrainResource, mSorter, mSortResource);
-    mTrainer.backward(pRenderContext, MeshGSTrainCamera::create(*mpCamera), mTrainResource);
-    pRenderContext->blit(mTrainResource.splatRT.pTextures[1]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+    auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
+    mTrainer.forward(pRenderContext, trainCamera, mTrainResource, mSorter, mSortResource);
+    mTrainer.backward(pRenderContext, trainCamera, mTrainResource);
+    if (mpMesh)
+        MeshGSTrainer<MeshGSTrainType::kDepth>::generateData(
+            pRenderContext, GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh}, trainCamera, mTrainResource
+        );
+    if (mConfig.drawMeshData)
+        pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+    else
+        pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
@@ -117,6 +126,10 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
         if (auto g = w.group("Mesh"))
             mpMesh->renderUI(g);
     }
+    if (auto g = w.group("Camera"))
+        mpCamera->renderUI(g);
+
+    w.checkbox("Draw Mesh", mConfig.drawMeshData);
 }
 
 bool GaussianGITrain::onKeyEvent(const KeyboardEvent& keyEvent)

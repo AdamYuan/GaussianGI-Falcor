@@ -182,15 +182,15 @@ bool MeshGSTrainSplatRT<TrainType_V>::isCapable(uint2 resolution) const
 template<MeshGSTrainType TrainType_V>
 MeshGSTrainMeshRT<TrainType_V> MeshGSTrainMeshRT<TrainType_V>::create(const ref<Device>& pDevice, uint2 resolution)
 {
-    MeshGSTrainMeshRT meshRT;
+    MeshGSTrainMeshRT meshRT{.pDepthBuffer = createTexture<ResourceFormat::D32Float>(pDevice, resolution, ResourceBindFlags::DepthStencil)};
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         // MeshGSTrainType::kDepth
         // R32F: Depth
-        meshRT.pTexture = createTexture<ResourceFormat::RGBA32Float>(
+        meshRT.pTexture = createTexture<ResourceFormat::R32Float>(
             pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget
         );
-        meshRT.pFbo = Fbo::create(pDevice, {meshRT.pTexture});
+        meshRT.pFbo = Fbo::create(pDevice, {meshRT.pTexture}, meshRT.pDepthBuffer);
 
         // MeshGSTrainType::kDepthColor:
         // RGBA32F: Depth + Color
@@ -205,6 +205,7 @@ void MeshGSTrainMeshRT<TrainType_V>::clearRtv(RenderContext* pRenderContext) con
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         pRenderContext->clearRtv(pTexture->getRTV().get(), float4{});
+        pRenderContext->clearDsv(pDepthBuffer->getDSV().get(), 1.0f, 0);
     }
     else
         FALCOR_CHECK(false, "Unimplemented");

@@ -79,7 +79,7 @@ struct MeshGSTrainSplatRT
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainMeshRT
 {
-    ref<Texture> pTexture;
+    ref<Texture> pTexture, pDepthBuffer;
     ref<Fbo> pFbo;
 
     static MeshGSTrainMeshRT create(const ref<Device>& pDevice, uint2 resolution);
@@ -240,6 +240,18 @@ public:
     ) const;
     void loss(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource) const;
     void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource);
+
+    static void generateData(
+        RenderContext* pRenderContext,
+        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
+        const MeshGSTrainCamera& camera,
+        const MeshGSTrainResource<TrainType_V>& resource
+    )
+    {
+        FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::genData");
+        resource.meshRT.clearRtv(pRenderContext);
+        dataset.generate(pRenderContext, resource.meshRT, camera);
+    }
 };
 
 } // namespace GSGI
