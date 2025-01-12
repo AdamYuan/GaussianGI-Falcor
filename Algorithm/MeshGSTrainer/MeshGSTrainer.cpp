@@ -122,7 +122,7 @@ void MeshGSTrainer<TrainType_V>::forward(
     }
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        resource.splatRT.clear(pRenderContext);
+        resource.splatRT.clearRtv(pRenderContext);
 
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);

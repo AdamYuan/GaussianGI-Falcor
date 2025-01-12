@@ -152,7 +152,7 @@ BlendState::Desc MeshGSTrainSplatRT<TrainType_V>::getBlendStateDesc()
     return desc;
 }
 template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatRT<TrainType_V>::clear(RenderContext* pRenderContext) const
+void MeshGSTrainSplatRT<TrainType_V>::clearRtv(RenderContext* pRenderContext) const
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
