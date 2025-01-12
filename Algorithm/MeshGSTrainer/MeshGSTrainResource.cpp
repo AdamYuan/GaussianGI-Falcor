@@ -200,6 +200,16 @@ MeshGSTrainMeshRT<TrainType_V> MeshGSTrainMeshRT<TrainType_V>::create(const ref<
     return meshRT;
 }
 template<MeshGSTrainType TrainType_V>
+void MeshGSTrainMeshRT<TrainType_V>::clearRtv(RenderContext* pRenderContext) const
+{
+    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
+    {
+        pRenderContext->clearRtv(pTexture->getRTV().get(), float4{});
+    }
+    else
+        FALCOR_CHECK(false, "Unimplemented");
+}
+template<MeshGSTrainType TrainType_V>
 void MeshGSTrainMeshRT<TrainType_V>::bindShaderData(const ShaderVar& var) const
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
@@ -387,7 +397,7 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount),
         .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
-        .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount * DLOSS_ATOMIC_BIN_SIZE),
+        .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
         /* .sortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(
             pDevice, DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}), splatCount
         ), */
@@ -426,9 +436,9 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
                splatBuf,
                splatDLossBuf,
                splatAdamBuf,
-               splatViewBuf
+               splatViewBuf,
+               splatViewDLossBuf
            ) &&
-           splatViewDLossBuf.isCapable(splatCount * DLOSS_ATOMIC_BIN_SIZE) &&
            isBufferCapable(
                splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer
            ) &&

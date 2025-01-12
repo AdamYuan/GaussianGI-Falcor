@@ -20,7 +20,6 @@ struct PSIn
 {
     nointerpolation uint splatViewID;
     nointerpolation SplatView splatView;
-    linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 };
 
@@ -42,25 +41,35 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     PSIn o;
     o.splatViewID = splatViewID;
     o.splatView = splatView;
-    o.quadPos = float2(-kQuadPosBound, -kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(kQuadPosBound, -kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(-kQuadPosBound, kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(kQuadPosBound, kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
 }
 
 void psMain(PSIn pIn)
 {
-    float alpha = kOpacity * exp(-dot(pIn.quadPos, pIn.quadPos)); // \alpha_i
-    if (alpha < kAlphaThreshold)
-        discard;
+    bool shouldDiscard;
+    float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
+
+    if (shouldDiscard)
+    {
+        if (WaveActiveAllEqual(pIn.splatViewID))
+            discard;
+
+        bool quadShouldDiscard = shouldDiscard;
+        quadShouldDiscard = QuadReadAcrossX(quadShouldDiscard) & quadShouldDiscard;
+        quadShouldDiscard = QuadReadAcrossY(quadShouldDiscard) & quadShouldDiscard;
+        if (quadShouldDiscard) // All invocations in a quad should be discard, then discard
+            discard;
+
+        // Not all invocations in a quad should be discard, need to make the quad alive to enable latter quad reduction
+        alpha = 0.0;
+    }
 
     uint2 coord = uint2(pIn.clipPos.xy);
 
@@ -79,9 +88,6 @@ void psMain(PSIn pIn)
 
     float Ti = T / Ri_1;
 
-    if (Ti < HLF_MIN)
-        return;
-
     SplatView dL_dsplatView;
     dL_dsplatView.channel = alpha * Ti * dL_dC;       // \dfrac{dL}{dc_i}
     float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
@@ -90,7 +96,24 @@ void psMain(PSIn pIn)
         bwd_diff(getAlpha)(p, pIn.clipPos.xy, gResolution, dL_dalpha);
         dL_dsplatView.geom = p.d;
     }
-    uint binID = getCoordAtomicBinID(coord);
-    gDLossDSplatViews.binAtomicAdd(pIn.splatViewID, binID, dL_dsplatView);
+    if (shouldDiscard)
+        dL_dsplatView = (SplatView)0;
+
+    bool callAtomicAdd;
+    [branch]
+    if (WaveActiveAllEqual(pIn.splatViewID))
+    {
+        callAtomicAdd = WaveIsFirstLane();
+        dL_dsplatView = dL_dsplatView.waveActiveSum();
+    }
+    else
+    {
+        uint waveLaneIdx = WaveGetLaneIndex();
+        callAtomicAdd = waveLaneIdx == QuadReadLaneAt(waveLaneIdx, 0);
+        dL_dsplatView = dL_dsplatView.quadSum();
+    }
+
+    if (callAtomicAdd)
+        gDLossDSplatViews.atomicAdd(pIn.splatViewID, dL_dsplatView);
 }
 

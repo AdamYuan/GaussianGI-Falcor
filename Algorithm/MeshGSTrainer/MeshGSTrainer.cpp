@@ -99,7 +99,7 @@ void MeshGSTrainer<TrainType_V>::forward(
         resource.splatBuf.bindShaderData(var["gSplats"]);
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
-        resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
+        // resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
         var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
         var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;

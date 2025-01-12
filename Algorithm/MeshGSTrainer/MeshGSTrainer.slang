@@ -102,6 +102,36 @@ namespace MeshGSTrainer
     {
         public SplatViewGeom geom;
         public SplatChannel channel;
+
+        public SplatView waveActiveSum()
+        {
+            float4 conic_depth = float4(this.geom.conic, this.channel.depth);
+            float2 clipMean = this.geom.clipMean;
+            conic_depth = WaveActiveSum(conic_depth);
+            clipMean = WaveActiveSum(clipMean);
+
+            SplatView splatView;
+            splatView.geom.clipMean = clipMean;
+            splatView.geom.conic = conic_depth.xyz;
+            splatView.channel.depth = conic_depth.w;
+            return splatView;
+        }
+
+        public SplatView quadSum()
+        {
+            float4 conic_depth = float4(this.geom.conic, this.channel.depth);
+            float2 clipMean = this.geom.clipMean;
+            conic_depth += QuadReadAcrossX(conic_depth);
+            conic_depth += QuadReadAcrossY(conic_depth);
+            clipMean += QuadReadAcrossX(clipMean);
+            clipMean += QuadReadAcrossY(clipMean);
+
+            SplatView splatView;
+            splatView.geom.clipMean = clipMean;
+            splatView.geom.conic = conic_depth.xyz;
+            splatView.channel.depth = conic_depth.w;
+            return splatView;
+        }
     };
 
     public struct SplatViewBuffer
@@ -121,10 +151,10 @@ namespace MeshGSTrainer
         }
     };
 
-    public uint getCoordAtomicBinID(uint2 coord)
+    /* public uint getCoordAtomicBinID(uint2 coord)
     {
         return (coord.x % DLOSS_ATOMIC_BIN_DIM_X) * DLOSS_ATOMIC_BIN_DIM_Y + (coord.y % DLOSS_ATOMIC_BIN_DIM_Y);
-    }
+    } */
 
     public struct RWSplatViewBuffer
     {
@@ -137,21 +167,14 @@ namespace MeshGSTrainer
             clipMeans[splatViewID] = splatView.geom.clipMean;
         }
 
-        public void binAtomicAdd(uint splatViewID, uint binID, in const SplatView splatView)
+        public void atomicAdd(uint splatViewID, in const SplatView splatView)
         {
-            uint splatViewBinID = splatViewID * DLOSS_ATOMIC_BIN_SIZE + binID;
-            // if (splatView.geom.conic.x >= HLF_MIN)
-            __atomicAdd(conics_depths[splatViewBinID].x, splatView.geom.conic.x);
-            // if (splatView.geom.conic.y >= HLF_MIN)
-            __atomicAdd(conics_depths[splatViewBinID].y, splatView.geom.conic.y);
-            // if (splatView.geom.conic.z >= HLF_MIN)
-            __atomicAdd(conics_depths[splatViewBinID].z, splatView.geom.conic.z);
-            // if (splatView.channel.depth >= HLF_MIN)
-            __atomicAdd(conics_depths[splatViewBinID].w, splatView.channel.depth);
-            // if (splatView.geom.clipMean.x >= HLF_MIN)
-            __atomicAdd(clipMeans[splatViewBinID].x, splatView.geom.clipMean.x);
-            // if (splatView.geom.clipMean.y >= HLF_MIN)
-            __atomicAdd(clipMeans[splatViewBinID].y, splatView.geom.clipMean.y);
+            __atomicAdd(conics_depths[splatViewID].x, splatView.geom.conic.x);
+            __atomicAdd(conics_depths[splatViewID].y, splatView.geom.conic.y);
+            __atomicAdd(conics_depths[splatViewID].z, splatView.geom.conic.z);
+            __atomicAdd(conics_depths[splatViewID].w, splatView.channel.depth);
+            __atomicAdd(clipMeans[splatViewID].x, splatView.geom.clipMean.x);
+            __atomicAdd(clipMeans[splatViewID].y, splatView.geom.clipMean.y);
         }
     };
 
@@ -315,14 +338,29 @@ namespace MeshGSTrainer
     } */
 
     [Differentiable]
-    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
+    public float getAlphaSafe(
+        SplatViewGeom splatViewGeom,
+        no_diff float2 screenPos,
+        no_diff float2 screenResolution,
+        no_diff out bool o_shouldDiscard
+    )
     {
         // clipMean to screenMean
         float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
         float2 deltaScreen = screenPos - screenMean;
         deltaScreen.y = -deltaScreen.y;
-        return kOpacity * exp(-0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
-                                      splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) -
-                              splatViewGeom.conic.y * deltaScreen.x * deltaScreen.y);
+        float power = -0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
+                              splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) -
+                      splatViewGeom.conic.y * deltaScreen.x * deltaScreen.y;
+        float alpha = kOpacity * exp(power);
+        o_shouldDiscard = power > 0.0 || alpha < kAlphaThreshold;
+        return alpha;
+    }
+
+    [Differentiable]
+    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
+    {
+        bool shouldDiscard;
+        return getAlphaSafe(splatViewGeom, screenPos, screenResolution, shouldDiscard);
     }
 }

@@ -11,7 +11,7 @@ SplatBuffer gSplats;
 
 RWStructuredBuffer<uint> gSplatViewDrawArgs; // drawArgs[1] is instanceCount also splatViewCount
 RWSplatViewBuffer gSplatViews;
-RWSplatViewBuffer gDLossDSplatViews;
+// RWSplatViewBuffer gDLossDSplatViews;
 RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
@@ -63,5 +63,5 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
     gSplatViewAxes[splatViewID] = float16_t2x2(screenAxis);
     gSplatViews.store(splatViewID, splatView);
-    gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
+    // gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
 }

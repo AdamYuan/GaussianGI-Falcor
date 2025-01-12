@@ -14,9 +14,6 @@ using namespace Falcor;
 namespace GSGI
 {
 
-namespace Concepts
-{}
-
 enum class MeshGSTrainType
 {
     kDepth,
@@ -42,6 +39,29 @@ struct MeshGSTrainSplat
     float3 mean;
 };
 
+struct MeshGSTrainCamera
+{
+    float4x4 viewMat, projMat;
+    float nearZ, farZ;
+
+    static MeshGSTrainCamera create(const Camera& falcorCamera)
+    {
+        return {
+            .viewMat = falcorCamera.getViewMatrix(),
+            .projMat = falcorCamera.getProjMatrix(),
+            .nearZ = falcorCamera.getNearPlane(),
+            .farZ = falcorCamera.getFarPlane(),
+        };
+    }
+    void bindShaderData(const ShaderVar& var) const
+    {
+        var["viewMat"] = viewMat;
+        var["projMat"] = projMat;
+        var["nearZ"] = nearZ;
+        var["farZ"] = farZ;
+    }
+};
+
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainSplatRT
 {
@@ -63,9 +83,17 @@ struct MeshGSTrainMeshRT
     ref<Fbo> pFbo;
 
     static MeshGSTrainMeshRT create(const ref<Device>& pDevice, uint2 resolution);
+    void clearRtv(RenderContext* pRenderContext) const;
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
 };
+
+namespace Concepts
+{
+template<typename T, MeshGSTrainType TrainType_V>
+concept MeshGSTrainDataset =
+    requires(const T& t) { t.generate(std::declval<RenderContext*>(), MeshGSTrainMeshRT<TrainType_V>{}, MeshGSTrainCamera{}); };
+} // namespace Concepts
 
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainSplatTex
@@ -75,7 +103,7 @@ struct MeshGSTrainSplatTex
     static MeshGSTrainSplatTex create(const ref<Device>& pDevice, uint2 resolution);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
-    void clearRsMs(RenderContext *pRenderContext) const;
+    void clearRsMs(RenderContext* pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -154,29 +182,6 @@ struct MeshGSTrainSplatViewBuf
     static MeshGSTrainSplatViewBuf create(const ref<Device>& pDevice, uint splatViewCount);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatViewCount) const;
-};
-
-struct MeshGSTrainCamera
-{
-    float4x4 viewMat, projMat;
-    float nearZ, farZ;
-
-    static MeshGSTrainCamera create(const Camera& falcorCamera)
-    {
-        return {
-            .viewMat = falcorCamera.getViewMatrix(),
-            .projMat = falcorCamera.getProjMatrix(),
-            .nearZ = falcorCamera.getNearPlane(),
-            .farZ = falcorCamera.getFarPlane(),
-        };
-    }
-    void bindShaderData(const ShaderVar& var) const
-    {
-        var["viewMat"] = viewMat;
-        var["projMat"] = projMat;
-        var["nearZ"] = nearZ;
-        var["farZ"] = farZ;
-    }
 };
 
 template<MeshGSTrainType TrainType_V>

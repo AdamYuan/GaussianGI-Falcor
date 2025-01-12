@@ -10,9 +10,7 @@ uniform float2 gResolution;
 
 struct PSIn
 {
-    nointerpolation SplatChannel channel;
-    nointerpolation SplatViewGeom geom;
-    linear float2 quadPos;
+    nointerpolation SplatView splatView;
     linear float4 clipPos : SV_Position;
 };
 
@@ -32,27 +30,23 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     float2x2 deltaClip = getDeltaClip(float2x2(splatViewAxis), gResolution);
 
     PSIn o;
-    o.channel = splatView.channel;
-    o.geom = splatView.geom;
-    o.quadPos = float2(-kQuadPosBound, -kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.splatView = splatView;
+    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(kQuadPosBound, -kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(-kQuadPosBound, kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
-    o.quadPos = float2(kQuadPosBound, kQuadPosBound);
-    o.clipPos = float4(clip + mul(o.quadPos, deltaClip), 0, 1);
+    o.clipPos = float4(clip + mul(float2(kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
     output.Append(o);
 }
 
 SplatRTOut psMain(PSIn pIn)
 {
-    float alpha = kOpacity * exp(-dot(pIn.quadPos, pIn.quadPos));
-    if (alpha < kAlphaThreshold)
+    bool shouldDiscard;
+    float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
+    if (shouldDiscard)
         discard;
-    return SplatRTOut::create(pIn.channel.depth, alpha);
+    return SplatRTOut::create(pIn.splatView.channel.depth, alpha);
 }
 
