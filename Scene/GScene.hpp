@@ -36,7 +36,6 @@ public:
 
 private:
     ref<RasterPass> mpDefaultRasterPass;
-    ref<RasterizerState> mpDefaultRasterState;
 
     std::vector<MeshEntry> mMeshEntries;
     Version mVersion{};
@@ -65,8 +64,6 @@ public:
 
     void setLighting(ref<GLighting> pLighting) { mpLighting = std::move(pLighting); }
     const auto& getLighting() const { return mpLighting; }
-
-    const auto& getDefaultRasterState() const { return mpDefaultRasterState; }
 
     void renderUIImpl(Gui::Widgets& widget);
 

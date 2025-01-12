@@ -16,10 +16,7 @@ GScene::GScene(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
     ProgramDesc defaultRasterDesc;
     defaultRasterDesc.addShaderLibrary("GaussianGI/Scene/GScene.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
     mpDefaultRasterPass = RasterPass::create(getDevice(), defaultRasterDesc);
-    RasterizerState::Desc rasterStateDesc = {};
-    rasterStateDesc.setCullMode(RasterizerState::CullMode::None);
-    mpDefaultRasterState = RasterizerState::create(rasterStateDesc);
-    mpDefaultRasterPass->getState()->setRasterizerState(mpDefaultRasterState);
+    mpDefaultRasterPass->getState()->setRasterizerState(GMesh::getRasterizerState());
 }
 
 static void removeVectorIndices(auto& vector, auto& indexSet)

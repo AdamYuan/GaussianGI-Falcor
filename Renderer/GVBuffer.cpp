@@ -63,7 +63,7 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         { return Fbo::create(getDevice(), {mpAlbedoTexture, mpHitTexture}, pScreenFbo->getDepthStencilTexture()); }
     );
 
-    mpRasterPass->getState()->setRasterizerState(pStaticScene->getScene()->getDefaultRasterState());
+    mpRasterPass->getState()->setRasterizerState(GMesh::getRasterizerState());
 
     pRenderContext->clearRtv(mpAlbedoTexture->getRTV().get(), float4{0.0f});
     pRenderContext->clearRtv(mpHitTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});

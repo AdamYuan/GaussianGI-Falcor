@@ -62,6 +62,7 @@ private:
     ref<Vao> mpVao;
     ref<Buffer> mpVertexBuffer, mpIndexBuffer, mpTextureIDBuffer;
     static ref<VertexLayout> spVertexLayout;
+    static ref<RasterizerState> spRasterizerState;
 
     static void dataReorderOpaque(Data& data);
     static void dataUpdateBound(Data& data);
@@ -88,6 +89,7 @@ public:
     const AABB& getBound() const { return mData.bound; }
 
     static ref<VertexLayout> getVertexLayout() { return spVertexLayout; }
+    static ref<RasterizerState> getRasterizerState() { return spRasterizerState; }
     static ResourceFormat getIndexFormat() { return ResourceFormat::R32Uint; }
     template<RtGeometryFlags Flags>
     RtGeometryDesc getRTGeometryDesc(DeviceAddress transform3x4Addr, DeviceAddress indexBufferAddr, DeviceAddress vertexBufferAddr) const

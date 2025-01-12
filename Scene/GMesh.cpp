@@ -21,6 +21,13 @@ ref<VertexLayout> GMesh::spVertexLayout = []
     return pVertexLayout;
 }();
 
+ref<RasterizerState> GMesh::spRasterizerState = []
+{
+    RasterizerState::Desc desc = {};
+    desc.setCullMode(RasterizerState::CullMode::None);
+    return RasterizerState::create(desc);
+}();
+
 GMesh::GMesh(ref<Device> pDevice, Data data) : GDeviceObject(std::move(pDevice))
 {
     if (data.firstOpaquePrimitiveID == -1)
