@@ -245,6 +245,14 @@ bool MeshGSTrainSplatTex<TrainType_V>::isCapable(uint2 resolution) const
 {
     return isTextureCapable(resolution, pTexture);
 }
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainSplatTex<TrainType_V>::clearRsMs(RenderContext* pRenderContext) const
+{
+    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
+        pRenderContext->clearTexture(pTexture.get(), float4{0.0f, 1.0f, 0.0f, 0.0f});
+    else
+        FALCOR_CHECK(false, "Unimplemented");
+}
 
 template<MeshGSTrainType TrainType_V>
 MeshGSTrainSplatBuf<TrainType_V> MeshGSTrainSplatBuf<TrainType_V>::create(
@@ -324,8 +332,8 @@ MeshGSTrainSplatViewBuf<TrainType_V> MeshGSTrainSplatViewBuf<TrainType_V>::creat
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
         // MeshGSTrainType::kDepth
-        // clipMean(2) + depth(1) + axis(2) + scale(2) = 4 + 3
-        splatViewBuf.pBuffers = createBuffers<sizeof(float4), sizeof(float4)>(
+        // clipMean(2) + depth(1) + conic(3) = 4 + 2
+        splatViewBuf.pBuffers = createBuffers<sizeof(float4), sizeof(float2)>(
             pDevice, splatViewCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
         );
     }
@@ -338,8 +346,8 @@ void MeshGSTrainSplatViewBuf<TrainType_V>::bindShaderData(const ShaderVar& var) 
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
     {
-        var["clipMeans_depths"] = pBuffers[0];
-        var["axes_scales"] = pBuffers[1];
+        var["conics_depths"] = pBuffers[0];
+        var["clipMeans"] = pBuffers[1];
     }
     else
         FALCOR_CHECK(false, "Unimplemented");
@@ -369,16 +377,17 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         .ThreadGroupCountY = 1,
         .ThreadGroupCountZ = 1,
     };
+    static_assert(sizeof(float16_t4) == sizeof(uint32_t) * 2);
     return MeshGSTrainResource{
         .splatRT = MeshGSTrainSplatRT<TrainType_V>::create(pDevice, resolution),
         .meshRT = MeshGSTrainMeshRT<TrainType_V>::create(pDevice, resolution),
         .splatDLossTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatTmpTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount, splatInitData),
-        .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount * DLOSS_ATOMIC_TILE_DIM_X * DLOSS_ATOMIC_TILE_DIM_Y),
+        .splatDLossBuf = MeshGSTrainSplatBuf<TrainType_V>::create(pDevice, splatCount),
         .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
-        .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
+        .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount * DLOSS_ATOMIC_BIN_SIZE),
         /* .sortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(
             pDevice, DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}), splatCount
         ), */
@@ -388,6 +397,8 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSortPayloadBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
+        .pSplatViewAxisBuffer =
+            createBuffer<sizeof(float16_t4)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewDrawArgBuffer = createBuffer<sizeof(DrawArguments)>(
             pDevice, //
             1,
@@ -407,7 +418,7 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
 {
     return isResourceCapable(
                splatCount,
-               resolution,
+               resolution, //
                splatRT,
                meshRT,
                splatDLossTex,
@@ -415,10 +426,12 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
                splatBuf,
                splatDLossBuf,
                splatAdamBuf,
-               splatViewBuf,
-               splatViewDLossBuf
+               splatViewBuf
            ) &&
-           isBufferCapable(splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer) &&
+           splatViewDLossBuf.isCapable(splatCount * DLOSS_ATOMIC_BIN_SIZE) &&
+           isBufferCapable(
+               splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer
+           ) &&
            isBufferCapable(1, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer);
     // Don't need to check sortResource since it is checked in DeviceSorter
 }

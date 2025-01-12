@@ -1,10 +1,14 @@
 import Utils.Math.FormatConversion;
 import MeshGSTrainer;
 
+#include "MeshGSTrainer.slangh"
+#include "Utils/Math/MathConstants.slangh"
+
 using namespace MeshGSTrainer;
 
 SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
+StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
 
 SplatTexture gDLossDCs_Ts;
@@ -30,9 +34,10 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
     SplatView splatView = gSplatViews.load(splatViewID);
+    float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
 
     float2 clip = splatView.geom.clipMean;
-    float2x2 deltaClip = getDeltaClip(splatView.geom, gResolution);
+    float2x2 deltaClip = getDeltaClip(float2x2(splatViewAxis), gResolution);
 
     PSIn o;
     o.splatViewID = splatViewID;
@@ -74,6 +79,9 @@ void psMain(PSIn pIn)
 
     float Ti = T / Ri_1;
 
+    if (Ti < HLF_MIN)
+        return;
+
     SplatView dL_dsplatView;
     dL_dsplatView.channel = alpha * Ti * dL_dC;       // \dfrac{dL}{dc_i}
     float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
@@ -82,7 +90,7 @@ void psMain(PSIn pIn)
         bwd_diff(getAlpha)(p, pIn.clipPos.xy, gResolution, dL_dalpha);
         dL_dsplatView.geom = p.d;
     }
-    uint subID = (coord.x & 7) << 3 | (coord.y & 7);
-    gDLossDSplatViews.atomicAdd(pIn.splatViewID << 6 | subID, dL_dsplatView);
+    uint binID = getCoordAtomicBinID(coord);
+    gDLossDSplatViews.binAtomicAdd(pIn.splatViewID, binID, dL_dsplatView);
 }
 

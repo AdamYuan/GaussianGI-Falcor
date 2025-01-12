@@ -75,6 +75,7 @@ struct MeshGSTrainSplatTex
     static MeshGSTrainSplatTex create(const ref<Device>& pDevice, uint2 resolution);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
+    void clearRsMs(RenderContext *pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -188,7 +189,7 @@ struct MeshGSTrainResource
     MeshGSTrainSplatAdamBuf<TrainType_V> splatAdamBuf;
     MeshGSTrainSplatViewBuf<TrainType_V> splatViewBuf, splatViewDLossBuf;
     // DeviceSortResource<DeviceSortDispatchType::kIndirect> sortResource;
-    ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
+    ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
     ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
     static MeshGSTrainResource create(

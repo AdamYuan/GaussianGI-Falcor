@@ -1,6 +1,7 @@
 import GaussianGI.Algorithm.GS3D;
 
 #include "MeshGSTrainer.slangh"
+#include "Utils/Math/MathConstants.slangh"
 
 namespace MeshGSTrainer
 {
@@ -68,8 +69,7 @@ namespace MeshGSTrainer
     public struct SplatViewGeom : IDifferentiable
     {
         public float2 clipMean;
-        public float2 axis;
-        public float2 scale;
+        public float3 conic;
     };
 
     public struct SplatChannel : IDifferentiable
@@ -106,42 +106,52 @@ namespace MeshGSTrainer
 
     public struct SplatViewBuffer
     {
-        StructuredBuffer<float4> clipMeans_depths;
-        StructuredBuffer<float4> axes_scales;
+        StructuredBuffer<float4> conics_depths;
+        StructuredBuffer<float2> clipMeans;
 
         public SplatView load(uint splatViewID)
         {
-            float4 clipMean_depth = clipMeans_depths[splatViewID];
-            float4 axis_scale = axes_scales[splatViewID];
+            float4 conic_depth = conics_depths[splatViewID];
+            float2 clipMean = clipMeans[splatViewID];
             SplatView splatView;
-            splatView.geom.clipMean = clipMean_depth.xy;
-            splatView.channel.depth = clipMean_depth.z;
-            splatView.geom.axis = axis_scale.xy;
-            splatView.geom.scale = axis_scale.zw;
+            splatView.geom.clipMean = clipMean;
+            splatView.channel.depth = conic_depth.w;
+            splatView.geom.conic = conic_depth.xyz;
             return splatView;
         }
     };
 
+    public uint getCoordAtomicBinID(uint2 coord)
+    {
+        return (coord.x % DLOSS_ATOMIC_BIN_DIM_X) * DLOSS_ATOMIC_BIN_DIM_Y + (coord.y % DLOSS_ATOMIC_BIN_DIM_Y);
+    }
+
     public struct RWSplatViewBuffer
     {
-        RWStructuredBuffer<float4> clipMeans_depths;
-        RWStructuredBuffer<float4> axes_scales;
+        RWStructuredBuffer<float4> conics_depths;
+        RWStructuredBuffer<float2> clipMeans;
 
         public void store(uint splatViewID, in const SplatView splatView)
         {
-            clipMeans_depths[splatViewID] = float4(splatView.geom.clipMean, splatView.channel.depth, 0);
-            axes_scales[splatViewID] = float4(splatView.geom.axis, splatView.geom.scale);
+            conics_depths[splatViewID] = float4(splatView.geom.conic, splatView.channel.depth);
+            clipMeans[splatViewID] = splatView.geom.clipMean;
         }
 
-        public void atomicAdd(uint splatViewID, in const SplatView splatView)
+        public void binAtomicAdd(uint splatViewID, uint binID, in const SplatView splatView)
         {
-            __atomicAdd(clipMeans_depths[splatViewID].x, splatView.geom.clipMean.x);
-            __atomicAdd(clipMeans_depths[splatViewID].y, splatView.geom.clipMean.y);
-            __atomicAdd(clipMeans_depths[splatViewID].z, splatView.channel.depth);
-            __atomicAdd(axes_scales[splatViewID].x, splatView.geom.axis.x);
-            __atomicAdd(axes_scales[splatViewID].y, splatView.geom.axis.y);
-            __atomicAdd(axes_scales[splatViewID].z, splatView.geom.scale.x);
-            __atomicAdd(axes_scales[splatViewID].w, splatView.geom.scale.y);
+            uint splatViewBinID = splatViewID * DLOSS_ATOMIC_BIN_SIZE + binID;
+            // if (splatView.geom.conic.x >= HLF_MIN)
+            __atomicAdd(conics_depths[splatViewBinID].x, splatView.geom.conic.x);
+            // if (splatView.geom.conic.y >= HLF_MIN)
+            __atomicAdd(conics_depths[splatViewBinID].y, splatView.geom.conic.y);
+            // if (splatView.geom.conic.z >= HLF_MIN)
+            __atomicAdd(conics_depths[splatViewBinID].z, splatView.geom.conic.z);
+            // if (splatView.channel.depth >= HLF_MIN)
+            __atomicAdd(conics_depths[splatViewBinID].w, splatView.channel.depth);
+            // if (splatView.geom.clipMean.x >= HLF_MIN)
+            __atomicAdd(clipMeans[splatViewBinID].x, splatView.geom.clipMean.x);
+            // if (splatView.geom.clipMean.y >= HLF_MIN)
+            __atomicAdd(clipMeans[splatViewBinID].y, splatView.geom.clipMean.y);
         }
     };
 
@@ -238,6 +248,7 @@ namespace MeshGSTrainer
         Splat splat,
         float3 splatViewPos,
         float3 splatClipPos,
+        no_diff out float2x2 o_screenAxis,
         no_diff float4x4 camViewMat,
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
@@ -250,9 +261,11 @@ namespace MeshGSTrainer
         GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
         SplatView splatView;
         splatView.geom.clipMean = splatClipPos.xy;
+        splatView.geom.conic = GS3D::getConic(cov2d);
         splatView.channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
-        splatView.geom.axis = eigen2d.eigen[0];
-        splatView.geom.scale = sqrt(2.0 * eigen2d.lambda);
+
+        float2 screenScale = sqrt(2.0 * eigen2d.lambda);
+        o_screenAxis = float2x2(eigen2d.eigen[0] * screenScale[0], eigen2d.eigen[1] * screenScale[1]);
         // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
         // Let d = 2, a = 2\sqrt{2} \sigma < 3 \sigma
         return splatView;
@@ -271,23 +284,21 @@ namespace MeshGSTrainer
         float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
-        return splat2splatView(splat, viewPos, clipPos.xyz, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
+        float2x2 screenAxis;
+        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
     }
 
-    public float2x2 getDeltaClip(SplatViewGeom splatViewGeom, float2 screenResolution)
+    public float2x2 getDeltaClip(float2x2 screenAxis, float2 screenResolution)
     {
-        float2x2 deltaScreen = float2x2(
-            splatViewGeom.axis * splatViewGeom.scale[0],                                  //
-            float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) * splatViewGeom.scale[1], //
-        );
-        float2x2 deltaClip = deltaScreen;
+        float2x2 deltaClip = screenAxis;
         deltaClip[0] *= 2.0 / screenResolution;
         deltaClip[1] *= 2.0 / screenResolution;
         // * 2 to scale from [0, 1] to [-1, 1]
         return deltaClip;
     }
 
-    [Differentiable]
+    // Deprecated, now we use conic instead of axis+scale to reduce atomic operations
+    /* [Differentiable]
     public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
     {
         // clipMean to screenMean
@@ -301,5 +312,17 @@ namespace MeshGSTrainer
                 ),
                 deltaScreen);
         return kOpacity * exp(-dot(quadPos, quadPos));
+    } */
+
+    [Differentiable]
+    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
+    {
+        // clipMean to screenMean
+        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
+        float2 deltaScreen = screenPos - screenMean;
+        deltaScreen.y = -deltaScreen.y;
+        return kOpacity * exp(-0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
+                                      splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) -
+                              splatViewGeom.conic.y * deltaScreen.x * deltaScreen.y);
     }
 }

@@ -179,6 +179,7 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/BackwardCmd.cs.slang
         Algorithm/MeshGSTrainer/ZeroGrad.cs.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slang
+        Algorithm/MeshGSTrainer/MeshGSTrainer.slangh
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
         Algorithm/MeshGSTrainer/MeshGSTrainer.cpp
         Algorithm/MeshGSTrainer/MeshGSTrainResource.cpp

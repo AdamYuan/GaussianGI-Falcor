@@ -15,6 +15,7 @@ RWSplatViewBuffer gDLossDSplatViews;
 RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
+RWStructuredBuffer<float16_t2x2> gSplatViewAxes;
 
 // Radix Tricks by Michael Herf
 // http://stereopsis.com/radix.html
@@ -41,10 +42,13 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (any(abs(clipPos.xy) > 1.3) || clipPos.z > 1 || clipPos.z < 0) // Frustum Culled
         return;
 
+    float2x2 screenAxis;
+
     SplatView splatView = splat2splatView(
         splat, //
         viewPos,
         clipPos.xyz,
+        screenAxis,
         gCamera.viewMat,
         gCamera.projMat,
         gCamera.nearZ,
@@ -57,6 +61,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     gSplatViewSplatIDs[splatViewID] = splatID;
     gSplatViewSortPayloads[splatViewID] = splatViewID;
     gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
+    gSplatViewAxes[splatViewID] = float16_t2x2(screenAxis);
     gSplatViews.store(splatViewID, splatView);
     gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
 }

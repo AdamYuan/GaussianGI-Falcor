@@ -103,6 +103,7 @@ void MeshGSTrainer<TrainType_V>::forward(
         var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
         var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         // Reset counter (pRenderContext->updateBuffer)
         static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint));
         resource.pSplatViewDrawArgBuffer->template setElement<uint>(offsetof(DrawArguments, InstanceCount) / sizeof(uint), 0);
@@ -126,6 +127,7 @@ void MeshGSTrainer<TrainType_V>::forward(
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         var["gResolution"] = float2(mDesc.resolution);
 
         mpForwardDrawPass->getState()->setFbo(resource.splatRT.pFbo);
@@ -151,11 +153,12 @@ void MeshGSTrainer<TrainType_V>::backward(
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        // resource.splatRT.clear(pRenderContext);
+        resource.splatTmpTex.clearRsMs(pRenderContext);
 
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         var["gResolution"] = float2(mDesc.resolution);
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatTmpTex.bindShaderData(var["gRs_Ms"]);
