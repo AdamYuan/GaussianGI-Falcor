@@ -160,7 +160,7 @@ struct MeshGSTrainSplatBuf
     static MeshGSTrainSplatBuf create(const ref<Device>& pDevice, uint splatCount, const InitData& initData = {});
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatCount) const;
-    void clearUAV(RenderContext *pRenderContext) const;
+    void clearUAV(RenderContext* pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -172,7 +172,7 @@ struct MeshGSTrainSplatAdamBuf
     static MeshGSTrainSplatAdamBuf create(const ref<Device>& pDevice, uint splatCount);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatCount) const;
-    void clearUAV(RenderContext *pRenderContext) const;
+    void clearUAV(RenderContext* pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -184,7 +184,7 @@ struct MeshGSTrainSplatViewBuf
     static MeshGSTrainSplatViewBuf create(const ref<Device>& pDevice, uint splatViewCount);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint splatViewCount) const;
-    void clearUAV(RenderContext *pRenderContext) const;
+    void clearUAV(RenderContext* pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -223,7 +223,7 @@ class MeshGSTrainer
 {
 private:
     MeshGSTrainDesc mDesc{};
-    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass;
+    ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass, mpLossPass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
 public:
@@ -241,7 +241,7 @@ public:
         const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const;
-    void loss(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource);
 
     static void generateData(

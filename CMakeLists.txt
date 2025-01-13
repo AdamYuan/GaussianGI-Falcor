@@ -34,6 +34,7 @@ target_sources(GaussianGI PRIVATE
 
         Algorithm/MeshGSTrainer/ForwardView.cs.slang
         Algorithm/MeshGSTrainer/ForwardDraw.3d.slang
+        Algorithm/MeshGSTrainer/Loss.cs.slang
         Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
         Algorithm/MeshGSTrainer/BackwardView.cs.slang
         Algorithm/MeshGSTrainer/BackwardCmd.cs.slang

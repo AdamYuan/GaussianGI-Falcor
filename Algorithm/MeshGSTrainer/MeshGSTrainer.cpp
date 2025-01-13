@@ -16,6 +16,7 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 
     // Compute Passes
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain");
+    mpLossPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Loss.cs.slang", "csMain");
     mpBackwardCmdPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardCmd.cs.slang", "csMain");
     mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain");
 
@@ -139,6 +140,19 @@ void MeshGSTrainer<TrainType_V>::forward(
             0
         );
     }
+}
+
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainer<TrainType_V>::loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
+{
+    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::loss");
+
+    auto [prog, var] = getShaderProgVar(mpLossPass);
+    var["gResolution"] = uint2(mDesc.resolution);
+    resource.splatRT.bindShaderData(var["gSplatRT"]);
+    resource.meshRT.bindShaderData(var["gMeshRT"]);
+    resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
+    mpLossPass->execute(pRenderContext, mDesc.resolution.x, mDesc.resolution.y, 1);
 }
 
 template<MeshGSTrainType TrainType_V>

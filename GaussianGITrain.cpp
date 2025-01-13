@@ -65,15 +65,19 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
 
     auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
     mTrainer.forward(pRenderContext, trainCamera, mTrainResource, mSorter, mSortResource);
-    mTrainer.backward(pRenderContext, trainCamera, mTrainResource);
     if (mpMesh)
         MeshGSTrainer<MeshGSTrainType::kDepth>::generateData(
             pRenderContext, GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh}, trainCamera, mTrainResource
         );
+    mTrainer.loss(pRenderContext, mTrainResource);
+    mTrainer.backward(pRenderContext, trainCamera, mTrainResource);
+
     if (mConfig.drawMeshData)
         pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
         pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+
+    // pRenderContext->blit(mTrainResource.splatDLossTex.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
