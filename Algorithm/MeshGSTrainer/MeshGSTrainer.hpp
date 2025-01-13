@@ -242,7 +242,7 @@ public:
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const;
     void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
-    void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource);
+    void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource) const;
 
     static void generateData(
         RenderContext* pRenderContext,

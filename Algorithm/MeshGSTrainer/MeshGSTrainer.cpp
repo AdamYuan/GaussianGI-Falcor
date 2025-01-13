@@ -160,7 +160,7 @@ void MeshGSTrainer<TrainType_V>::backward(
     RenderContext* pRenderContext,
     const MeshGSTrainCamera& camera,
     const MeshGSTrainResource<TrainType_V>& resource
-)
+) const
 {
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
