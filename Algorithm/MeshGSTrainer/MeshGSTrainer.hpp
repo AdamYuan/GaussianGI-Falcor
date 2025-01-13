@@ -29,7 +29,7 @@ struct MeshGSTrainDesc
 
 struct MeshGSTrainState
 {
-    uint iteration;
+    uint iteration, batch;
 };
 
 struct MeshGSTrainSplat
@@ -226,6 +226,38 @@ private:
     ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass, mpLossPass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
+    void iterate(
+        MeshGSTrainState& state,
+        RenderContext* pRenderContext,
+        const MeshGSTrainResource<TrainType_V>& resource,
+        const MeshGSTrainCamera& camera,
+        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+    ) const;
+
+    void reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void forward(
+        RenderContext* pRenderContext,
+        const MeshGSTrainResource<TrainType_V>& resource,
+        const MeshGSTrainCamera& camera,
+        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+    ) const;
+    void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void backward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource, const MeshGSTrainCamera& camera) const;
+    void optimize(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    static void generateData(
+        RenderContext* pRenderContext,
+        const MeshGSTrainResource<TrainType_V>& resource,
+        const MeshGSTrainCamera& camera,
+        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset
+    )
+    {
+        FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::genData");
+        resource.meshRT.clearRtv(pRenderContext);
+        dataset.generate(pRenderContext, resource.meshRT, camera);
+    }
+
 public:
     MeshGSTrainer() = default;
     MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc);
@@ -233,27 +265,18 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
-    void reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
-    void forward(
+    void iterate(
+        MeshGSTrainState& state,
         RenderContext* pRenderContext,
-        const MeshGSTrainCamera& camera,
         const MeshGSTrainResource<TrainType_V>& resource,
+        const MeshGSTrainCamera& camera,
+        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
         const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
-    ) const;
-    void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
-    void backward(RenderContext* pRenderContext, const MeshGSTrainCamera& camera, const MeshGSTrainResource<TrainType_V>& resource) const;
-
-    static void generateData(
-        RenderContext* pRenderContext,
-        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
-        const MeshGSTrainCamera& camera,
-        const MeshGSTrainResource<TrainType_V>& resource
-    )
+    ) const
     {
-        FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::genData");
-        resource.meshRT.clearRtv(pRenderContext);
-        dataset.generate(pRenderContext, resource.meshRT, camera);
+        generateData(pRenderContext, resource, camera, dataset);
+        iterate(state, pRenderContext, resource, camera, sorter, sortResource);
     }
 };
 

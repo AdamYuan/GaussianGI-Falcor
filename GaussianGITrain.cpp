@@ -63,14 +63,19 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     mpCameraController->update();
     mpCamera->beginFrame();
 
-    auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
-    mTrainer.forward(pRenderContext, trainCamera, mTrainResource, mSorter, mSortResource);
     if (mpMesh)
-        MeshGSTrainer<MeshGSTrainType::kDepth>::generateData(
-            pRenderContext, GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh}, trainCamera, mTrainResource
+    {
+        auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
+        mTrainer.iterate(
+            mTrainState,
+            pRenderContext,
+            mTrainResource,
+            trainCamera,
+            GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh},
+            mSorter,
+            mSortResource
         );
-    mTrainer.loss(pRenderContext, mTrainResource);
-    mTrainer.backward(pRenderContext, trainCamera, mTrainResource);
+    }
 
     if (mConfig.drawMeshData)
         pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
@@ -123,6 +128,7 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                         kMaxSplatCount
                     )
                 );
+                mTrainState = {}; // Reset train state
             }
     }
     if (mpMesh)
@@ -134,6 +140,9 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
         mpCamera->renderUI(g);
 
     w.checkbox("Draw Mesh", mConfig.drawMeshData);
+
+    w.text(fmt::format("Iteration: {}", mTrainState.iteration));
+    w.text(fmt::format("Batch: {}", mTrainState.batch));
 }
 
 bool GaussianGITrain::onKeyEvent(const KeyboardEvent& keyEvent)

@@ -43,6 +43,7 @@ private:
 
     MeshGSTrainer<MeshGSTrainType::kDepth> mTrainer;
     MeshGSTrainResource<MeshGSTrainType::kDepth> mTrainResource;
+    MeshGSTrainState mTrainState{};
 
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSorter;
     DeviceSortResource<DeviceSortDispatchType::kIndirect> mSortResource;

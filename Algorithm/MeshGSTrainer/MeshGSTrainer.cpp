@@ -12,6 +12,8 @@ namespace GSGI
 template<MeshGSTrainType TrainType_V>
 MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc) : mDesc{desc}
 {
+    mDesc.batchSize = math::max(mDesc.batchSize, 1u);
+
     auto pPointVao = Vao::create(Vao::Topology::PointList);
 
     // Compute Passes
@@ -71,6 +73,30 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 }
 
 template<MeshGSTrainType TrainType_V>
+void MeshGSTrainer<TrainType_V>::iterate(
+    MeshGSTrainState& state,
+    RenderContext* pRenderContext,
+    const MeshGSTrainResource<TrainType_V>& resource,
+    const MeshGSTrainCamera& camera,
+    const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+    const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+) const
+{
+    if (state.iteration == 0)
+        reset(pRenderContext, resource);
+
+    forward(pRenderContext, resource, camera, sorter, sortResource);
+    loss(pRenderContext, resource);
+    backward(pRenderContext, resource, camera);
+
+    if ((++state.iteration) % mDesc.batchSize == 0)
+    {
+        optimize(pRenderContext, resource);
+        ++state.batch;
+    }
+}
+
+template<MeshGSTrainType TrainType_V>
 void MeshGSTrainer<TrainType_V>::reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
 {
     resource.splatDLossBuf.clearUAV(pRenderContext);
@@ -81,8 +107,8 @@ void MeshGSTrainer<TrainType_V>::reset(RenderContext* pRenderContext, const Mesh
 template<MeshGSTrainType TrainType_V>
 void MeshGSTrainer<TrainType_V>::forward(
     RenderContext* pRenderContext,
-    const MeshGSTrainCamera& camera,
     const MeshGSTrainResource<TrainType_V>& resource,
+    const MeshGSTrainCamera& camera,
     const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
     const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
 ) const
@@ -158,8 +184,8 @@ void MeshGSTrainer<TrainType_V>::loss(RenderContext* pRenderContext, const MeshG
 template<MeshGSTrainType TrainType_V>
 void MeshGSTrainer<TrainType_V>::backward(
     RenderContext* pRenderContext,
-    const MeshGSTrainCamera& camera,
-    const MeshGSTrainResource<TrainType_V>& resource
+    const MeshGSTrainResource<TrainType_V>& resource,
+    const MeshGSTrainCamera& camera
 ) const
 {
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
@@ -210,6 +236,10 @@ void MeshGSTrainer<TrainType_V>::backward(
         mpBackwardViewPass->executeIndirect(pRenderContext, resource.pSplatViewDispatchArgBuffer.get());
     }
 }
+
+template<MeshGSTrainType TrainType_V>
+void MeshGSTrainer<TrainType_V>::optimize(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
+{}
 
 template struct MeshGSTrainer<MeshGSTrainType::kDepth>;
 
