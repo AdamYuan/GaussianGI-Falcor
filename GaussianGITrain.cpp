@@ -164,6 +164,7 @@ int runMain(int argc, char** argv)
     config.windowDesc.height = 720;
     config.deviceDesc.type = Device::Vulkan;
     config.generateShaderDebugInfo = true;
+    config.shaderPreciseFloat = true;
 
     GSGI::GaussianGITrain project(config);
     return project.run();

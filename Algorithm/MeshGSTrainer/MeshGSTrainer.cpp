@@ -16,6 +16,8 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
 
     // Compute Passes
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain");
+    mpBackwardCmdPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardCmd.cs.slang", "csMain");
+    mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain");
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
@@ -149,7 +151,7 @@ void MeshGSTrainer<TrainType_V>::backward(
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        resource.splatTmpTex.clearRsMs(pRenderContext);
+        resource.splatTmpTex.clearUAVRsMs(pRenderContext);
 
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
@@ -169,6 +171,29 @@ void MeshGSTrainer<TrainType_V>::backward(
             nullptr,
             0
         );
+    }
+    {
+        FALCOR_PROFILE(pRenderContext, "cmd");
+
+        auto [prog, var] = getShaderProgVar(mpBackwardCmdPass);
+        var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
+        var["gSplatViewDispatchArgs"] = resource.pSplatViewDispatchArgBuffer;
+        mpBackwardCmdPass->execute(pRenderContext, 1, 1, 1);
+    }
+    {
+        FALCOR_PROFILE(pRenderContext, "view");
+
+        auto [prog, var] = getShaderProgVar(mpBackwardViewPass);
+        camera.bindShaderData(var["gCamera"]);
+        var["gResolution"] = float2(mDesc.resolution);
+
+        var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
+        resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
+        resource.splatBuf.bindShaderData(var["gSplats"]);
+        resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
+        var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
+
+        mpBackwardViewPass->executeIndirect(pRenderContext, resource.pSplatViewDispatchArgBuffer.get());
     }
 }
 

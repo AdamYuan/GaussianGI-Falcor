@@ -103,7 +103,7 @@ struct MeshGSTrainSplatTex
     static MeshGSTrainSplatTex create(const ref<Device>& pDevice, uint2 resolution);
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
-    void clearRsMs(RenderContext* pRenderContext) const;
+    void clearUAVRsMs(RenderContext* pRenderContext) const;
 };
 
 template<MeshGSTrainType TrainType_V>

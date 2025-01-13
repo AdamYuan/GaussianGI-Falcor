@@ -91,11 +91,9 @@ void psMain(PSIn pIn)
     SplatView dL_dsplatView;
     dL_dsplatView.channel = alpha * Ti * dL_dC;       // \dfrac{dL}{dc_i}
     float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
-    {
-        var p = diffPair(pIn.splatView.geom);
-        bwd_diff(getAlpha)(p, pIn.clipPos.xy, gResolution, dL_dalpha);
-        dL_dsplatView.geom = p.d;
-    }
+    var dp = diffPair(pIn.splatView.geom);
+    bwd_diff(getAlpha)(dp, pIn.clipPos.xy, gResolution, dL_dalpha);
+    dL_dsplatView.geom = dp.d;
     if (shouldDiscard)
         dL_dsplatView = (SplatView)0;
 

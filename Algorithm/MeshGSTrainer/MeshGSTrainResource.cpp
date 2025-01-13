@@ -6,7 +6,6 @@
 
 #include <ranges>
 #include "../../Util/TextureUtil.hpp"
-#include "MeshGSTrainer.slangh"
 
 namespace GSGI
 {
@@ -268,7 +267,7 @@ bool MeshGSTrainSplatTex<TrainType_V>::isCapable(uint2 resolution) const
     return isTextureCapable(resolution, pTexture);
 }
 template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatTex<TrainType_V>::clearRsMs(RenderContext* pRenderContext) const
+void MeshGSTrainSplatTex<TrainType_V>::clearUAVRsMs(RenderContext* pRenderContext) const
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
         pRenderContext->clearTexture(pTexture.get(), float4{0.0f, 1.0f, 0.0f, 0.0f});

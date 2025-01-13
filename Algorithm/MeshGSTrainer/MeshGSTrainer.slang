@@ -1,6 +1,6 @@
 import GaussianGI.Algorithm.GS3D;
 
-#include "MeshGSTrainer.slangh"
+// #include "MeshGSTrainer.slangh"
 #include "Utils/Math/MathConstants.slangh"
 
 namespace MeshGSTrainer
@@ -48,6 +48,18 @@ namespace MeshGSTrainer
         RWStructuredBuffer<float4> rotates;
         RWStructuredBuffer<float4> means_scaleXs;
         RWStructuredBuffer<float2> scaleYZs;
+
+        public Splat load(uint splatID)
+        {
+            Splat splat;
+            float4 mean_scaleX = means_scaleXs[splatID];
+            float2 scaleYZ = scaleYZs[splatID];
+            float4 rotate = rotates[splatID];
+            splat.mean = mean_scaleX.xyz;
+            splat.scale = float3(mean_scaleX.w, scaleYZ);
+            splat.rotate = rotate;
+            return splat;
+        }
 
         public void store(uint splatID, in const Splat splat)
         {
@@ -161,6 +173,17 @@ namespace MeshGSTrainer
         RWStructuredBuffer<float4> conics_depths;
         RWStructuredBuffer<float2> clipMeans;
 
+        public SplatView load(uint splatViewID)
+        {
+            float4 conic_depth = conics_depths[splatViewID];
+            float2 clipMean = clipMeans[splatViewID];
+            SplatView splatView;
+            splatView.geom.clipMean = clipMean;
+            splatView.channel.depth = conic_depth.w;
+            splatView.geom.conic = conic_depth.xyz;
+            return splatView;
+        }
+
         public void store(uint splatViewID, in const SplatView splatView)
         {
             conics_depths[splatViewID] = float4(splatView.geom.conic, splatView.channel.depth);
@@ -244,6 +267,13 @@ namespace MeshGSTrainer
         }
     };
 
+    public struct RWSplatTexture
+    {
+        RWTexture2D<float2> depths_Ts;
+
+        public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
+    };
+
     public struct CoherentRasterizerOrderedSplatTexture
     {
         globallycoherent RasterizerOrderedTexture2D<float2> depths_Ts;
@@ -307,8 +337,16 @@ namespace MeshGSTrainer
         float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
-        float2x2 screenAxis;
-        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
+
+        float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, splat.scale);
+        float3 cov2d = GS3D::getCovariance2D(cov3d, viewPos, float3x3(camViewMat), camProjMat, screenResolution);
+        SplatView splatView;
+        splatView.geom.clipMean = clipPos.xy;
+        splatView.geom.conic = GS3D::getConic(cov2d);
+        splatView.channel.depth = viewZ2Depth(viewPos.z, camNearZ, camFarZ);
+
+        return splatView;
+        // return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
     }
 
     public float2x2 getDeltaClip(float2x2 screenAxis, float2 screenResolution)
