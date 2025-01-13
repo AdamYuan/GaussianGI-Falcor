@@ -24,7 +24,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     Splat splat = gSplats.load(splatID);
 
     var dp = diffPair(splat);
-    /* bwd_diff(splat2splatView)(
+    bwd_diff(splat2splatView)(
         dp, //
         gCamera.viewMat,
         gCamera.projMat,
@@ -32,8 +32,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         gCamera.farZ,
         gResolution,
         dL_dsplatView
-    ); */
-    // Fuck slang, this will crash the compiler
+    );
 
     Splat dL_dsplat = dp.d;
     gDLossDSplats.store(splatID, dL_dsplat);

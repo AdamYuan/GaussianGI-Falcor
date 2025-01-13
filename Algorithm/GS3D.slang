@@ -28,7 +28,7 @@ public namespace GS3D
         float3x3 rotMat = mul(modelRotateMat, splatRotMat);
         float3x3 rotScaleMat = mul(rotMat, scaleMat);
         float3x3 sigma = mul(rotScaleMat, transpose(rotScaleMat));
-        return float2x3(float3(sigma._m00, sigma._m01, sigma._m02), float3(sigma._m11, sigma._m12, sigma._m22));
+        return float2x3(float3(sigma[0][0], sigma[0][1], sigma[0][2]), float3(sigma[1][1], sigma[1][2], sigma[2][2]));
     }
 
     [Differentiable]
@@ -41,8 +41,8 @@ public namespace GS3D
     )
     {
         // focal = 0.5 * h / tan(fov * 0.5),
-        // projMatrix._m00 = h / (w * tan(fov * 0.5))
-        float focal = screenResolution.x * camProjMat._m00 * 0.5;
+        // projMatrix[0][0] = h / (w * tan(fov * 0.5))
+        float focal = screenResolution.x * camProjMat[0][0] * 0.5;
         float3x3 J = float3x3(
             float3(focal / viewPos.z, 0, -(focal * viewPos.x) / (viewPos.z * viewPos.z)),
             float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),
@@ -56,7 +56,7 @@ public namespace GS3D
             float3(cov3d[0].z, cov3d[1].y, cov3d[1].z)
         );
         float3x3 cov = mul(T, mul(V, transpose(T)));
-        return float3(cov._m00, cov._m01, cov._m11);
+        return float3(cov[0][0], cov[0][1], cov[1][1]);
     }
 
     [Differentiable]
