@@ -8,6 +8,7 @@
 #include <Falcor.h>
 #include <Core/Pass/RasterPass.h>
 #include "../DeviceSort/DeviceSorter.hpp"
+#include "../../Util/SOABufferUtil.hpp"
 
 using namespace Falcor;
 
@@ -35,8 +36,8 @@ struct MeshGSTrainState
 struct MeshGSTrainSplat
 {
     quatf rotate;
-    float3 scale;
-    float3 mean;
+    float3 mean{};
+    float3 scale{};
 };
 
 struct MeshGSTrainCamera
@@ -107,63 +108,6 @@ struct MeshGSTrainSplatTex
 };
 
 template<MeshGSTrainType TrainType_V>
-struct MeshGSTrainSplatBuf
-{
-    static constexpr uint kBufferCount = TrainType_V == MeshGSTrainType::kDepth ? 3 : 4;
-    std::array<ref<Buffer>, kBufferCount> pBuffers;
-
-    struct InitData
-    {
-        uint bufferSplatCount;
-        std::array<std::vector<float>, kBufferCount> buffers;
-
-        const void* getData(uint idx, uint splatCount) const
-        {
-            if (buffers[idx].empty())
-                return nullptr;
-            else
-            {
-                FALCOR_CHECK(splatCount <= bufferSplatCount, "Read exceed buffer size");
-                return buffers[idx].data();
-            }
-        }
-        static InitData create(std::ranges::input_range auto&& splats, uint splatCount)
-        {
-            InitData initData{.bufferSplatCount = splatCount};
-            if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-            {
-                // MeshGSTrainType::kDepth
-                // Quat(4) + Mean(3) + Scale(3) = 4 + 4 + 2
-                initData.buffers[0].resize(4 * splatCount);
-                initData.buffers[1].resize(4 * splatCount);
-                initData.buffers[2].resize(2 * splatCount);
-                auto pRotates = reinterpret_cast<float4*>(initData.buffers[0].data());
-                auto pMeans_ScaleXs = reinterpret_cast<float4*>(initData.buffers[1].data());
-                auto pScaleYZs = reinterpret_cast<float2*>(initData.buffers[2].data());
-
-                for (uint idx = 0; const auto& splat : splats)
-                {
-                    if (idx >= splatCount)
-                        break;
-                    pRotates[idx] = float4(splat.rotate.x, splat.rotate.y, splat.rotate.z, splat.rotate.w);
-                    pMeans_ScaleXs[idx] = float4(splat.mean.x, splat.mean.y, splat.mean.z, splat.scale.x);
-                    pScaleYZs[idx] = float2(splat.scale.y, splat.scale.z);
-                    ++idx;
-                }
-            }
-            else
-                FALCOR_CHECK(false, "Unimplemented");
-            return initData;
-        }
-    };
-
-    static MeshGSTrainSplatBuf create(const ref<Device>& pDevice, uint splatCount, const InitData& initData = {});
-    void bindShaderData(const ShaderVar& var) const;
-    bool isCapable(uint splatCount) const;
-    void clearUAV(RenderContext* pRenderContext) const;
-};
-
-template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainSplatAdamBuf
 {
     static constexpr uint kBufferCount = TrainType_V == MeshGSTrainType::kDepth ? 5 : 7;
@@ -193,10 +137,9 @@ struct MeshGSTrainResource
     MeshGSTrainSplatRT<TrainType_V> splatRT;
     MeshGSTrainMeshRT<TrainType_V> meshRT;
     MeshGSTrainSplatTex<TrainType_V> splatDLossTex, splatTmpTex;
-    MeshGSTrainSplatBuf<TrainType_V> splatBuf, splatDLossBuf;
+    SOABuffer splatBuf, splatDLossBuf;
     MeshGSTrainSplatAdamBuf<TrainType_V> splatAdamBuf;
     MeshGSTrainSplatViewBuf<TrainType_V> splatViewBuf, splatViewDLossBuf;
-    // DeviceSortResource<DeviceSortDispatchType::kIndirect> sortResource;
     ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
     ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
@@ -204,16 +147,17 @@ struct MeshGSTrainResource
         const ref<Device>& pDevice,
         uint splatCount,
         uint2 resolution,
-        const typename MeshGSTrainSplatBuf<TrainType_V>::InitData& splatInitData = {}
+        std::span<const MeshGSTrainSplat> splats = {}
     );
     static MeshGSTrainResource create(
         const ref<Device>& pDevice,
         const MeshGSTrainDesc& desc,
-        const typename MeshGSTrainSplatBuf<TrainType_V>::InitData& splatInitData = {}
+        std::span<const MeshGSTrainSplat> splats = {}
     )
     {
-        return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
+        return create(pDevice, desc.maxSplatCount, desc.resolution, splats);
     }
+    static SOABuffer createSplatBuffer(const ref<Device>& pDevice, uint splatCount, std::span<const MeshGSTrainSplat> splats = {});
     bool isCapable(uint splatCount, uint2 resolution) const;
     bool isCapable(const MeshGSTrainDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
 };

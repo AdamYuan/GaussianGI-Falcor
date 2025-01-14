@@ -1,10 +1,26 @@
 import GaussianGI.Algorithm.GS3D;
+import GaussianGI.Util.SOABufferUtil;
 
-// #include "MeshGSTrainer.slangh"
+#include "MeshGSTrainer.slangh"
 #include "Utils/Math/MathConstants.slangh"
+
+#define SPLAT_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_FLT_COUNT
+#define SPLAT_VIEW_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_VIEW_FLT_COUNT
+#define SPLAT_ADAM_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_ADAM_FLT_COUNT
 
 namespace MeshGSTrainer
 {
+    typealias SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
+
+    typealias SplatSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_FLT_COUNT>;
+    public typealias FlatSplat = SOATuple<SplatSOATrait>;
+    public typealias SplatBuffer = SOABuffer<SplatSOATrait>;
+    public typealias RWSplatBuffer = RWSOABuffer<SplatSOATrait>;
+
+    typealias SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_VIEW_FLT_COUNT>;
+
+    typealias SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_ADAM_FLT_COUNT>;
+
     public const static float kOpacity = 0.975;                   // O
     public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
     public const static float kQuadPosBound = 2.3486050619834185; // Q
@@ -17,14 +33,24 @@ namespace MeshGSTrainer
         public float nearZ, farZ;
     };
 
-    public struct Splat : IDifferentiable
+    public struct Splat : IDifferentiable, ISOAElement<SplatSOATrait>
     {
+        public float4 rotate;
         public float3 mean;
         public float3 scale;
-        public float4 rotate;
+
+        public FlatSplat toSOA() { return FlatSplat( { rotate, float4(mean, scale.x) }, scale.yz); }
+        public static Splat fromSOA(FlatSplat soa)
+        {
+            Splat splat;
+            splat.rotate = soa.units[0];
+            splat.mean = soa.units[1].xyz;
+            splat.scale = float3(soa.units[1].w, soa.ext);
+            return splat;
+        }
     };
 
-    public struct SplatBuffer
+    /* public struct SplatBuffer
     {
         StructuredBuffer<float4> rotates;
         StructuredBuffer<float4> means_scaleXs;
@@ -67,15 +93,24 @@ namespace MeshGSTrainer
             means_scaleXs[splatID] = float4(splat.mean, splat.scale.x);
             scaleYZs[splatID] = splat.scale.yz;
         }
-    };
+    }; */
+
+    public struct SplatAdam
+    {
+        public Splat m, v;
+    }
 
     public struct RWSplatAdamBuffer
     {
-        RWStructuredBuffer<float4> rotateMs;
-        RWStructuredBuffer<float4> meanMs_scaleXMs;
-        RWStructuredBuffer<float4> scaleYZMs_scaleYZVs;
-        RWStructuredBuffer<float4> rotateVs;
-        RWStructuredBuffer<float4> meanVs_scaleXVs;
+        RWStructuredBuffer<float4> b4s[5];
+
+        public SplatAdam load(uint splatID)
+        {
+            float4 b4[5];
+            [ForceUnroll]
+            for (uint i = 0; i < 5; ++i)
+                b4[i] = b4s[i][splatID];
+        }
     };
 
     public struct SplatViewGeom : IDifferentiable
@@ -338,15 +373,8 @@ namespace MeshGSTrainer
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
 
-        float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, splat.scale);
-        float3 cov2d = GS3D::getCovariance2D(cov3d, viewPos, float3x3(camViewMat), camProjMat, screenResolution);
-        SplatView splatView;
-        splatView.geom.clipMean = clipPos.xy;
-        splatView.geom.conic = GS3D::getConic(cov2d);
-        splatView.channel.depth = viewZ2Depth(viewPos.z, camNearZ, camFarZ);
-
-        return splatView;
-        // return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
+        float2x2 screenAxis;
+        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat, camNearZ, camFarZ, screenResolution);
     }
 
     public float2x2 getDeltaClip(float2x2 screenAxis, float2 screenResolution)

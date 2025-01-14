@@ -21,7 +21,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     SplatView dL_dsplatView = gDLossDSplatViews.load(splatViewID);
     gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear splatView gradients
     uint splatID = gSplatViewSplatIDs[splatViewID];
-    Splat splat = gSplats.load(splatID);
+    var splat = gSplats.load<Splat>(splatID);
 
     var dp = diffPair(splat);
     bwd_diff(splat2splatView)(

@@ -91,45 +91,41 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
 
     if (w.button("Load Mesh"))
     {
-        if (std::filesystem::path filename; openFileDialog({}, filename))
-            if ((mpMesh = GMeshLoader::load(getDevice(), filename)))
+        if (std::filesystem::path filename; openFileDialog({}, filename) && ((mpMesh = GMeshLoader::load(getDevice(), filename))))
+        {
+            mTrainState = {}; // Reset train state
+
+            auto view = GMeshView{mpMesh};
+            auto sampleResult = MeshSample::sample(
+                view,
+                [sobolEngine = boost::random::sobol_engine<uint32_t, 32>{4}] mutable
+                {
+                    uint2 u2;
+                    float2 f2;
+                    u2.x = sobolEngine();
+                    u2.y = sobolEngine();
+                    f2.x = float(sobolEngine()) / 4294967296.0f;
+                    f2.y = float(sobolEngine()) / 4294967296.0f;
+                    return std::tuple{u2, f2};
+                },
+                kMaxSplatCount
+            );
+            float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
+            std::vector<MeshGSTrainSplat> splats;
+            splats.reserve(kMaxSplatCount);
+            for (auto& meshPoint : sampleResult.points)
             {
-                auto view = GMeshView{mpMesh};
-                auto sampleResult = MeshSample::sample(
-                    view,
-                    [sobolEngine = boost::random::sobol_engine<uint32_t, 32>{4}] mutable
-                    {
-                        uint2 u2;
-                        float2 f2;
-                        u2.x = sobolEngine();
-                        u2.y = sobolEngine();
-                        f2.x = float(sobolEngine()) / 4294967296.0f;
-                        f2.y = float(sobolEngine()) / 4294967296.0f;
-                        return std::tuple{u2, f2};
-                    },
-                    kMaxSplatCount
+                auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
+                splats.push_back(
+                    MeshGSTrainSplat{
+                        .rotate = optimizeResult.rotate,
+                        .mean = meshPoint.getPosition(view),
+                        .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
+                    }
                 );
-                float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
-                mTrainResource.splatBuf = MeshGSTrainSplatBuf<MeshGSTrainType::kDepth>::create(
-                    getDevice(),
-                    kMaxSplatCount,
-                    MeshGSTrainSplatBuf<MeshGSTrainType::kDepth>::InitData::create(
-                        sampleResult.points | std::views::transform(
-                                                  [&](const MeshPoint& meshPoint) -> MeshGSTrainSplat
-                                                  {
-                                                      auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
-                                                      return MeshGSTrainSplat{
-                                                          .rotate = optimizeResult.rotate,
-                                                          .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                                                          .mean = meshPoint.getPosition(view),
-                                                      };
-                                                  }
-                                              ),
-                        kMaxSplatCount
-                    )
-                );
-                mTrainState = {}; // Reset train state
             }
+            mTrainResource.splatBuf = MeshGSTrainResource<MeshGSTrainType::kDepth>::createSplatBuffer(getDevice(), kMaxSplatCount, splats);
+        }
     }
     if (mpMesh)
     {

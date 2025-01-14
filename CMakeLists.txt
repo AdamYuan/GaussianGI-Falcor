@@ -11,6 +11,8 @@ target_sources(GaussianGI PRIVATE
         Util/TextureUtil.hpp
         Util/EnumUtil.hpp
         Util/SerializeUtil.hpp
+        Util/SOABufferUtil.hpp
+        Util/SOABufferUtil.slang
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp
@@ -149,6 +151,8 @@ target_sources(GaussianGITrain PRIVATE
 
         Util/DeviceUtil.hpp
         Util/DeviceUtil.cpp
+        Util/SOABufferUtil.hpp
+        Util/SOABufferUtil.slang
 
         Scene/GMesh.hpp
         Scene/GMesh.cpp

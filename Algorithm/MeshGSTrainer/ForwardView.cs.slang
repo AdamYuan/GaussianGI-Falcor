@@ -32,7 +32,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (splatID >= gSplatCount)
         return;
 
-    Splat splat = gSplats.load(splatID);
+    var splat = gSplats.load<Splat>(splatID);
 
     float3 viewPos = mul(gCamera.viewMat, float4(splat.mean, 1)).xyz;
     float4 clipPos = mul(gCamera.projMat, float4(viewPos, 1));
