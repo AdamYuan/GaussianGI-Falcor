@@ -297,8 +297,8 @@ namespace MeshGSTrainer
     [Differentiable]
     public float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
     {
-        // Use inversed viewZ as depth
-        return camNearZ / -viewZ;
+        viewZ = -viewZ; // make viewZ positive
+        return camNearZ / viewZ + 0.02;
     }
 
     [Differentiable]

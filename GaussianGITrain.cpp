@@ -38,10 +38,10 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     MeshGSTrainDesc trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
-        .batchSize = 16,
+        .batchSize = 4,
         .adamBeta1 = 0.9f,
         .adamBeta2 = 0.999f,
-        .adamLearnRate = 0.002f,
+        .adamLearnRate = 0.0005f,
         .adamEpsilon = 1e-8f
     };
     mTrainResource = MeshGSTrainResource<MeshGSTrainType::kDepth>::create(getDevice(), trainDesc);
