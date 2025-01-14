@@ -23,7 +23,7 @@ uint vsMain(uint instanceID: SV_InstanceID)
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
-    SplatView splatView = gSplatViews.load(splatViewID);
+    var splatView = gSplatViews.load<SplatView>(splatViewID);
     float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
 
     float2 clip = splatView.geom.clipMean;

@@ -64,6 +64,17 @@ public interface ISOAElement<Trait_T : ISOATrait>
 
 public struct SOATuple<Trait_T : ISOATrait> : ISOAElement<Trait_T>
 {
+    public static const uint kWordsPerUnit = Trait_T::kWordsPerUnit;
+    public static const uint kWordsPerElem = Trait_T::kWordsPerElem;
+    public static const uint kUnitsPerElem = Trait_T::kUnitsPerElem;
+    public static const uint kWordsPerExt = Trait_T::kWordsPerExt;
+    public static const uint kPaddedWordsPerExt = Trait_T::kPaddedWordsPerExt;
+    public typealias Word = Trait_T::Word;
+    public typealias Unit = Trait_T::Unit;
+    public typealias Ext = Trait_T::Ext;
+    public typealias PaddedExt = Trait_T::PaddedExt;
+    public typealias Trait = Trait_T;
+
     public Trait_T::Unit units[Trait_T::kUnitsPerElem];
     public Trait_T::Ext ext;
 
@@ -73,6 +84,17 @@ public struct SOATuple<Trait_T : ISOATrait> : ISOAElement<Trait_T>
 
 public struct SOABuffer<Trait_T : ISOATrait>
 {
+    public static const uint kWordsPerUnit = Trait_T::kWordsPerUnit;
+    public static const uint kWordsPerElem = Trait_T::kWordsPerElem;
+    public static const uint kUnitsPerElem = Trait_T::kUnitsPerElem;
+    public static const uint kWordsPerExt = Trait_T::kWordsPerExt;
+    public static const uint kPaddedWordsPerExt = Trait_T::kPaddedWordsPerExt;
+    public typealias Word = Trait_T::Word;
+    public typealias Unit = Trait_T::Unit;
+    public typealias Ext = Trait_T::Ext;
+    public typealias PaddedExt = Trait_T::PaddedExt;
+    public typealias Trait = Trait_T;
+
     public StructuredBuffer<Trait_T::Unit> unitBufs[Trait_T::kUnitsPerElem];
     public StructuredBuffer<Trait_T::PaddedExt> extBuf;
 
@@ -89,6 +111,17 @@ public struct SOABuffer<Trait_T : ISOATrait>
 
 public struct RWSOABuffer<Trait_T : ISOATrait>
 {
+    public static const uint kWordsPerUnit = Trait_T::kWordsPerUnit;
+    public static const uint kWordsPerElem = Trait_T::kWordsPerElem;
+    public static const uint kUnitsPerElem = Trait_T::kUnitsPerElem;
+    public static const uint kWordsPerExt = Trait_T::kWordsPerExt;
+    public static const uint kPaddedWordsPerExt = Trait_T::kPaddedWordsPerExt;
+    public typealias Word = Trait_T::Word;
+    public typealias Unit = Trait_T::Unit;
+    public typealias Ext = Trait_T::Ext;
+    public typealias PaddedExt = Trait_T::PaddedExt;
+    public typealias Trait = Trait_T;
+
     public RWStructuredBuffer<Trait_T::Unit> unitBufs[Trait_T::kUnitsPerElem];
     public RWStructuredBuffer<Trait_T::PaddedExt> extBuf;
 
@@ -112,3 +145,43 @@ public struct RWSOABuffer<Trait_T : ISOATrait>
     }
 };
 
+/* public extension<Word_T : __BuiltinArithmeticType, let WordsPerUnit_V : uint, let WordsPerElem_V : uint>
+    SOATuple<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
+{
+    public static This add(This l, This r)
+    {
+        This t;
+        [ForceUnroll]
+        for (uint i = 0; i < Trait::kUnitsPerElem; ++i)
+            t.units[i] = l.units[i] + r.units[i];
+        t.ext = l.ext + r.ext;
+        return t;
+    }
+    public static This sub(This l, This r)
+    {
+        This t;
+        [ForceUnroll]
+        for (uint i = 0; i < Trait::kUnitsPerElem; ++i)
+            t.units[i] = l.units[i] - r.units[i];
+        t.ext = l.ext - r.ext;
+        return t;
+    }
+    public static This mul(This l, This r)
+    {
+        This t;
+        [ForceUnroll]
+        for (uint i = 0; i < Trait::kUnitsPerElem; ++i)
+            t.units[i] = l.units[i] * r.units[i];
+        t.ext = l.ext * r.ext;
+        return t;
+    }
+    public static This mul(Word_T l, This r)
+    {
+        This t;
+        [ForceUnroll]
+        for (uint i = 0; i < Trait::kUnitsPerElem; ++i)
+            t.units[i] = l * r.units[i];
+        t.ext = l * r.ext;
+        return t;
+    }
+} */

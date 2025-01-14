@@ -58,14 +58,6 @@ ref<Buffer> createBuffer(const ref<Device>& pDevice, uint elementCount, Resource
 {
     return pDevice->createStructuredBuffer(StructSize_V, elementCount, bindFlags, MemoryType::DeviceLocal, pInitData, false);
 }
-template<uint32_t... StructSize_Vs>
-std::array<ref<Buffer>, sizeof...(StructSize_Vs)> createBuffers(const ref<Device>& pDevice, uint elementCount, ResourceBindFlags bindFlags)
-{
-    std::array<ref<Buffer>, sizeof...(StructSize_Vs)> pBuffers;
-    uint idx = 0;
-    ((pBuffers[idx++] = createBuffer<StructSize_Vs>(pDevice, elementCount, bindFlags)), ...);
-    return pBuffers;
-}
 bool isBufferCapable(uint elementCount)
 {
     return true;
@@ -82,17 +74,6 @@ bool isBufferCapable(uint elementCount, const std::array<ref<Buffer>, BufferCoun
                pBuffers, [=](const ref<Buffer>& pBuffer) { return pBuffer && pBuffer->getElementCount() >= elementCount; }
            ) &&
            isBufferCapable(elementCount, pOtherBuffers...);
-}
-
-void clearUAVBuffer(RenderContext* pRenderContext, const ref<Buffer>& pBuffer)
-{
-    pRenderContext->clearUAV(pBuffer->getUAV().get(), uint4{0});
-}
-template<std::size_t Count_V>
-void clearUAVBuffers(RenderContext* pRenderContext, const std::array<ref<Buffer>, Count_V>& pBuffers)
-{
-    for (const auto& pBuffer : pBuffers)
-        clearUAVBuffer(pRenderContext, pBuffer);
 }
 
 bool isResourceCapable(uint elementCount, uint2 resolution)
@@ -286,82 +267,6 @@ void MeshGSTrainSplatTex<TrainType_V>::clearUAVRsMs(RenderContext* pRenderContex
 }
 
 template<MeshGSTrainType TrainType_V>
-MeshGSTrainSplatAdamBuf<TrainType_V> MeshGSTrainSplatAdamBuf<TrainType_V>::create(const ref<Device>& pDevice, uint splatCount)
-{
-    MeshGSTrainSplatAdamBuf splatAdamBuf;
-    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-    {
-        // MeshGSTrainType::kDepth
-        // 2 * (Quat(4) + Mean(3) + Scale(3)) = 4 * 5
-        splatAdamBuf.pBuffers = createBuffers<sizeof(float4), sizeof(float4), sizeof(float4), sizeof(float4), sizeof(float4)>(
-            pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-        );
-    }
-    else
-        FALCOR_CHECK(false, "Unimplemented");
-    return splatAdamBuf;
-}
-template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatAdamBuf<TrainType_V>::bindShaderData(const ShaderVar& var) const
-{
-    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-    {
-        for (uint32_t i = 0; i < kBufferCount; ++i)
-            var["b4s"][i] = pBuffers[i];
-    }
-    else
-        FALCOR_CHECK(false, "Unimplemented");
-}
-template<MeshGSTrainType TrainType_V>
-bool MeshGSTrainSplatAdamBuf<TrainType_V>::isCapable(uint splatCount) const
-{
-    return isBufferCapable(splatCount, pBuffers);
-}
-template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatAdamBuf<TrainType_V>::clearUAV(RenderContext* pRenderContext) const
-{
-    clearUAVBuffers(pRenderContext, pBuffers);
-}
-
-template<MeshGSTrainType TrainType_V>
-MeshGSTrainSplatViewBuf<TrainType_V> MeshGSTrainSplatViewBuf<TrainType_V>::create(const ref<Device>& pDevice, uint splatViewCount)
-{
-    MeshGSTrainSplatViewBuf splatViewBuf;
-    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-    {
-        // MeshGSTrainType::kDepth
-        // clipMean(2) + depth(1) + conic(3) = 4 + 2
-        splatViewBuf.pBuffers = createBuffers<sizeof(float4), sizeof(float2)>(
-            pDevice, splatViewCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-        );
-    }
-    else
-        FALCOR_CHECK(false, "Unimplemented");
-    return splatViewBuf;
-}
-template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatViewBuf<TrainType_V>::bindShaderData(const ShaderVar& var) const
-{
-    if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-    {
-        var["conics_depths"] = pBuffers[0];
-        var["clipMeans"] = pBuffers[1];
-    }
-    else
-        FALCOR_CHECK(false, "Unimplemented");
-}
-template<MeshGSTrainType TrainType_V>
-bool MeshGSTrainSplatViewBuf<TrainType_V>::isCapable(uint splatViewCount) const
-{
-    return isBufferCapable(splatViewCount, pBuffers);
-}
-template<MeshGSTrainType TrainType_V>
-void MeshGSTrainSplatViewBuf<TrainType_V>::clearUAV(RenderContext* pRenderContext) const
-{
-    clearUAVBuffers(pRenderContext, pBuffers);
-}
-
-template<MeshGSTrainType TrainType_V>
 MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
     const ref<Device>& pDevice,
     uint splatCount,
@@ -388,12 +293,9 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         .splatTmpTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatBuf = createSplatBuffer(pDevice, splatCount, splatInitData),
         .splatDLossBuf = createSplatBuffer(pDevice, splatCount),
-        .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
-        .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
-        .splatViewDLossBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
-        /* .sortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(
-            pDevice, DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}), splatCount
-        ), */
+        .splatAdamBuf = createSplatAdamBuffer(pDevice, splatCount),
+        .splatViewBuf = createSplatViewBuffer(pDevice, splatCount),
+        .splatViewDLossBuf = createSplatViewBuffer(pDevice, splatCount),
         .pSplatViewSplatIDBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSortKeyBuffer =
@@ -427,6 +329,22 @@ SOABuffer<typename MeshGSTrainResource<TrainType_V>::SplatSOATrait> MeshGSTrainR
     return {pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource, splatInitData};
 }
 template<MeshGSTrainType TrainType_V>
+SOABuffer<typename MeshGSTrainResource<TrainType_V>::SplatAdamSOATrait> MeshGSTrainResource<TrainType_V>::createSplatAdamBuffer(
+    const ref<Device>& pDevice,
+    uint splatCount
+)
+{
+    return {pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource};
+}
+template<MeshGSTrainType TrainType_V>
+SOABuffer<typename MeshGSTrainResource<TrainType_V>::SplatViewSOATrait> MeshGSTrainResource<TrainType_V>::createSplatViewBuffer(
+    const ref<Device>& pDevice,
+    uint splatViewCount
+)
+{
+    return {pDevice, splatViewCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource};
+}
+template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resolution) const
 {
     return isResourceCapable(
@@ -452,8 +370,6 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
 template struct MeshGSTrainSplatRT<MeshGSTrainType::kDepth>;
 template struct MeshGSTrainMeshRT<MeshGSTrainType::kDepth>;
 template struct MeshGSTrainSplatTex<MeshGSTrainType::kDepth>;
-template struct MeshGSTrainSplatAdamBuf<MeshGSTrainType::kDepth>;
-template struct MeshGSTrainSplatViewBuf<MeshGSTrainType::kDepth>;
 template struct MeshGSTrainResource<MeshGSTrainType::kDepth>;
 
 } // namespace GSGI

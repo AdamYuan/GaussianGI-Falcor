@@ -32,7 +32,7 @@ uint vsMain(uint instanceID: SV_InstanceID)
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
-    SplatView splatView = gSplatViews.load(splatViewID);
+    var splatView = gSplatViews.load<SplatView>(splatViewID);
     float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
 
     float2 clip = splatView.geom.clipMean;
@@ -103,14 +103,14 @@ void psMain(PSIn pIn)
     {
         // Wave reduction
         callAtomicAdd = WaveIsFirstLane();
-        dL_dsplatView = dL_dsplatView.waveActiveSum();
+        dL_dsplatView = SplatView::fromSOA(dL_dsplatView.toSOA().waveActiveSum());
     }
     else
     {
         // Quad reduction
         uint waveLaneIdx = WaveGetLaneIndex();
         callAtomicAdd = waveLaneIdx == QuadReadLaneAt(waveLaneIdx, 0);
-        dL_dsplatView = dL_dsplatView.quadSum();
+        dL_dsplatView = SplatView::fromSOA(dL_dsplatView.toSOA().quadSum());
     }
 
     if (callAtomicAdd)

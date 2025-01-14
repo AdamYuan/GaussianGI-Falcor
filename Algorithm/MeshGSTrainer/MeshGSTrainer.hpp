@@ -109,30 +109,6 @@ struct MeshGSTrainSplatTex
 };
 
 template<MeshGSTrainType TrainType_V>
-struct MeshGSTrainSplatAdamBuf
-{
-    static constexpr uint kBufferCount = TrainType_V == MeshGSTrainType::kDepth ? 5 : 7;
-    std::array<ref<Buffer>, kBufferCount> pBuffers;
-
-    static MeshGSTrainSplatAdamBuf create(const ref<Device>& pDevice, uint splatCount);
-    void bindShaderData(const ShaderVar& var) const;
-    bool isCapable(uint splatCount) const;
-    void clearUAV(RenderContext* pRenderContext) const;
-};
-
-template<MeshGSTrainType TrainType_V>
-struct MeshGSTrainSplatViewBuf
-{
-    static constexpr uint kBufferCount = TrainType_V == MeshGSTrainType::kDepth ? 2 : 3;
-    std::array<ref<Buffer>, kBufferCount> pBuffers;
-
-    static MeshGSTrainSplatViewBuf create(const ref<Device>& pDevice, uint splatViewCount);
-    void bindShaderData(const ShaderVar& var) const;
-    bool isCapable(uint splatViewCount) const;
-    void clearUAV(RenderContext* pRenderContext) const;
-};
-
-template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainResource
 {
     using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
@@ -144,8 +120,8 @@ struct MeshGSTrainResource
     MeshGSTrainMeshRT<TrainType_V> meshRT;
     MeshGSTrainSplatTex<TrainType_V> splatDLossTex, splatTmpTex;
     SOABuffer<SplatSOATrait> splatBuf, splatDLossBuf;
-    MeshGSTrainSplatAdamBuf<TrainType_V> splatAdamBuf;
-    MeshGSTrainSplatViewBuf<TrainType_V> splatViewBuf, splatViewDLossBuf;
+    SOABuffer<SplatAdamSOATrait> splatAdamBuf;
+    SOABuffer<SplatViewSOATrait> splatViewBuf, splatViewDLossBuf;
     ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
     ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
@@ -168,6 +144,8 @@ struct MeshGSTrainResource
         uint splatCount,
         const SOABufferInitData<SplatSOATrait>& splatInitData = {}
     );
+    static SOABuffer<SplatAdamSOATrait> createSplatAdamBuffer(const ref<Device>& pDevice, uint splatCount);
+    static SOABuffer<SplatViewSOATrait> createSplatViewBuffer(const ref<Device>& pDevice, uint splatViewCount);
     bool isCapable(uint splatCount, uint2 resolution) const;
     bool isCapable(const MeshGSTrainDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
 };

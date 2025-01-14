@@ -18,7 +18,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     uint splatViewCount = gSplatViewDrawArgs[1], splatViewID = threadID.x;
     if (splatViewID >= splatViewCount)
         return;
-    SplatView dL_dsplatView = gDLossDSplatViews.load(splatViewID);
+    var dL_dsplatView = gDLossDSplatViews.load<SplatView>(splatViewID);
     gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear splatView gradients
     uint splatID = gSplatViewSplatIDs[splatViewID];
     var splat = gSplats.load<Splat>(splatID);

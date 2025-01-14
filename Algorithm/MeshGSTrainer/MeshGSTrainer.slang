@@ -18,8 +18,14 @@ namespace MeshGSTrainer
     public typealias RWSplatBuffer = RWSOABuffer<SplatSOATrait>;
 
     typealias SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_VIEW_FLT_COUNT>;
+    public typealias FlatSplatView = SOATuple<SplatViewSOATrait>;
+    public typealias SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
+    public typealias RWSplatViewBuffer = RWSOABuffer<SplatViewSOATrait>;
 
     typealias SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_ADAM_FLT_COUNT>;
+    public typealias FlatSplatAdam = SOATuple<SplatAdamSOATrait>;
+    public typealias SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
+    public typealias RWSplatAdamBuffer = RWSOABuffer<SplatAdamSOATrait>;
 
     public const static float kOpacity = 0.975;                   // O
     public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
@@ -50,68 +56,10 @@ namespace MeshGSTrainer
         }
     };
 
-    /* public struct SplatBuffer
-    {
-        StructuredBuffer<float4> rotates;
-        StructuredBuffer<float4> means_scaleXs;
-        StructuredBuffer<float2> scaleYZs;
-
-        public Splat load(uint splatID)
-        {
-            Splat splat;
-            float4 mean_scaleX = means_scaleXs[splatID];
-            float2 scaleYZ = scaleYZs[splatID];
-            float4 rotate = rotates[splatID];
-            splat.mean = mean_scaleX.xyz;
-            splat.scale = float3(mean_scaleX.w, scaleYZ);
-            splat.rotate = rotate;
-            return splat;
-        }
-    };
-
-    public struct RWSplatBuffer
-    {
-        RWStructuredBuffer<float4> rotates;
-        RWStructuredBuffer<float4> means_scaleXs;
-        RWStructuredBuffer<float2> scaleYZs;
-
-        public Splat load(uint splatID)
-        {
-            Splat splat;
-            float4 mean_scaleX = means_scaleXs[splatID];
-            float2 scaleYZ = scaleYZs[splatID];
-            float4 rotate = rotates[splatID];
-            splat.mean = mean_scaleX.xyz;
-            splat.scale = float3(mean_scaleX.w, scaleYZ);
-            splat.rotate = rotate;
-            return splat;
-        }
-
-        public void store(uint splatID, in const Splat splat)
-        {
-            rotates[splatID] = splat.rotate;
-            means_scaleXs[splatID] = float4(splat.mean, splat.scale.x);
-            scaleYZs[splatID] = splat.scale.yz;
-        }
-    }; */
-
     public struct SplatAdam
     {
         public Splat m, v;
     }
-
-    public struct RWSplatAdamBuffer
-    {
-        RWStructuredBuffer<float4> b4s[5];
-
-        public SplatAdam load(uint splatID)
-        {
-            float4 b4[5];
-            [ForceUnroll]
-            for (uint i = 0; i < 5; ++i)
-                b4[i] = b4s[i][splatID];
-        }
-    };
 
     public struct SplatViewGeom : IDifferentiable
     {
@@ -145,96 +93,72 @@ namespace MeshGSTrainer
         return SplatChannel(l.depth * r.depth);
     }
 
-    public struct SplatView : IDifferentiable
+    public struct SplatView : IDifferentiable, ISOAElement<SplatViewSOATrait>
     {
         public SplatViewGeom geom;
         public SplatChannel channel;
 
-        public SplatView waveActiveSum()
+        public FlatSplatView toSOA() { return FlatSplatView( { float4(geom.conic, channel.depth) }, geom.clipMean); }
+        public static SplatView fromSOA(FlatSplatView soa)
         {
-            float4 conic_depth = float4(this.geom.conic, this.channel.depth);
-            float2 clipMean = this.geom.clipMean;
-            conic_depth = WaveActiveSum(conic_depth);
-            clipMean = WaveActiveSum(clipMean);
-
             SplatView splatView;
-            splatView.geom.clipMean = clipMean;
-            splatView.geom.conic = conic_depth.xyz;
-            splatView.channel.depth = conic_depth.w;
-            return splatView;
-        }
-
-        public SplatView quadSum()
-        {
-            float4 conic_depth = float4(this.geom.conic, this.channel.depth);
-            float2 clipMean = this.geom.clipMean;
-            conic_depth += QuadReadAcrossX(conic_depth);
-            conic_depth += QuadReadAcrossY(conic_depth);
-            clipMean += QuadReadAcrossX(clipMean);
-            clipMean += QuadReadAcrossY(clipMean);
-
-            SplatView splatView;
-            splatView.geom.clipMean = clipMean;
-            splatView.geom.conic = conic_depth.xyz;
-            splatView.channel.depth = conic_depth.w;
+            splatView.geom.conic = soa.units[0].xyz;
+            splatView.channel.depth = soa.units[0].w;
+            splatView.geom.clipMean = soa.ext;
             return splatView;
         }
     };
 
-    public struct SplatViewBuffer
+    public extension FlatSplatView
     {
-        StructuredBuffer<float4> conics_depths;
-        StructuredBuffer<float2> clipMeans;
-
-        public SplatView load(uint splatViewID)
+        public This waveActiveSum()
         {
-            float4 conic_depth = conics_depths[splatViewID];
-            float2 clipMean = clipMeans[splatViewID];
-            SplatView splatView;
-            splatView.geom.clipMean = clipMean;
-            splatView.channel.depth = conic_depth.w;
-            splatView.geom.conic = conic_depth.xyz;
-            return splatView;
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+                t.units[i] = WaveActiveSum(this.units[i]);
+            t.ext = WaveActiveSum(this.ext);
+            return t;
         }
-    };
+        public This quadSum()
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+            {
+                t.units[i] = this.units[i];
+                t.units[i] += QuadReadAcrossX(t.units[i]);
+                t.units[i] += QuadReadAcrossY(t.units[i]);
+            }
+            t.ext = this.ext;
+            t.ext += QuadReadAcrossX(t.ext);
+            t.ext += QuadReadAcrossY(t.ext);
+            return t;
+        }
+    }
+
+    public extension RWSplatViewBuffer
+    {
+        public void atomicAdd<T : ISOAElement<Trait>>(uint id, T elem)
+        {
+            var a = elem.toSOA();
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+            {
+                [ForceUnroll]
+                for (uint j = 0; j < This::kWordsPerUnit; ++j)
+                    __atomicAdd(unitBufs[i][id][j], a.units[i][j]);
+            }
+            [ForceUnroll]
+            for (uint j = 0; j < This::kWordsPerExt; ++j)
+                __atomicAdd(extBuf[id][j], a.ext[j]);
+        }
+    }
 
     /* public uint getCoordAtomicBinID(uint2 coord)
     {
         return (coord.x % DLOSS_ATOMIC_BIN_DIM_X) * DLOSS_ATOMIC_BIN_DIM_Y + (coord.y % DLOSS_ATOMIC_BIN_DIM_Y);
     } */
-
-    public struct RWSplatViewBuffer
-    {
-        RWStructuredBuffer<float4> conics_depths;
-        RWStructuredBuffer<float2> clipMeans;
-
-        public SplatView load(uint splatViewID)
-        {
-            float4 conic_depth = conics_depths[splatViewID];
-            float2 clipMean = clipMeans[splatViewID];
-            SplatView splatView;
-            splatView.geom.clipMean = clipMean;
-            splatView.channel.depth = conic_depth.w;
-            splatView.geom.conic = conic_depth.xyz;
-            return splatView;
-        }
-
-        public void store(uint splatViewID, in const SplatView splatView)
-        {
-            conics_depths[splatViewID] = float4(splatView.geom.conic, splatView.channel.depth);
-            clipMeans[splatViewID] = splatView.geom.clipMean;
-        }
-
-        public void atomicAdd(uint splatViewID, in const SplatView splatView)
-        {
-            __atomicAdd(conics_depths[splatViewID].x, splatView.geom.conic.x);
-            __atomicAdd(conics_depths[splatViewID].y, splatView.geom.conic.y);
-            __atomicAdd(conics_depths[splatViewID].z, splatView.geom.conic.z);
-            __atomicAdd(conics_depths[splatViewID].w, splatView.channel.depth);
-            __atomicAdd(clipMeans[splatViewID].x, splatView.geom.clipMean.x);
-            __atomicAdd(clipMeans[splatViewID].y, splatView.geom.clipMean.y);
-        }
-    };
 
     public struct SplatRTTexture
     {
