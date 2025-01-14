@@ -12,6 +12,10 @@ StructuredBuffer<uint> gSplatViewSplatIDs;
 uniform Camera gCamera;
 uniform float2 gResolution;
 
+#ifndef BATCH_SIZE
+#define BATCH_SIZE 2
+#endif
+
 [numthreads(BACKWARD_VIEW_DIM, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
 {
@@ -35,7 +39,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     );
 
     var dL_dsplat = dp.d.toSOA();
-    if (true) // TODO: if batch size > 1
+    if (BATCH_SIZE > 1)
         dL_dsplat = dL_dsplat.add(gDLossDSplats.load<FlatSplat>(splatID));
     gDLossDSplats.store(splatID, dL_dsplat);
 }

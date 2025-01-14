@@ -20,7 +20,9 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain");
     mpLossPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Loss.cs.slang", "csMain");
     mpBackwardCmdPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardCmd.cs.slang", "csMain");
-    mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain");
+    DefineList defList;
+    defList.add("BATCH_SIZE", fmt::to_string(mDesc.batchSize));
+    mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain", defList);
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
