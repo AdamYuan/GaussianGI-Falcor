@@ -14,7 +14,15 @@ uniform uint2 gResolution;
 [Differentiable]
 float getLossL1(SplatChannel predict, no_diff SplatChannel data)
 {
-    return abs(predict.depth - data.depth);
+    var d = predict.sub(data);
+    return d.abs().sum();
+}
+
+[Differentiable]
+float getLossL2(SplatChannel predict, no_diff SplatChannel data)
+{
+    var d = predict.sub(data);
+    return d.mul(d).sum();
 }
 
 [numthreads(GROUP_DIM, GROUP_DIM, 1)]
@@ -30,7 +38,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     SplatChannel data = gMeshRT.load(threadID);
 
     var dp = diffPair(predict);
-    bwd_diff(getLossL1)(dp, data, 1.0);
+    bwd_diff(getLossL2)(dp, data, 1.0);
 
     SplatChannel dL_dC = dp.d;
     gDLossDCs_Ts.store(threadID, dL_dC, T);

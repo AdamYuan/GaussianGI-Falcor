@@ -86,11 +86,18 @@ namespace MeshGSTrainer
     {
         public float depth;
 
+        [Differentiable]
         public float sum() { return depth; }
+        [Differentiable]
         public SplatChannel add(SplatChannel r) { return SplatChannel(this.depth + r.depth); }
+        [Differentiable]
         public SplatChannel sub(SplatChannel r) { return SplatChannel(this.depth - r.depth); }
+        [Differentiable]
         public SplatChannel mul(SplatChannel r) { return SplatChannel(this.depth * r.depth); }
+        [Differentiable]
         public SplatChannel mul(float r) { return SplatChannel(this.depth * r); }
+        [Differentiable]
+        public SplatChannel abs() { return SplatChannel(abs(this.depth)); }
     };
 
     public struct SplatView : IDifferentiable, ISOAElement<SplatViewSOATrait>
