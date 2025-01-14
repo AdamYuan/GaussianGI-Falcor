@@ -36,6 +36,7 @@ private:
     struct
     {
         bool drawMeshData = false;
+        bool train = false;
     } mConfig = {};
     ref<GMesh> mpMesh;
     ref<Camera> mpCamera;

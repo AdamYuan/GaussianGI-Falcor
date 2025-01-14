@@ -70,23 +70,19 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     if (mpMesh)
     {
         auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
-        mTrainer.iterate(
-            mTrainState,
-            pRenderContext,
-            mTrainResource,
-            trainCamera,
-            GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh},
-            mSorter,
-            mSortResource
+        MeshGSTrainer<MeshGSTrainType::kDepth>::generateData(
+            pRenderContext, mTrainResource, trainCamera, GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh}
         );
+        if (mConfig.train)
+            mTrainer.iterate(mTrainState, pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
+        else
+            mTrainer.inference(pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
     }
 
     if (mConfig.drawMeshData)
         pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
-        pRenderContext->blit(mTrainResource.splatTmpTex.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
-
-    // pRenderContext->blit(mTrainResource.splatDLossTex.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
@@ -143,6 +139,7 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
 
     w.checkbox("Draw Mesh", mConfig.drawMeshData);
 
+    w.checkbox("Train", mConfig.train);
     w.text(fmt::format("Iteration: {}", mTrainState.iteration));
     w.text(fmt::format("Batch: {}", mTrainState.batch));
 }

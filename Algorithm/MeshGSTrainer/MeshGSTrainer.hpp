@@ -160,15 +160,6 @@ private:
     ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass, mpLossPass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
-    void iterate(
-        MeshGSTrainState& state,
-        RenderContext* pRenderContext,
-        const MeshGSTrainResource<TrainType_V>& resource,
-        const MeshGSTrainCamera& camera,
-        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
-        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
-    ) const;
-
     void reset(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void forward(
         RenderContext* pRenderContext,
@@ -180,6 +171,14 @@ private:
     void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void backward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource, const MeshGSTrainCamera& camera) const;
     void optimize(const MeshGSTrainState& state, RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+
+public:
+    MeshGSTrainer() = default;
+    MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc);
+    static DeviceSortDesc getSortDesc() { return DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}); }
+
+    const auto& getDesc() const { return mDesc; }
+
     static void generateData(
         RenderContext* pRenderContext,
         const MeshGSTrainResource<TrainType_V>& resource,
@@ -192,25 +191,24 @@ private:
         dataset.generate(pRenderContext, resource.meshRT, camera);
     }
 
-public:
-    MeshGSTrainer() = default;
-    MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc);
-    static DeviceSortDesc getSortDesc() { return DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}); }
-
-    const auto& getDesc() const { return mDesc; }
-
     void iterate(
         MeshGSTrainState& state,
         RenderContext* pRenderContext,
         const MeshGSTrainResource<TrainType_V>& resource,
         const MeshGSTrainCamera& camera,
-        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
+        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+    ) const;
+
+    void inference(
+        RenderContext* pRenderContext,
+        const MeshGSTrainResource<TrainType_V>& resource,
+        const MeshGSTrainCamera& camera,
         const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const
     {
-        generateData(pRenderContext, resource, camera, dataset);
-        iterate(state, pRenderContext, resource, camera, sorter, sortResource);
+        forward(pRenderContext, resource, camera, sorter, sortResource);
     }
 };
 
