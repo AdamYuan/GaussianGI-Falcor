@@ -14,10 +14,13 @@ namespace GSGI
 namespace
 {
 
-using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
-
-template<MeshGSTrainType TrainType_V>
-using SplatSOATrait = SOATrait<SplatSOAUnitTrait, DEPTH_TRAIN_TYPE_SPLAT_FLT_COUNT>;
+static_assert(
+    sizeof(MeshGSTrainSplat<MeshGSTrainType::kDepth>) ==
+    MeshGSTrainResource<MeshGSTrainType::kDepth>::SplatSOATrait::kWordsPerElem * sizeof(float)
+);
+static_assert(MeshGSTrainResource<MeshGSTrainType::kDepth>::SplatSOATrait::kWordsPerElem == DEPTH_TRAIN_TYPE_SPLAT_FLT_COUNT);
+static_assert(MeshGSTrainResource<MeshGSTrainType::kDepth>::SplatViewSOATrait::kWordsPerElem == DEPTH_TRAIN_TYPE_SPLAT_VIEW_FLT_COUNT);
+static_assert(MeshGSTrainResource<MeshGSTrainType::kDepth>::SplatAdamSOATrait::kWordsPerElem == DEPTH_TRAIN_TYPE_SPLAT_ADAM_FLT_COUNT);
 
 template<ResourceFormat Format_V>
 ref<Texture> createTexture(const ref<Device>& pDevice, uint2 resolution, ResourceBindFlags bindFlags)
@@ -363,7 +366,7 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
     const ref<Device>& pDevice,
     uint splatCount,
     uint2 resolution,
-    std::span<const MeshGSTrainSplat> splats
+    const SOABufferInitData<SplatSOATrait>& splatInitData
 )
 {
     DrawArguments drawArgs = {
@@ -377,13 +380,13 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
         .ThreadGroupCountY = 1,
         .ThreadGroupCountZ = 1,
     };
-    static_assert(sizeof(float16_t4) == sizeof(uint32_t) * 2);
+    static_assert(sizeof(float16_t4) == sizeof(uint32_t) * 2); // For SplatViewAxis
     return MeshGSTrainResource{
         .splatRT = MeshGSTrainSplatRT<TrainType_V>::create(pDevice, resolution),
         .meshRT = MeshGSTrainMeshRT<TrainType_V>::create(pDevice, resolution),
         .splatDLossTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
         .splatTmpTex = MeshGSTrainSplatTex<TrainType_V>::create(pDevice, resolution),
-        .splatBuf = createSplatBuffer(pDevice, splatCount, splats),
+        .splatBuf = createSplatBuffer(pDevice, splatCount, splatInitData),
         .splatDLossBuf = createSplatBuffer(pDevice, splatCount),
         .splatAdamBuf = MeshGSTrainSplatAdamBuf<TrainType_V>::create(pDevice, splatCount),
         .splatViewBuf = MeshGSTrainSplatViewBuf<TrainType_V>::create(pDevice, splatCount),
@@ -414,28 +417,14 @@ MeshGSTrainResource<TrainType_V> MeshGSTrainResource<TrainType_V>::create(
     };
 }
 template<MeshGSTrainType TrainType_V>
-SOABuffer MeshGSTrainResource<TrainType_V>::createSplatBuffer(
+SOABuffer<typename MeshGSTrainResource<TrainType_V>::SplatSOATrait> MeshGSTrainResource<TrainType_V>::createSplatBuffer(
     const ref<Device>& pDevice,
     uint splatCount,
-    std::span<const MeshGSTrainSplat> splats
+    const SOABufferInitData<SplatSOATrait>& splatInitData
 )
 {
-    SOABufferInitData initData = {};
-    if (!splats.empty())
-    {
-        if constexpr (TrainType_V == MeshGSTrainType::kDepth)
-        {
-            static_assert(
-                sizeof(std::tuple<float4, float3, float3>) == SplatSOATrait<MeshGSTrainType::kDepth>::kWordsPerElem * sizeof(float)
-            );
-            initData = SOABufferInitData::create(SplatSOATrait<TrainType_V>{}, splats, splatCount);
-        }
-        else
-            FALCOR_CHECK(false, "Unimplemented");
-    }
-    return SOABuffer::create(
-        SplatSOATrait<TrainType_V>{}, pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess, initData
-    );
+    FALCOR_CHECK(splatInitData.isEmpty() || splatInitData.isCapable(splatCount), "");
+    return {pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource, splatInitData};
 }
 template<MeshGSTrainType TrainType_V>
 bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resolution) const
@@ -447,11 +436,12 @@ bool MeshGSTrainResource<TrainType_V>::isCapable(uint splatCount, uint2 resoluti
                meshRT,
                splatDLossTex,
                splatTmpTex,
+               splatBuf,
+               splatDLossBuf,
                splatAdamBuf,
                splatViewBuf,
                splatViewDLossBuf
            ) &&
-           SOABuffer::isCapable(SplatSOATrait<TrainType_V>{}, splatCount, splatBuf, splatDLossBuf) &&
            isBufferCapable(
                splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer
            ) &&

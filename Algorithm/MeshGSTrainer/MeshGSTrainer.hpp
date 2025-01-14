@@ -33,6 +33,7 @@ struct MeshGSTrainState
     uint iteration, batch;
 };
 
+template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainSplat
 {
     quatf rotate;
@@ -134,10 +135,15 @@ struct MeshGSTrainSplatViewBuf
 template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainResource
 {
+    using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
+    using SplatSOATrait = SOATrait<SplatSOAUnitTrait, 10>;
+    using SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, 6>;
+    using SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, 20>;
+
     MeshGSTrainSplatRT<TrainType_V> splatRT;
     MeshGSTrainMeshRT<TrainType_V> meshRT;
     MeshGSTrainSplatTex<TrainType_V> splatDLossTex, splatTmpTex;
-    SOABuffer splatBuf, splatDLossBuf;
+    SOABuffer<SplatSOATrait> splatBuf, splatDLossBuf;
     MeshGSTrainSplatAdamBuf<TrainType_V> splatAdamBuf;
     MeshGSTrainSplatViewBuf<TrainType_V> splatViewBuf, splatViewDLossBuf;
     ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
@@ -147,17 +153,21 @@ struct MeshGSTrainResource
         const ref<Device>& pDevice,
         uint splatCount,
         uint2 resolution,
-        std::span<const MeshGSTrainSplat> splats = {}
+        const SOABufferInitData<SplatSOATrait>& splatInitData = {}
     );
     static MeshGSTrainResource create(
         const ref<Device>& pDevice,
         const MeshGSTrainDesc& desc,
-        std::span<const MeshGSTrainSplat> splats = {}
+        const SOABufferInitData<SplatSOATrait>& splatInitData = {}
     )
     {
-        return create(pDevice, desc.maxSplatCount, desc.resolution, splats);
+        return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
     }
-    static SOABuffer createSplatBuffer(const ref<Device>& pDevice, uint splatCount, std::span<const MeshGSTrainSplat> splats = {});
+    static SOABuffer<SplatSOATrait> createSplatBuffer(
+        const ref<Device>& pDevice,
+        uint splatCount,
+        const SOABufferInitData<SplatSOATrait>& splatInitData = {}
+    );
     bool isCapable(uint splatCount, uint2 resolution) const;
     bool isCapable(const MeshGSTrainDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
 };

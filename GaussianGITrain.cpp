@@ -111,20 +111,22 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                 kMaxSplatCount
             );
             float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
-            std::vector<MeshGSTrainSplat> splats;
-            splats.reserve(kMaxSplatCount);
-            for (auto& meshPoint : sampleResult.points)
-            {
-                auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
-                splats.push_back(
-                    MeshGSTrainSplat{
-                        .rotate = optimizeResult.rotate,
-                        .mean = meshPoint.getPosition(view),
-                        .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                    }
-                );
-            }
-            mTrainResource.splatBuf = MeshGSTrainResource<MeshGSTrainType::kDepth>::createSplatBuffer(getDevice(), kMaxSplatCount, splats);
+            mTrainResource.splatBuf = MeshGSTrainResource<MeshGSTrainType::kDepth>::createSplatBuffer(
+                getDevice(),
+                kMaxSplatCount,
+                {sampleResult.points | std::views::transform(
+                                           [&](const MeshPoint& meshPoint)
+                                           {
+                                               auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
+                                               return MeshGSTrainSplat<MeshGSTrainType::kDepth>{
+                                                   .rotate = optimizeResult.rotate,
+                                                   .mean = meshPoint.getPosition(view),
+                                                   .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
+                                               };
+                                           }
+                                       ),
+                 kMaxSplatCount}
+            );
         }
     }
     if (mpMesh)
