@@ -71,27 +71,12 @@ namespace MeshGSTrainer
     {
         public float depth;
 
-        public float sum()
-        {
-            return depth; // For BackwardDraw
-        }
+        public float sum() { return depth; }
+        public SplatChannel add(SplatChannel r) { return SplatChannel(this.depth + r.depth); }
+        public SplatChannel sub(SplatChannel r) { return SplatChannel(this.depth - r.depth); }
+        public SplatChannel mul(SplatChannel r) { return SplatChannel(this.depth * r.depth); }
+        public SplatChannel mul(float r) { return SplatChannel(this.depth * r); }
     };
-    public SplatChannel operator +(SplatChannel l, SplatChannel r)
-    {
-        return SplatChannel(l.depth + r.depth);
-    }
-    public SplatChannel operator -(SplatChannel l, SplatChannel r)
-    {
-        return SplatChannel(l.depth - r.depth);
-    }
-    public SplatChannel operator*(float l, SplatChannel r)
-    {
-        return SplatChannel(l * r.depth);
-    }
-    public SplatChannel operator*(SplatChannel l, SplatChannel r)
-    {
-        return SplatChannel(l.depth * r.depth);
-    }
 
     public struct SplatView : IDifferentiable, ISOAElement<SplatViewSOATrait>
     {
@@ -157,7 +142,7 @@ namespace MeshGSTrainer
 
     public extension FlatSplat
     {
-#define DEF_OP(NAME, OP)                               \
+#define FS_DEF_OP(NAME, OP)                            \
     public This NAME(This r)                           \
     {                                                  \
         This t;                                        \
@@ -177,11 +162,11 @@ namespace MeshGSTrainer
         return t;                                      \
     }
 
-        DEF_OP(add, +)
-        DEF_OP(sub, -)
-        DEF_OP(mul, *)
-        DEF_OP(div, /)
-#undef DEF_OP
+        FS_DEF_OP(add, +)
+        FS_DEF_OP(sub, -)
+        FS_DEF_OP(mul, *)
+        FS_DEF_OP(div, /)
+#undef FS_DEF_OP
 
         public This neg()
         {

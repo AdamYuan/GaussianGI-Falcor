@@ -79,18 +79,18 @@ void psMain(PSIn pIn)
     SplatChannel dL_dC = gDLossDCs_Ts.load(coord, T); // \dfrac{dL}{dC}
 
     beginInvocationInterlock();
-    float Ri;                                          // R_i
-    SplatChannel Mi = gRs_Ms.load(coord, Ri);          // M_i
-    float Ri_1 = Ri * (1 - alpha);                     // R_{i - 1}
-    SplatChannel Mi_1 = alpha * ci + (1 - alpha) * Mi; // M_{i - 1}
+    float Ri;                                                   // R_i
+    SplatChannel Mi = gRs_Ms.load(coord, Ri);                   // M_i
+    float Ri_1 = Ri * (1 - alpha);                              // R_{i - 1}
+    SplatChannel Mi_1 = (ci.mul(alpha)).add(Mi.mul(1 - alpha)); // M_{i - 1}
     gRs_Ms.store(coord, Mi_1, Ri_1);
     endInvocationInterlock();
 
     float Ti = T / Ri_1;
 
     SplatView dL_dsplatView;
-    dL_dsplatView.channel = alpha * Ti * dL_dC;       // \dfrac{dL}{dc_i}
-    float dL_dalpha = (Ti * (ci - Mi) * dL_dC).sum(); // \dfrac{dL}{d\alpha_i}
+    dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}
+    float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum(); // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
     bwd_diff(getAlpha)(dp, pIn.clipPos.xy, gResolution, dL_dalpha);
     dL_dsplatView.geom = dp.d;
