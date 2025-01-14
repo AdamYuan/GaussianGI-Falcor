@@ -40,6 +40,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
         Algorithm/MeshGSTrainer/BackwardView.cs.slang
         Algorithm/MeshGSTrainer/BackwardCmd.cs.slang
+        Algorithm/MeshGSTrainer/Optimize.cs.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slangh
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
@@ -191,6 +192,7 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
         Algorithm/MeshGSTrainer/BackwardView.cs.slang
         Algorithm/MeshGSTrainer/BackwardCmd.cs.slang
+        Algorithm/MeshGSTrainer/Optimize.cs.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slangh
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp

@@ -26,11 +26,13 @@ struct MeshGSTrainDesc
     uint maxSplatCount;
     uint2 resolution;
     uint batchSize;
+    float adamBeta1 = 0.9f, adamBeta2 = 0.999f, adamLearnRate = 0.002f, adamEpsilon = 1e-8f;
 };
 
 struct MeshGSTrainState
 {
-    uint iteration, batch;
+    uint iteration = 0, batch = 0;
+    float adamBeta1T = 1.0f, adamBeta2T = 1.0f;
 };
 
 template<MeshGSTrainType TrainType_V>
@@ -177,7 +179,7 @@ private:
     ) const;
     void loss(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     void backward(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource, const MeshGSTrainCamera& camera) const;
-    void optimize(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
+    void optimize(const MeshGSTrainState& state, RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const;
     static void generateData(
         RenderContext* pRenderContext,
         const MeshGSTrainResource<TrainType_V>& resource,

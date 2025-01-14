@@ -56,9 +56,24 @@ namespace MeshGSTrainer
         }
     };
 
-    public struct SplatAdam
+    public struct SplatAdam : ISOAElement<SplatAdamSOATrait>
     {
-        public Splat m, v;
+        public FlatSplat m, v;
+
+        public FlatSplatAdam toSOA()
+        {
+            return FlatSplatAdam(
+                { m.units[0], m.units[1], v.units[0], v.units[1] }, //
+                float4(m.ext, v.ext)
+            );
+        }
+        public static SplatAdam fromSOA(FlatSplatAdam soa)
+        {
+            SplatAdam splatAdam;
+            splatAdam.m = FlatSplat( { soa.units[0], soa.units[1] }, soa.ext.xy);
+            splatAdam.v = FlatSplat( { soa.units[2], soa.units[3] }, soa.ext.zw);
+            return splatAdam;
+        }
     }
 
     public struct SplatViewGeom : IDifferentiable
@@ -168,22 +183,13 @@ namespace MeshGSTrainer
         FS_DEF_OP(div, /)
 #undef FS_DEF_OP
 
-        public This neg()
+        public This sqrt()
         {
             This t;
             [ForceUnroll]
             for (uint i = 0; i < This::kUnitsPerElem; ++i)
-                t.units[i] = -this.units[i];
-            t.ext = -this.ext;
-            return t;
-        }
-        public This inv()
-        {
-            This t;
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-                t.units[i] = 1.0 / this.units[i];
-            t.ext = 1.0 / this.ext;
+                t.units[i] = sqrt(this.units[i]);
+            t.ext = sqrt(this.ext);
             return t;
         }
     }

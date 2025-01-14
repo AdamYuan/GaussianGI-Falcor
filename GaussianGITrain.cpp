@@ -38,7 +38,11 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     MeshGSTrainDesc trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
-        .batchSize = 1,
+        .batchSize = 16,
+        .adamBeta1 = 0.9f,
+        .adamBeta2 = 0.999f,
+        .adamLearnRate = 0.002f,
+        .adamEpsilon = 1e-8f
     };
     mTrainResource = MeshGSTrainResource<MeshGSTrainType::kDepth>::create(getDevice(), trainDesc);
     mTrainer = MeshGSTrainer<MeshGSTrainType::kDepth>(getDevice(), trainDesc);
@@ -80,7 +84,7 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     if (mConfig.drawMeshData)
         pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
-        pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainResource.splatTmpTex.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 
     // pRenderContext->blit(mTrainResource.splatDLossTex.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }

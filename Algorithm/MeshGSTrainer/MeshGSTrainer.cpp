@@ -23,6 +23,7 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
     DefineList defList;
     defList.add("BATCH_SIZE", fmt::to_string(mDesc.batchSize));
     mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain", defList);
+    mpOptimizePass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Optimize.cs.slang", "csMain", defList);
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
@@ -93,7 +94,9 @@ void MeshGSTrainer<TrainType_V>::iterate(
 
     if ((++state.iteration) % mDesc.batchSize == 0)
     {
-        optimize(pRenderContext, resource);
+        state.adamBeta1T *= mDesc.adamBeta1;
+        state.adamBeta2T *= mDesc.adamBeta2;
+        optimize(state, pRenderContext, resource);
         ++state.batch;
     }
 }
@@ -240,8 +243,27 @@ void MeshGSTrainer<TrainType_V>::backward(
 }
 
 template<MeshGSTrainType TrainType_V>
-void MeshGSTrainer<TrainType_V>::optimize(RenderContext* pRenderContext, const MeshGSTrainResource<TrainType_V>& resource) const
-{}
+void MeshGSTrainer<TrainType_V>::optimize(
+    const MeshGSTrainState& state,
+    RenderContext* pRenderContext,
+    const MeshGSTrainResource<TrainType_V>& resource
+) const
+{
+    FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::optimize");
+
+    auto [prog, var] = getShaderProgVar(mpOptimizePass);
+    var["gSplatCount"] = mDesc.maxSplatCount;
+    resource.splatBuf.bindShaderData(var["gSplats"]);
+    resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
+    resource.splatAdamBuf.bindShaderData(var["gSplatAdams"]);
+    var["gAdamBeta1"] = mDesc.adamBeta1;
+    var["gAdamBeta2"] = mDesc.adamBeta2;
+    var["gAdamBeta1T"] = state.adamBeta1T;
+    var["gAdamBeta2T"] = state.adamBeta2T;
+    var["gAdamLearnRate"] = mDesc.adamLearnRate;
+    var["gAdamEpsilon"] = mDesc.adamEpsilon;
+    mpOptimizePass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+}
 
 template struct MeshGSTrainer<MeshGSTrainType::kDepth>;
 

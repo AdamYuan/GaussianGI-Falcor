@@ -38,8 +38,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         dL_dsplatView
     );
 
-    var dL_dsplat = dp.d.toSOA();
+    var dL_dsplat_flat = dp.d.toSOA();
     if (BATCH_SIZE > 1)
-        dL_dsplat = dL_dsplat.add(gDLossDSplats.load<FlatSplat>(splatID));
-    gDLossDSplats.store(splatID, dL_dsplat);
+        dL_dsplat_flat = dL_dsplat_flat.add(gDLossDSplats.load<FlatSplat>(splatID));
+    gDLossDSplats.store(splatID, dL_dsplat_flat);
 }
