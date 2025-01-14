@@ -155,6 +155,54 @@ namespace MeshGSTrainer
         }
     }
 
+    public extension FlatSplat
+    {
+#define DEF_OP(NAME, OP)                               \
+    public This NAME(This r)                           \
+    {                                                  \
+        This t;                                        \
+        [ForceUnroll]                                  \
+        for (uint i = 0; i < This::kUnitsPerElem; ++i) \
+            t.units[i] = this.units[i] OP r.units[i];  \
+        t.ext = this.ext OP r.ext;                     \
+        return t;                                      \
+    }                                                  \
+    public This NAME(float r)                          \
+    {                                                  \
+        This t;                                        \
+        [ForceUnroll]                                  \
+        for (uint i = 0; i < This::kUnitsPerElem; ++i) \
+            t.units[i] = this.units[i] OP r;           \
+        t.ext = this.ext OP r;                         \
+        return t;                                      \
+    }
+
+        DEF_OP(add, +)
+        DEF_OP(sub, -)
+        DEF_OP(mul, *)
+        DEF_OP(div, /)
+#undef DEF_OP
+
+        public This neg()
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+                t.units[i] = -this.units[i];
+            t.ext = -this.ext;
+            return t;
+        }
+        public This inv()
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+                t.units[i] = 1.0 / this.units[i];
+            t.ext = 1.0 / this.ext;
+            return t;
+        }
+    }
+
     /* public uint getCoordAtomicBinID(uint2 coord)
     {
         return (coord.x % DLOSS_ATOMIC_BIN_DIM_X) * DLOSS_ATOMIC_BIN_DIM_Y + (coord.y % DLOSS_ATOMIC_BIN_DIM_Y);
