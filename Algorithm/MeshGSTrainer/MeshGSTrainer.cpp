@@ -199,7 +199,7 @@ void MeshGSTrainer<TrainType_V>::backward(
         var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         var["gResolution"] = float2(mDesc.resolution);
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
-        resource.splatTmpTex.bindShaderData(var["gRs_Ms"]);
+        var["gRs_Ms"] = resource.splatTmpTex.pTexture; // bindShaderData(var["gRs_Ms"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
 
         pRenderContext->drawIndirect(

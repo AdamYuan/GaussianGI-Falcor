@@ -12,7 +12,7 @@ StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
 
 SplatTexture gDLossDCs_Ts;
-CoherentRasterizerOrderedSplatTexture gRs_Ms;
+globallycoherent RasterizerOrderedTexture2D<float2> gRs_Ms;
 
 RWSplatViewBuffer gDLossDSplatViews;
 
@@ -79,11 +79,12 @@ void psMain(PSIn pIn)
     SplatChannel dL_dC = gDLossDCs_Ts.load(coord, T); // \dfrac{dL}{dC}
 
     beginInvocationInterlock();
-    float Ri;                                                   // R_i
-    SplatChannel Mi = gRs_Ms.load(coord, Ri);                   // M_i
+    var Ri_Mi = gRs_Ms[coord];
+    float Ri = Ri_Mi.y;                                         // R_i
+    SplatChannel Mi = SplatChannel(Ri_Mi.x);                    // M_i
     float Ri_1 = Ri * (1 - alpha);                              // R_{i - 1}
     SplatChannel Mi_1 = (ci.mul(alpha)).add(Mi.mul(1 - alpha)); // M_{i - 1}
-    gRs_Ms.store(coord, Mi_1, Ri_1);
+    gRs_Ms[coord] = float2(Mi_1.depth, Ri_1);
     endInvocationInterlock();
 
     float Ti = T / Ri_1;
