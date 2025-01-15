@@ -97,6 +97,7 @@ struct MeshGSTrainMeshRT
     ref<Fbo> pFbo;
 
     static MeshGSTrainMeshRT create(const ref<Device>& pDevice, uint2 resolution);
+    float getAspectRatio() const;
     void clearRtv(RenderContext* pRenderContext) const;
     void bindShaderData(const ShaderVar& var) const;
     bool isCapable(uint2 resolution) const;
@@ -105,8 +106,10 @@ struct MeshGSTrainMeshRT
 namespace Concepts
 {
 template<typename T, MeshGSTrainType TrainType_V>
-concept MeshGSTrainDataset =
-    requires(const T& t) { t.generate(std::declval<RenderContext*>(), MeshGSTrainMeshRT<TrainType_V>{}, MeshGSTrainCamera{}); };
+concept MeshGSTrainDataset = requires(const T& ct, T& t) {
+    { t.nextCamera(MeshGSTrainMeshRT<TrainType_V>{}) } -> std::convertible_to<MeshGSTrainCamera>;
+    ct.draw(std::declval<RenderContext*>(), MeshGSTrainMeshRT<TrainType_V>{}, MeshGSTrainCamera{});
+};
 } // namespace Concepts
 
 template<MeshGSTrainType TrainType_V>
@@ -189,16 +192,27 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
-    static void generateData(
+    static void drawData(
         RenderContext* pRenderContext,
+        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
         const MeshGSTrainResource<TrainType_V>& resource,
-        const MeshGSTrainCamera& camera,
-        const Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset
+        const MeshGSTrainCamera& camera
     )
     {
-        FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::genData");
+        FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::drawData");
         resource.meshRT.clearRtv(pRenderContext);
-        dataset.generate(pRenderContext, resource.meshRT, camera);
+        dataset.draw(pRenderContext, resource.meshRT, camera);
+    }
+
+    static MeshGSTrainCamera nextData(
+        RenderContext* pRenderContext,
+        Concepts::MeshGSTrainDataset<TrainType_V> auto& dataset,
+        const MeshGSTrainResource<TrainType_V>& resource
+    )
+    {
+        MeshGSTrainCamera trainCamera = dataset.nextCamera(resource.meshRT);
+        drawData(pRenderContext, dataset, resource, trainCamera);
+        return trainCamera;
     }
 
     void iterate(

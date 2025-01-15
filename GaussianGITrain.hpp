@@ -11,6 +11,7 @@
 #include <Scene/Camera/CameraController.h>
 #include "Scene/GMesh.hpp"
 #include "Algorithm/MeshGSTrainer/MeshGSTrainer.hpp"
+#include "Scene/GMeshGSTrainDataset.hpp"
 
 using namespace Falcor;
 
@@ -44,6 +45,7 @@ private:
 
     MeshGSTrainer<MeshGSTrainType::kDepth> mTrainer;
     MeshGSTrainResource<MeshGSTrainType::kDepth> mTrainResource;
+    GMeshGSTrainDataset<MeshGSTrainType::kDepth> mTrainDataset;
     MeshGSTrainState mTrainState{};
 
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSorter;

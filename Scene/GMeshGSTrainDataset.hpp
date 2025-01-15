@@ -8,17 +8,24 @@
 #include <Falcor.h>
 #include "GMesh.hpp"
 #include "../Algorithm/MeshGSTrainer/MeshGSTrainer.hpp"
+#include <random>
 
 using namespace Falcor;
 
 namespace GSGI
 {
 
-template<MeshGSTrainType TrainType_V>
+template<MeshGSTrainType TrainType_V, typename RandGen_T = std::mt19937>
 struct GMeshGSTrainDataset
 {
-    GMesh& mesh;
-    void generate(RenderContext* pRenderContext, const MeshGSTrainMeshRT<TrainType_V>& rt, const MeshGSTrainCamera& camera) const;
+    ref<GMesh> pMesh;
+    RandGen_T randGen;
+    struct
+    {
+        float eyeExtent = 2.0f;
+    } config = {};
+    MeshGSTrainCamera nextCamera(const MeshGSTrainMeshRT<TrainType_V>& rt);
+    void draw(RenderContext* pRenderContext, const MeshGSTrainMeshRT<TrainType_V>& rt, const MeshGSTrainCamera& camera) const;
 };
 
 } // namespace GSGI

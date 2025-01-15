@@ -71,14 +71,17 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
 
     if (mpMesh)
     {
-        auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
-        MeshGSTrainer<MeshGSTrainType::kDepth>::generateData(
-            pRenderContext, mTrainResource, trainCamera, GMeshGSTrainDataset<MeshGSTrainType::kDepth>{*mpMesh}
-        );
         if (mConfig.train)
+        {
+            auto trainCamera = MeshGSTrainer<MeshGSTrainType::kDepth>::nextData(pRenderContext, mTrainDataset, mTrainResource);
             mTrainer.iterate(mTrainState, pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
+        }
         else
+        {
+            auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
+            MeshGSTrainer<MeshGSTrainType::kDepth>::drawData(pRenderContext, mTrainDataset, mTrainResource, trainCamera);
             mTrainer.inference(pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
+        }
     }
 
     if (mConfig.drawMeshData)
@@ -95,7 +98,8 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     {
         if (std::filesystem::path filename; openFileDialog({}, filename) && ((mpMesh = GMeshLoader::load(getDevice(), filename))))
         {
-            mTrainState = {}; // Reset train state
+            mTrainState = {};             // Reset train state
+            mTrainDataset.pMesh = mpMesh; // Set dataset source
 
             auto view = GMeshView{mpMesh};
             auto sampleResult = MeshSample::sample(
@@ -147,6 +151,7 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     w.checkbox("Train", mConfig.train);
     w.text(fmt::format("Iteration: {}", mTrainState.iteration));
     w.text(fmt::format("Batch: {}", mTrainState.batch));
+    w.var("Eye Extent", mTrainDataset.config.eyeExtent, 1.0f);
 }
 
 bool GaussianGITrain::onKeyEvent(const KeyboardEvent& keyEvent)

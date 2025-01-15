@@ -201,6 +201,12 @@ MeshGSTrainMeshRT<TrainType_V> MeshGSTrainMeshRT<TrainType_V>::create(const ref<
     return meshRT;
 }
 template<MeshGSTrainType TrainType_V>
+float MeshGSTrainMeshRT<TrainType_V>::getAspectRatio() const
+{
+    auto resolution = getTextureResolution2(pDepthBuffer);
+    return float(resolution.x) / float(resolution.y);
+}
+template<MeshGSTrainType TrainType_V>
 void MeshGSTrainMeshRT<TrainType_V>::clearRtv(RenderContext* pRenderContext) const
 {
     if constexpr (TrainType_V == MeshGSTrainType::kDepth)
