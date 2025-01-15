@@ -199,6 +199,15 @@ namespace MeshGSTrainer
             t.ext = sqrt(this.ext);
             return t;
         }
+
+        public bool anyIsNanOrInf()
+        {
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+                if (any(isnan(this.units[i])) || any(isinf(this.units[i])))
+                    return true;
+            return any(isnan(this.ext)) || any(isinf(this.ext));
+        }
     }
 
     /* public uint getCoordAtomicBinID(uint2 coord)
