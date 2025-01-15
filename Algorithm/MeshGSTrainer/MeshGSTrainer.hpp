@@ -21,26 +21,36 @@ enum class MeshGSTrainType
     kDepthColor,
 };
 
+template<MeshGSTrainType TrainType_V>
+struct MeshGSTrainSplat;
+template<>
+struct MeshGSTrainSplat<MeshGSTrainType::kDepth>
+{
+    float4 rotate;
+    float3 mean{};
+    float3 scale{};
+
+    void bindShaderData(const ShaderVar& var) const
+    {
+        var["rotate"] = rotate;
+        var["mean"] = mean;
+        var["scale"] = scale;
+    }
+};
+
+template<MeshGSTrainType TrainType_V>
 struct MeshGSTrainDesc
 {
     uint maxSplatCount;
     uint2 resolution;
     uint batchSize;
-    float adamBeta1 = 0.9f, adamBeta2 = 0.999f, adamLearnRate = 0.002f, adamEpsilon = 1e-8f;
+    MeshGSTrainSplat<TrainType_V> learnRate;
 };
 
 struct MeshGSTrainState
 {
     uint iteration = 0, batch = 0;
     float adamBeta1T = 1.0f, adamBeta2T = 1.0f;
-};
-
-template<MeshGSTrainType TrainType_V>
-struct MeshGSTrainSplat
-{
-    quatf rotate;
-    float3 mean{};
-    float3 scale{};
 };
 
 struct MeshGSTrainCamera
@@ -135,7 +145,7 @@ struct MeshGSTrainResource
     );
     static MeshGSTrainResource create(
         const ref<Device>& pDevice,
-        const MeshGSTrainDesc& desc,
+        const MeshGSTrainDesc<TrainType_V>& desc,
         const SOABufferInitData<SplatSOATrait>& splatInitData = {}
     )
     {
@@ -149,14 +159,14 @@ struct MeshGSTrainResource
     static SOABuffer<SplatAdamSOATrait> createSplatAdamBuffer(const ref<Device>& pDevice, uint splatCount);
     static SOABuffer<SplatViewSOATrait> createSplatViewBuffer(const ref<Device>& pDevice, uint splatViewCount);
     bool isCapable(uint splatCount, uint2 resolution) const;
-    bool isCapable(const MeshGSTrainDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
+    bool isCapable(const MeshGSTrainDesc<TrainType_V>& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
 };
 
 template<MeshGSTrainType TrainType_V>
 class MeshGSTrainer
 {
 private:
-    MeshGSTrainDesc mDesc{};
+    MeshGSTrainDesc<TrainType_V> mDesc{};
     ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass, mpLossPass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
@@ -174,7 +184,7 @@ private:
 
 public:
     MeshGSTrainer() = default;
-    MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc);
+    MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc<TrainType_V>& desc);
     static DeviceSortDesc getSortDesc() { return DeviceSortDesc({DeviceSortBufferType::kKey32, DeviceSortBufferType::kPayload}); }
 
     const auto& getDesc() const { return mDesc; }

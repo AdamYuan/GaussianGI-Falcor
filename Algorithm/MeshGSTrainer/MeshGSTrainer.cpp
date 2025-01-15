@@ -5,12 +5,13 @@
 #include "MeshGSTrainer.hpp"
 
 #include "../../Util/ShaderUtil.hpp"
+#include "MeshGSTrainer.slangh"
 
 namespace GSGI
 {
 
 template<MeshGSTrainType TrainType_V>
-MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc& desc) : mDesc{desc}
+MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const MeshGSTrainDesc<TrainType_V>& desc) : mDesc{desc}
 {
     mDesc.batchSize = math::max(mDesc.batchSize, 1u);
 
@@ -24,6 +25,7 @@ MeshGSTrainer<TrainType_V>::MeshGSTrainer(const ref<Device>& pDevice, const Mesh
     defList.add("BATCH_SIZE", fmt::to_string(mDesc.batchSize));
     mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain", defList);
     mpOptimizePass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Optimize.cs.slang", "csMain", defList);
+    mDesc.learnRate.bindShaderData(mpOptimizePass->getRootVar()["gLearnRate"]);
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
@@ -94,8 +96,8 @@ void MeshGSTrainer<TrainType_V>::iterate(
 
     if ((++state.iteration) % mDesc.batchSize == 0)
     {
-        state.adamBeta1T *= mDesc.adamBeta1;
-        state.adamBeta2T *= mDesc.adamBeta2;
+        state.adamBeta1T *= ADAM_BETA1;
+        state.adamBeta2T *= ADAM_BETA2;
         optimize(state, pRenderContext, resource);
         ++state.batch;
     }
@@ -256,12 +258,8 @@ void MeshGSTrainer<TrainType_V>::optimize(
     resource.splatBuf.bindShaderData(var["gSplats"]);
     resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
     resource.splatAdamBuf.bindShaderData(var["gSplatAdams"]);
-    var["gAdamBeta1"] = mDesc.adamBeta1;
-    var["gAdamBeta2"] = mDesc.adamBeta2;
     var["gAdamBeta1T"] = state.adamBeta1T;
     var["gAdamBeta2T"] = state.adamBeta2T;
-    var["gAdamLearnRate"] = mDesc.adamLearnRate;
-    var["gAdamEpsilon"] = mDesc.adamEpsilon;
     mpOptimizePass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
 }
 

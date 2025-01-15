@@ -35,14 +35,16 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     mpCamera->setFarPlane(4.0f);
     mpCameraController = std::make_unique<FirstPersonCameraController>(mpCamera);
 
-    MeshGSTrainDesc trainDesc = {
+    MeshGSTrainDesc<MeshGSTrainType::kDepth> trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
         .batchSize = 4,
-        .adamBeta1 = 0.9f,
-        .adamBeta2 = 0.999f,
-        .adamLearnRate = 0.0005f,
-        .adamEpsilon = 1e-8f
+        .learnRate =
+            {
+                .rotate = float4{0.0002f},
+                .mean = float3(0.00008f),
+                .scale = float3(0.0002f),
+            },
     };
     mTrainResource = MeshGSTrainResource<MeshGSTrainType::kDepth>::create(getDevice(), trainDesc);
     mTrainer = MeshGSTrainer<MeshGSTrainType::kDepth>(getDevice(), trainDesc);
@@ -114,17 +116,20 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
             mTrainResource.splatBuf = MeshGSTrainResource<MeshGSTrainType::kDepth>::createSplatBuffer(
                 getDevice(),
                 kMaxSplatCount,
-                {sampleResult.points | std::views::transform(
-                                           [&](const MeshPoint& meshPoint)
-                                           {
-                                               auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
-                                               return MeshGSTrainSplat<MeshGSTrainType::kDepth>{
-                                                   .rotate = optimizeResult.rotate,
-                                                   .mean = meshPoint.getPosition(view),
-                                                   .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                                               };
-                                           }
-                                       ),
+                {sampleResult.points |
+                     std::views::transform(
+                         [&](const MeshPoint& meshPoint)
+                         {
+                             auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
+                             return MeshGSTrainSplat<MeshGSTrainType::kDepth>{
+                                 .rotate = float4(
+                                     optimizeResult.rotate.x, optimizeResult.rotate.y, optimizeResult.rotate.z, optimizeResult.rotate.w
+                                 ),
+                                 .mean = meshPoint.getPosition(view),
+                                 .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
+                             };
+                         }
+                     ),
                  kMaxSplatCount}
             );
         }
