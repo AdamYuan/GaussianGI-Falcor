@@ -7,6 +7,8 @@ SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
 StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
+uniform float4x4 gCamInvProjMat;
+uniform float gCamProjMat00;
 
 struct PSIn
 {
@@ -44,7 +46,8 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 SplatRTOut psMain(PSIn pIn)
 {
     bool shouldDiscard;
-    float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
+    float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
+    // float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
     if (shouldDiscard)
         discard;
     return SplatRTOut::create(pIn.splatView.channel.depth, alpha);

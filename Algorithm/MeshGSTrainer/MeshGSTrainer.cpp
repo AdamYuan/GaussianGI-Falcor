@@ -161,6 +161,8 @@ void MeshGSTrainer<TrainType_V>::forward(
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
         var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         var["gResolution"] = float2(mDesc.resolution);
+        var["gCamInvProjMat"] = math::inverse(camera.projMat);
+        var["gCamProjMat00"] = camera.projMat[0][0];
 
         mpForwardDrawPass->getState()->setFbo(resource.splatRT.pFbo);
         pRenderContext->drawIndirect(

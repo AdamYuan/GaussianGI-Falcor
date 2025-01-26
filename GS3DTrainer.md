@@ -1,4 +1,10 @@
-# 3QGS Trainer
+# 3DGS Trainer
+
+## Projection
+
+$\phi(x,y,z) = (\text{focal\_length}\times\frac{x}{z}, \text{focal\_length}\times\frac{y}{z})$
+
+## Back-propagation
 
 $C = \sum_{i=1}^n C_i, C_i = c_i \alpha_i T_i, T_i = \prod_{j=1}^{i-1}(1-\alpha_j)$
 

@@ -12,17 +12,17 @@ RWSplatTexture gDLossDCs_Ts;
 uniform uint2 gResolution;
 
 [Differentiable]
-float getLossL1(SplatChannel predict, no_diff SplatChannel data)
+float getLossL1(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
 {
     var d = predict.sub(data);
-    return d.abs().sum();
+    return d.abs().sum() / float(pixelCount);
 }
 
 [Differentiable]
-float getLossL2(SplatChannel predict, no_diff SplatChannel data)
+float getLossL2(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
 {
     var d = predict.sub(data);
-    return d.mul(d).sum();
+    return d.mul(d).sum() / float(pixelCount);
 }
 
 [numthreads(GROUP_DIM, GROUP_DIM, 1)]
@@ -37,8 +37,10 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     SplatChannel predict = gSplatRT.load(threadID, T);
     SplatChannel data = gMeshRT.load(threadID);
 
+    uint pixelCount = gResolution.x * gResolution.y;
+
     var dp = diffPair(predict);
-    bwd_diff(getLossL2)(dp, data, 1.0);
+    bwd_diff(getLossL2)(dp, data, pixelCount, 1.0);
 
     SplatChannel dL_dC = dp.d;
     gDLossDCs_Ts.store(threadID, dL_dC, T);

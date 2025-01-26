@@ -43,8 +43,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     float2x3 cov3d = GS3D::getCovariance3D(
         splat.rotate, float3(splat.scaleXY, splat.scaleXY.x * 0.1), instanceInfo.transform.getRotateMatrix(), instanceInfo.transform.scale
     );
-    float3 cov2d =
-        GS3D::getCovariance2D(cov3d, viewPos, float3x3(gGStaticScene.camera.data.viewMat), gGStaticScene.camera.data.projMat, gResolution);
+    float3 cov2d = GS3D::getCovariance2D(
+        cov3d, viewPos, float3x3(gGStaticScene.camera.data.viewMat), gGStaticScene.camera.data.projMat[0][0], gResolution
+    );
     GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
 
     float2 axis0 = eigen2d.eigen[0] * sqrt(2.0 * eigen2d.lambda[0]);
