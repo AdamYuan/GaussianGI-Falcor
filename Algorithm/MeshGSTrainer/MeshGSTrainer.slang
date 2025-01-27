@@ -340,6 +340,24 @@ namespace MeshGSTrainer
     }
 
     [Differentiable]
+    public SplatView splat2splatView(
+        Splat splat,
+        no_diff float4x4 camViewMat,
+        no_diff float4x4 camProjMat,
+        no_diff float camNearZ,
+        no_diff float camFarZ,
+        no_diff float2 screenResolution
+    )
+    {
+        float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
+        float4 clipPos = mul(camProjMat, float4(viewPos, 1));
+        clipPos /= clipPos.w;
+
+        float2x2 screenAxis;
+        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat[0][0], camNearZ, camFarZ, screenResolution);
+    }
+
+    [Differentiable]
     public SplatView splat2splatViewGSPP(
         Splat splat,
         float3 splatViewPos,
@@ -370,7 +388,7 @@ namespace MeshGSTrainer
     }
 
     [Differentiable]
-    public SplatView splat2splatView(
+    public SplatView splat2splatViewGSPP(
         Splat splat,
         no_diff float4x4 camViewMat,
         no_diff float4x4 camProjMat,
@@ -384,7 +402,9 @@ namespace MeshGSTrainer
         clipPos /= clipPos.w;
 
         float2x2 screenAxis;
-        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat[0][0], camNearZ, camFarZ, screenResolution);
+        return splat2splatViewGSPP(
+            splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat[0][0], camNearZ, camFarZ, screenResolution
+        );
     }
 
     public float2x2 getDeltaClip(float2x2 screenAxis, float2 screenResolution)
@@ -447,7 +467,7 @@ namespace MeshGSTrainer
 
         float2 clipPos = (screenPos / screenResolution) * 2.0 - 1.0;
         clipPos.y = -clipPos.y;
-        float3 viewPosDir = normalize(mul(camInvProjMat, float4(clipPos, 0, 1)).xyz);
+        float3 viewPosDir = mul(camInvProjMat, float4(clipPos, 0, 1)).xyz; // No need to normalize()
 
         float3x3 planeRotMat = getAlignRotMatT(viewMeanDir);
         float2 planePos = GS3D::project(mul(planeRotMat, viewPosDir), camProjMat00, screenResolution);

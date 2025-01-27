@@ -207,6 +207,8 @@ void MeshGSTrainer<TrainType_V>::backward(
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
         var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
         var["gResolution"] = float2(mDesc.resolution);
+        var["gCamInvProjMat"] = math::inverse(camera.projMat);
+        var["gCamProjMat00"] = camera.projMat[0][0];
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         var["gRs_Ms"] = resource.splatTmpTex.pTexture; // bindShaderData(var["gRs_Ms"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);

@@ -10,6 +10,8 @@ SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
 StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
+uniform float4x4 gCamInvProjMat;
+uniform float gCamProjMat00;
 
 SplatTexture gDLossDCs_Ts;
 globallycoherent RasterizerOrderedTexture2D<float2> gRs_Ms;
@@ -54,7 +56,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 void psMain(PSIn pIn)
 {
     bool shouldDiscard;
-    float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
+    float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
 
     if (shouldDiscard)
     {
@@ -93,7 +95,7 @@ void psMain(PSIn pIn)
     dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}
     float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum(); // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
-    bwd_diff(getAlpha)(dp, pIn.clipPos.xy, gResolution, dL_dalpha);
+    bwd_diff(getAlphaGSPP)(dp, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, dL_dalpha);
     dL_dsplatView.geom = dp.d;
     if (shouldDiscard)
         dL_dsplatView = (SplatView)0;
