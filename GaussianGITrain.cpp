@@ -182,11 +182,11 @@ int runMain(int argc, char** argv)
     SampleAppConfig config;
     config.windowDesc.title = "GaussianGITrain";
     config.windowDesc.resizableWindow = false;
-    config.windowDesc.width = 1280;
-    config.windowDesc.height = 720;
+    config.windowDesc.width = 1024;
+    config.windowDesc.height = 1024;
     config.deviceDesc.type = Device::Vulkan;
     config.generateShaderDebugInfo = true;
-    config.shaderPreciseFloat = true;
+    config.shaderPreciseFloat = false;
 
     GSGI::GaussianGITrain project(config);
     return project.run();
