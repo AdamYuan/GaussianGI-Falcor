@@ -129,5 +129,12 @@ namespace MeshGSTrain
             channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
             return channel;
         }
+
+        [Differentiable]
+        public static float loss(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
+        {
+            float d = data.depth - predict.depth;
+            return (d * d) / float(pixelCount);
+        }
     }
 }

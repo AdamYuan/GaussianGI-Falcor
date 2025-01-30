@@ -79,5 +79,7 @@ namespace MeshGSTrain
             no_diff float camFarZ,
             no_diff float2 screenResolution
         );
+        [Differentiable]
+        static float loss(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount);
     }
 }

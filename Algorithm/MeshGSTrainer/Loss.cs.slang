@@ -1,29 +1,15 @@
 import GaussianGI.Algorithm.ThreadGroupTilingX;
 import MeshGSTrainer;
 
-using namespace MeshGSTrainer;
+using namespace MeshGSTrain;
 
 #define GROUP_DIM 8
 
-SplatRTTexture gSplatRT;
-MeshRTTexture gMeshRT;
-RWSplatTexture gDLossDCs_Ts;
+Trait::SplatRTTexture gSplatRT;
+Trait::MeshRTTexture gMeshRT;
+Trait::RWSplatTexture gDLossDCs_Ts;
 
 uniform uint2 gResolution;
-
-[Differentiable]
-float getLossL1(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
-{
-    var d = predict.sub(data);
-    return d.abs().sum() / float(pixelCount);
-}
-
-[Differentiable]
-float getLossL2(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
-{
-    var d = predict.sub(data);
-    return d.mul(d).sum() / float(pixelCount);
-}
 
 [numthreads(GROUP_DIM, GROUP_DIM, 1)]
 void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
@@ -34,14 +20,14 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         return;
 
     float T;
-    SplatChannel predict = gSplatRT.load(threadID, T);
-    SplatChannel data = gMeshRT.load(threadID);
+    Trait::SplatChannel predict = gSplatRT.load(threadID, T);
+    Trait::SplatChannel data = gMeshRT.load(threadID);
 
     uint pixelCount = gResolution.x * gResolution.y;
 
     var dp = diffPair(predict);
-    bwd_diff(getLossL2)(dp, data, pixelCount, 1.0);
+    bwd_diff(Trait::loss)(dp, data, pixelCount, 1.0);
 
-    SplatChannel dL_dC = dp.d;
+    Trait::SplatChannel dL_dC = dp.d;
     gDLossDCs_Ts.store(threadID, dL_dC, T);
 }
