@@ -1,0 +1,83 @@
+namespace MeshGSTrain
+{
+    static const uint kFloatsPerSplatGeom = 10;
+    public struct SplatGeom : IDifferentiable
+    {
+        public float4 rotate;
+        public float3 mean;
+        public float3 scale;
+    }
+
+    static const uint kFloatsPerSplatViewGeom = 5;
+    public struct SplatViewGeom : IDifferentiable
+    {
+        public float2 clipMean;
+        public float3 conic;
+    }
+
+    public interface ISplatAttrib
+    {
+        float getWord(uint idx);
+        [mutating]
+        void setWord(uint idx, float value);
+    }
+    public interface ISplatChannel
+    {
+        float getWord(uint idx);
+        [mutating]
+        void setWord(uint idx, float value);
+    }
+    public interface ISplatTexture<SplatChannel_T : ISplatChannel>
+    {
+        SplatChannel_T load(uint2 coord, out float o_T);
+    }
+    public interface IRWSplatTexture<SplatChannel_T : ISplatChannel>
+    {
+        SplatChannel_T load(uint2 coord, out float o_T);
+        void store(uint2 coord, SplatChannel_T channel, float t);
+    }
+    public interface ISplatRTTexture<SplatChannel_T : ISplatChannel>
+    {
+        SplatChannel_T load(uint2 coord, out float o_T);
+    }
+    public interface ISplatRTOut<SplatChannel_T : ISplatChannel>
+    {
+        static This create(SplatChannel_T channel, float alpha);
+    }
+    public interface IMeshRTTexture<SplatChannel_T : ISplatChannel>
+    {
+        SplatChannel_T load(uint2 coord);
+    }
+    public interface IMeshRTOut<SplatChannel_T : ISplatChannel>
+    {
+        static This create(SplatChannel_T channel);
+    }
+    public interface ITrait
+    {
+        static const uint kFloatsPerSplatAttrib;
+        associatedtype SplatAttrib : ISplatAttrib, IDifferentiable;
+        static const uint kFloatsPerSplatChannel;
+        associatedtype SplatChannel : ISplatChannel, IDifferentiable;
+        associatedtype SplatTexture : ISplatTexture<SplatChannel>;
+        associatedtype RWSplatTexture : IRWSplatTexture<SplatChannel>;
+        associatedtype SplatRTTexture : ISplatRTTexture<SplatChannel>;
+        associatedtype SplatRTOut : ISplatRTOut<SplatChannel>;
+        associatedtype MeshRTTexture : IMeshRTTexture<SplatChannel>;
+        associatedtype MeshRTOut : IMeshRTOut<SplatChannel>;
+        [Differentiable]
+        static SplatChannel getSplatChannel(
+            SplatGeom splatGeom,
+            SplatAttrib splatAttrib,
+            SplatViewGeom splatViewGeom,
+            float3 splatViewPos,
+            float3 splatClipPos,
+            float2x3 splatCov3d,
+            float3 splatCov2d,
+            no_diff float4x4 camViewMat,
+            no_diff float camProjMat00,
+            no_diff float camNearZ,
+            no_diff float camFarZ,
+            no_diff float2 screenResolution
+        );
+    }
+}

@@ -5,119 +5,186 @@ import GaussianGI.Util.SOABufferUtil;
 #include "MeshGSTrainer.slangh"
 #include "Utils/Math/MathConstants.slangh"
 
-#define SPLAT_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_FLT_COUNT
-#define SPLAT_VIEW_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_VIEW_FLT_COUNT
-#define SPLAT_ADAM_FLT_COUNT DEPTH_TRAIN_TYPE_SPLAT_ADAM_FLT_COUNT
+#include "Trait/Depth.slangh"
 
-namespace MeshGSTrainer
+namespace MeshGSTrain
 {
-    typealias SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
-
-    typealias SplatSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_FLT_COUNT>;
-    public typealias FlatSplat = SOATuple<SplatSOATrait>;
-    public typealias SplatBuffer = SOABuffer<SplatSOATrait>;
-    public typealias RWSplatBuffer = RWSOABuffer<SplatSOATrait>;
-
-    typealias SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_VIEW_FLT_COUNT>;
-    public typealias FlatSplatView = SOATuple<SplatViewSOATrait>;
-    public typealias SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
-    public typealias RWSplatViewBuffer = RWSOABuffer<SplatViewSOATrait>;
-
-    typealias SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, SPLAT_ADAM_FLT_COUNT>;
-    public typealias FlatSplatAdam = SOATuple<SplatAdamSOATrait>;
-    public typealias SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
-    public typealias RWSplatAdamBuffer = RWSOABuffer<SplatAdamSOATrait>;
-
-    public const static float kOpacity = 0.975;                   // O
-    public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
-    public const static float kQuadPosBound = 2.3486050619834185; // Q
-    // \alpha = O \exp{-Q^2} = \alpha_T
-    // \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
-
     public struct Camera
     {
         public float4x4 viewMat, projMat;
         public float nearZ, farZ;
-    };
+    }
 
-    public struct Splat : IDifferentiable, ISOAElement<SplatSOATrait>
+    public const static float kOpacity = 0.975;                   // O
+    public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
+    public const static float kQuadPosBound = 2.3486050619834185; // Q
+                                                                  // \alpha = O \exp{-Q^2} = \alpha_T
+                                                                  // \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
+
+    public extension Trait
     {
-        public float4 rotate;
-        public float3 mean;
-        public float3 scale;
+        static const uint kFloatsPerSplat = kFloatsPerSplatGeom + Trait::kFloatsPerSplatAttrib;
+        typealias SplatSOATrait = SOATrait<float, 4, kFloatsPerSplat>;
+        public typealias FlatSplat = SOATuple<SplatSOATrait>;
+        public typealias SplatBuffer = SOABuffer<SplatSOATrait>;
+        public typealias RWSplatBuffer = RWSOABuffer<SplatSOATrait>;
 
-        public FlatSplat toSOA() { return FlatSplat( { rotate, float4(mean, scale.x) }, scale.yz); }
-        public static Splat fromSOA(FlatSplat soa)
+        static const uint kFloatsPerSplatView = kFloatsPerSplatViewGeom + Trait::kFloatsPerSplatChannel;
+        typealias SplatViewSOATrait = SOATrait<float, 4, kFloatsPerSplatView>;
+        public typealias FlatSplatView = SOATuple<SplatViewSOATrait>;
+        public typealias SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
+        public typealias RWSplatViewBuffer = RWSOABuffer<SplatViewSOATrait>;
+
+        static const uint kFloatsPerSplatAdam = kFloatsPerSplat * 2;
+        typealias SplatAdamSOATrait = SOATrait<float, 4, kFloatsPerSplatAdam>;
+        public typealias FlatSplatAdam = SOATuple<SplatAdamSOATrait>;
+        public typealias SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
+        public typealias RWSplatAdamBuffer = RWSOABuffer<SplatAdamSOATrait>;
+
+        public struct Splat : ISOAElement<SplatSOATrait>, IDifferentiable
         {
-            Splat splat;
-            splat.rotate = soa.units[0];
-            splat.mean = soa.units[1].xyz;
-            splat.scale = float3(soa.units[1].w, soa.ext);
-            return splat;
+            public SplatGeom geom;
+            public Trait::SplatAttrib attrib;
+
+            public FlatSplat toSOA()
+            {
+                FlatSplat soa;
+                soa.setWords(0, geom.rotate);
+                soa.setWords(4, geom.mean);
+                soa.setWords(7, geom.scale);
+                [ForceUnroll]
+                for (uint i = 0; i < Trait::kFloatsPerSplatAttrib; ++i)
+                    soa.setWord(kFloatsPerSplatGeom + i, attrib.getWord(i));
+                return soa;
+            }
+            public static This fromSOA(FlatSplat soa)
+            {
+                This splat;
+                splat.geom.rotate = soa.getWords<4>(0);
+                splat.geom.mean = soa.getWords<3>(4);
+                splat.geom.scale = soa.getWords<3>(7);
+                [ForceUnroll]
+                for (uint i = 0; i < Trait::kFloatsPerSplatAttrib; ++i)
+                    splat.attrib.setWord(i, soa.getWord(kFloatsPerSplatGeom + i));
+                return splat;
+            }
         }
-    };
 
-    public struct SplatAdam : ISOAElement<SplatAdamSOATrait>
-    {
-        public FlatSplat m, v;
-
-        public FlatSplatAdam toSOA()
+        public struct SplatView : IDifferentiable, ISOAElement<SplatViewSOATrait>
         {
-            return FlatSplatAdam(
-                { m.units[0], m.units[1], v.units[0], v.units[1] }, //
-                float4(m.ext, v.ext)
-            );
+            public SplatViewGeom geom;
+            public Trait::SplatChannel channel;
+
+            public FlatSplatView toSOA()
+            {
+                FlatSplatView soa;
+                soa.setWords(0, geom.clipMean);
+                soa.setWords(2, geom.conic);
+                [ForceUnroll]
+                for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                    soa.setWord(kFloatsPerSplatViewGeom + i, channel.getWord(i));
+                return soa;
+            }
+            public static This fromSOA(FlatSplatView soa)
+            {
+                This splatView;
+                splatView.geom.clipMean = soa.getWords<2>(0);
+                splatView.geom.conic = soa.getWords<3>(2);
+                [ForceUnroll]
+                for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                    splatView.channel.setWord(i, soa.getWord(kFloatsPerSplatViewGeom + i));
+                return splatView;
+            }
         }
-        public static SplatAdam fromSOA(FlatSplatAdam soa)
+
+        public struct SplatAdam : ISOAElement<SplatAdamSOATrait>
         {
-            SplatAdam splatAdam;
-            splatAdam.m = FlatSplat( { soa.units[0], soa.units[1] }, soa.ext.xy);
-            splatAdam.v = FlatSplat( { soa.units[2], soa.units[3] }, soa.ext.zw);
-            return splatAdam;
+            public FlatSplat m, v;
+
+            public FlatSplatAdam toSOA()
+            {
+                FlatSplatAdam soa;
+                [ForceUnroll]
+                for (uint i = 0; i < kFloatsPerSplat; ++i)
+                {
+                    soa.setWord(i, m.getWord(i));
+                    soa.setWord(i + kFloatsPerSplat, v.getWord(i));
+                }
+                return soa;
+            }
+            public static This fromSOA(FlatSplatAdam soa)
+            {
+                This splatAdam;
+                [ForceUnroll]
+                for (uint i = 0; i < kFloatsPerSplat; ++i)
+                {
+                    splatAdam.m.setWord(i, soa.getWord(i));
+                    splatAdam.v.setWord(i, soa.getWord(i + kFloatsPerSplat));
+                }
+                return splatAdam;
+            }
         }
     }
 
-    public struct SplatViewGeom : IDifferentiable
+    public extension Trait::SplatChannel
     {
-        public float2 clipMean;
-        public float3 conic;
-    };
-
-    public struct SplatChannel : IDifferentiable
-    {
-        public float depth;
-
         [Differentiable]
-        public float sum() { return depth; }
-        [Differentiable]
-        public SplatChannel add(SplatChannel r) { return SplatChannel(this.depth + r.depth); }
-        [Differentiable]
-        public SplatChannel sub(SplatChannel r) { return SplatChannel(this.depth - r.depth); }
-        [Differentiable]
-        public SplatChannel mul(SplatChannel r) { return SplatChannel(this.depth * r.depth); }
-        [Differentiable]
-        public SplatChannel mul(float r) { return SplatChannel(this.depth * r); }
-        [Differentiable]
-        public SplatChannel abs() { return SplatChannel(abs(this.depth)); }
-    };
-
-    public struct SplatView : IDifferentiable, ISOAElement<SplatViewSOATrait>
-    {
-        public SplatViewGeom geom;
-        public SplatChannel channel;
-
-        public FlatSplatView toSOA() { return FlatSplatView( { float4(geom.conic, channel.depth) }, geom.clipMean); }
-        public static SplatView fromSOA(FlatSplatView soa)
+        public float sum()
         {
-            SplatView splatView;
-            splatView.geom.conic = soa.units[0].xyz;
-            splatView.channel.depth = soa.units[0].w;
-            splatView.geom.clipMean = soa.ext;
-            return splatView;
+            float a = 0;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                a += getWord(i);
+            return a;
         }
-    };
+        [Differentiable]
+        public This add(This r)
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                t.setWord(i, getWord(i) + r.getWord(i));
+            return t;
+        }
+        [Differentiable]
+        public This sub(This r)
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                t.setWord(i, getWord(i) - r.getWord(i));
+            return t;
+        }
+        [Differentiable]
+        public This mul(This r)
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                t.setWord(i, getWord(i) * r.getWord(i));
+            return t;
+        }
+        [Differentiable]
+        public This mul(float r)
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                t.setWord(i, getWord(i) * r);
+            return t;
+        }
+        [Differentiable]
+        public This abs()
+        {
+            This t;
+            [ForceUnroll]
+            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
+                t.setWord(i, abs(getWord(i)));
+            return t;
+        }
+    }
 
-    public extension FlatSplatView
+    public extension Trait::FlatSplatView
     {
         public This waveActiveSum()
         {
@@ -145,25 +212,7 @@ namespace MeshGSTrainer
         }
     }
 
-    public extension RWSplatViewBuffer
-    {
-        public void atomicAdd<T : ISOAElement<Trait>>(uint id, T elem)
-        {
-            var a = elem.toSOA();
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-            {
-                [ForceUnroll]
-                for (uint j = 0; j < This::kWordsPerUnit; ++j)
-                    __atomicAdd(unitBufs[i][id][j], a.units[i][j]);
-            }
-            [ForceUnroll]
-            for (uint j = 0; j < This::kWordsPerExt; ++j)
-                __atomicAdd(extBuf[id][j], a.ext[j]);
-        }
-    }
-
-    public extension FlatSplat
+    public extension Trait::FlatSplat
     {
 #define FS_DEF_OP(NAME, OP)                            \
     public This NAME(This r)                           \
@@ -210,86 +259,25 @@ namespace MeshGSTrainer
             return any(isnan(this.ext)) || any(isinf(this.ext));
         }
     }
-
-    /* public uint getCoordAtomicBinID(uint2 coord)
+    public extension Trait::RWSplatViewBuffer
     {
-        return (coord.x % DLOSS_ATOMIC_BIN_DIM_X) * DLOSS_ATOMIC_BIN_DIM_Y + (coord.y % DLOSS_ATOMIC_BIN_DIM_Y);
-    } */
-
-    public struct SplatRTTexture
-    {
-        Texture2D<float> depths, Ts;
-
-        public SplatChannel load(uint2 coord, out float o_T)
+        public void atomicAdd<T : ISOAElement<Trait>>(uint id, T elem)
         {
-            SplatChannel ch;
-            ch.depth = depths[coord].x;
-            o_T = Ts[coord].x;
-            return ch;
+            var a = elem.toSOA();
+            [ForceUnroll]
+            for (uint i = 0; i < This::kUnitsPerElem; ++i)
+            {
+                [ForceUnroll]
+                for (uint j = 0; j < This::kWordsPerUnit; ++j)
+                    __atomicAdd(unitBufs[i][id][j], a.units[i][j]);
+            }
+            [ForceUnroll]
+            for (uint j = 0; j < This::kWordsPerExt; ++j)
+                __atomicAdd(extBuf[id][j], a.ext[j]);
         }
-    };
+    }
 
-    public struct SplatRTOut
-    {
-        public float4 depth : SV_Target0;
-        public float4 alpha : SV_Target1;
-
-        public static SplatRTOut create(float depth, float alpha)
-        {
-            SplatRTOut o;
-            o.depth = float4(depth, depth, depth, alpha);
-            o.alpha = float4(1, 1, 1, alpha);
-            return o;
-        }
-    };
-
-    public struct MeshRTTexture
-    {
-        Texture2D<float> depths;
-
-        public SplatChannel load(uint2 coord)
-        {
-            float depth = depths[coord];
-            SplatChannel ch;
-            ch.depth = depth;
-            return ch;
-        }
-    };
-
-    public struct MeshRTOut
-    {
-        public float4 depth : SV_Target0;
-
-        public static MeshRTOut create(float depth)
-        {
-            MeshRTOut o;
-            o.depth = float4(depth, depth, depth, 1);
-            return o;
-        }
-    };
-
-    public struct SplatTexture
-    {
-        Texture2D<float2> depths_Ts;
-
-        public SplatChannel load(uint2 coord, out float o_T)
-        {
-            float2 depth_T = depths_Ts[coord];
-            SplatChannel ch;
-            ch.depth = depth_T.x;
-            o_T = depth_T.y;
-            return ch;
-        }
-    };
-
-    public struct RWSplatTexture
-    {
-        RWTexture2D<float2> depths_Ts;
-
-        public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
-    };
-
-    public struct CoherentRasterizerOrderedSplatTexture
+    /* public struct CoherentRasterizerOrderedSplatTexture
     {
         globallycoherent RasterizerOrderedTexture2D<float2> depths_Ts;
 
@@ -302,18 +290,11 @@ namespace MeshGSTrainer
             return ch;
         }
         public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
-    };
+    }; */
 
     [Differentiable]
-    public float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
-    {
-        viewZ = -viewZ; // make viewZ positive
-        return camNearZ / viewZ + 0.02;
-    }
-
-    [Differentiable]
-    public SplatView splat2splatView(
-        Splat splat,
+    public Trait::SplatView splat2splatView(
+        Trait::Splat splat,
         float3 splatViewPos,
         float3 splatClipPos,
         no_diff out float2x2 o_screenAxis,
@@ -324,14 +305,27 @@ namespace MeshGSTrainer
         no_diff float2 screenResolution
     )
     {
-        float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, splat.scale);
+        float2x3 cov3d = GS3D::getCovariance3D(splat.geom.rotate, splat.geom.scale);
         float3 cov2d = GS3D::getCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat00, screenResolution);
-        GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
-        SplatView splatView;
+        Trait::SplatView splatView;
         splatView.geom.clipMean = splatClipPos.xy;
         splatView.geom.conic = GS3D::getConic(cov2d);
-        splatView.channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
+        splatView.channel = Trait::getSplatChannel(
+            splat.geom,
+            splat.attrib,
+            splatView.geom,
+            splatViewPos,
+            splatClipPos,
+            cov3d,
+            cov2d,
+            camViewMat,
+            camProjMat00,
+            camNearZ,
+            camFarZ,
+            screenResolution
+        );
 
+        GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
         float2 screenScale = sqrt(2.0 * eigen2d.lambda);
         o_screenAxis = float2x2(eigen2d.eigen[0] * screenScale[0], eigen2d.eigen[1] * screenScale[1]);
         // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
@@ -340,8 +334,8 @@ namespace MeshGSTrainer
     }
 
     [Differentiable]
-    public SplatView splat2splatView(
-        Splat splat,
+    public Trait::SplatView splat2splatView(
+        Trait::Splat splat,
         no_diff float4x4 camViewMat,
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
@@ -349,7 +343,7 @@ namespace MeshGSTrainer
         no_diff float2 screenResolution
     )
     {
-        float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
+        float3 viewPos = mul(camViewMat, float4(splat.geom.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
 
@@ -358,8 +352,8 @@ namespace MeshGSTrainer
     }
 
     [Differentiable]
-    public SplatView splat2splatViewGSPP(
-        Splat splat,
+    public Trait::SplatView splat2splatViewGSPP(
+        Trait::Splat splat,
         float3 splatViewPos,
         float3 splatClipPos,
         no_diff out float2x2 o_screenAxis,
@@ -370,12 +364,26 @@ namespace MeshGSTrainer
         no_diff float2 screenResolution
     )
     {
-        float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, splat.scale);
+        float2x3 cov3d = GS3D::getCovariance3D(splat.geom.rotate, splat.geom.scale);
         float3 cov2d = GS3D::getGSPPCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat00, screenResolution);
-        SplatView splatView;
+
+        Trait::SplatView splatView;
         splatView.geom.clipMean = splatClipPos.xy;
         splatView.geom.conic = GS3D::getConic(cov2d);
-        splatView.channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
+        splatView.channel = Trait::getSplatChannel(
+            splat.geom,
+            splat.attrib,
+            splatView.geom,
+            splatViewPos,
+            splatClipPos,
+            cov3d,
+            cov2d,
+            camViewMat,
+            camProjMat00,
+            camNearZ,
+            camFarZ,
+            screenResolution
+        );
 
         // Use naive covariance 2D for screenAxis
         GS3D::Eigen<2> eigen2d =
@@ -384,12 +392,13 @@ namespace MeshGSTrainer
         o_screenAxis = float2x2(eigen2d.eigen[0] * screenScale[0], eigen2d.eigen[1] * screenScale[1]);
         // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
         // Let d = 2, a = 2\sqrt{2} \sigma < 3 \sigma
+
         return splatView;
     }
 
     [Differentiable]
-    public SplatView splat2splatViewGSPP(
-        Splat splat,
+    public Trait::SplatView splat2splatViewGSPP(
+        Trait::Splat splat,
         no_diff float4x4 camViewMat,
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
@@ -397,7 +406,7 @@ namespace MeshGSTrainer
         no_diff float2 screenResolution
     )
     {
-        float3 viewPos = mul(camViewMat, float4(splat.mean, 1)).xyz;
+        float3 viewPos = mul(camViewMat, float4(splat.geom.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
 

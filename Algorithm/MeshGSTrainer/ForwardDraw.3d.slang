@@ -1,9 +1,9 @@
 import Utils.Math.FormatConversion;
 import MeshGSTrainer;
 
-using namespace MeshGSTrainer;
+using namespace MeshGSTrain;
 
-SplatViewBuffer gSplatViews;
+Trait::SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
 StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
@@ -12,7 +12,7 @@ uniform float gCamProjMat00;
 
 struct PSIn
 {
-    nointerpolation SplatView splatView;
+    nointerpolation Trait::SplatView splatView;
     linear float4 clipPos : SV_Position;
 };
 
@@ -25,7 +25,7 @@ uint vsMain(uint instanceID: SV_InstanceID)
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
-    var splatView = gSplatViews.load<SplatView>(splatViewID);
+    var splatView = gSplatViews.load<Trait::SplatView>(splatViewID);
     float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
 
     float2 clip = splatView.geom.clipMean;
@@ -43,13 +43,13 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     output.Append(o);
 }
 
-SplatRTOut psMain(PSIn pIn)
+Trait::SplatRTOut psMain(PSIn pIn)
 {
     bool shouldDiscard;
     float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
     // float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
     if (shouldDiscard)
         discard;
-    return SplatRTOut::create(pIn.splatView.channel.depth, alpha);
+    return Trait::SplatRTOut::create(pIn.splatView.channel, alpha);
 }
 

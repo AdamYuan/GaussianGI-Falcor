@@ -1,16 +1,16 @@
 import GaussianGI.Algorithm.GS3D;
 import MeshGSTrainer;
 
-using namespace MeshGSTrainer;
+using namespace MeshGSTrain;
 
 uniform Camera gCamera;
 uniform float2 gResolution;
 
 uniform uint gSplatCount;
-SplatBuffer gSplats;
+Trait::SplatBuffer gSplats;
 
 RWStructuredBuffer<uint> gSplatViewDrawArgs; // drawArgs[1] is instanceCount also splatViewCount
-RWSplatViewBuffer gSplatViews;
+Trait::RWSplatViewBuffer gSplatViews;
 // RWSplatViewBuffer gDLossDSplatViews;
 RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
@@ -32,9 +32,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (splatID >= gSplatCount)
         return;
 
-    var splat = gSplats.load<Splat>(splatID);
+    var splat = gSplats.load<Trait::Splat>(splatID);
 
-    float3 viewPos = mul(gCamera.viewMat, float4(splat.mean, 1)).xyz;
+    float3 viewPos = mul(gCamera.viewMat, float4(splat.geom.mean, 1)).xyz;
     float4 clipPos = mul(gCamera.projMat, float4(viewPos, 1));
     if (clipPos.w <= 0) // Behind Camera
         return;
@@ -44,7 +44,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     float2x2 screenAxis;
 
-    SplatView splatView = splat2splatViewGSPP(
+    Trait::SplatView splatView = splat2splatViewGSPP(
         // splat2splatView(
         splat, //
         viewPos,

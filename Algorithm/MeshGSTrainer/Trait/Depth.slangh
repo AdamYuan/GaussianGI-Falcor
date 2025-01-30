@@ -1,0 +1,133 @@
+#include "GaussianGI/Algorithm/MeshGSTrainer/Trait/ITrait.slangh"
+
+namespace MeshGSTrain
+{
+    public struct Trait : ITrait
+    {
+        public static const uint kFloatsPerSplatAttrib = 0;
+        public struct SplatAttrib : ISplatAttrib, IDifferentiable
+        {
+            public float getWord(uint idx) { return 0; }
+            [mutating]
+            public void setWord(uint idx, float value) {}
+        };
+        public static const uint kFloatsPerSplatChannel = 1;
+        public struct SplatChannel : ISplatChannel, IDifferentiable
+        {
+            public float depth;
+
+            public float getWord(uint idx) { return depth; }
+            [mutating]
+            public void setWord(uint idx, float value) { depth = value; }
+        };
+
+        public struct SplatTexture : ISplatTexture<SplatChannel>
+        {
+            Texture2D<float2> depths_Ts;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float2 depth_T = depths_Ts[coord];
+                SplatChannel ch;
+                ch.depth = depth_T.x;
+                o_T = depth_T.y;
+                return ch;
+            }
+        };
+
+        public struct RWSplatTexture : IRWSplatTexture<SplatChannel>
+        {
+            RWTexture2D<float2> depths_Ts;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float2 depth_T = depths_Ts[coord];
+                SplatChannel ch;
+                ch.depth = depth_T.x;
+                o_T = depth_T.y;
+                return ch;
+            }
+            public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
+        };
+
+        public struct SplatRTTexture : ISplatRTTexture<SplatChannel>
+        {
+            Texture2D<float> depths, Ts;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                SplatChannel ch;
+                ch.depth = depths[coord].x;
+                o_T = Ts[coord].x;
+                return ch;
+            }
+        };
+
+        public struct SplatRTOut : ISplatRTOut<SplatChannel>
+        {
+            public float4 depth : SV_Target0;
+            public float4 alpha : SV_Target1;
+
+            public static SplatRTOut create(SplatChannel channel, float alpha)
+            {
+                SplatRTOut o;
+                o.depth = float4(float3(channel.depth), alpha);
+                o.alpha = float4(1, 1, 1, alpha);
+                return o;
+            }
+        };
+
+        public struct MeshRTTexture : IMeshRTTexture<SplatChannel>
+        {
+            Texture2D<float> depths;
+
+            public SplatChannel load(uint2 coord)
+            {
+                float depth = depths[coord];
+                SplatChannel ch;
+                ch.depth = depth;
+                return ch;
+            }
+        };
+
+        public struct MeshRTOut : IMeshRTOut<SplatChannel>
+        {
+            public float4 depth : SV_Target0;
+
+            public static MeshRTOut create(SplatChannel channel)
+            {
+                MeshRTOut o;
+                o.depth = float4(float3(channel.depth), 1);
+                return o;
+            }
+        };
+
+        [Differentiable]
+        public static float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
+        {
+            viewZ = -viewZ; // make viewZ positive
+            return camNearZ / viewZ + 0.02;
+        }
+
+        [Differentiable]
+        public static SplatChannel getSplatChannel(
+            SplatGeom splatGeom,
+            SplatAttrib splatAttrib,
+            SplatViewGeom splatViewGeom,
+            float3 splatViewPos,
+            float3 splatClipPos,
+            float2x3 splatCov3d,
+            float3 splatCov2d,
+            no_diff float4x4 camViewMat,
+            no_diff float camProjMat00,
+            no_diff float camNearZ,
+            no_diff float camFarZ,
+            no_diff float2 screenResolution
+        )
+        {
+            SplatChannel channel;
+            channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
+            return channel;
+        }
+    }
+}

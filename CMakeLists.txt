@@ -46,6 +46,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
         Algorithm/MeshGSTrainer/MeshGSTrainer.cpp
         Algorithm/MeshGSTrainer/MeshGSTrainResource.cpp
+        Algorithm/MeshGSTrainer/Trait/ITrait.slangh
+        Algorithm/MeshGSTrainer/Trait/Depth.slangh
 
         Scene/GScene.hpp
         Scene/GScene.cpp
@@ -198,6 +200,8 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
         Algorithm/MeshGSTrainer/MeshGSTrainer.cpp
         Algorithm/MeshGSTrainer/MeshGSTrainResource.cpp
+        Algorithm/MeshGSTrainer/Trait/ITrait.slangh
+        Algorithm/MeshGSTrainer/Trait/Depth.slangh
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)

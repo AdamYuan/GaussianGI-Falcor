@@ -1,40 +1,30 @@
-public interface ISOAUnitTrait
+public interface ISOATrait
 {
-    associatedtype Word : __BuiltinArithmeticType;
+    associatedtype Word;
     static const uint kWordsPerUnit;
-};
-
-public struct SOAUnitTrait<Word_T : __BuiltinArithmeticType, let WordsPerUnit_V : uint> : ISOAUnitTrait
-{
-    public typealias Word = Word_T;
-    public static const uint kWordsPerUnit = WordsPerUnit_V;
-};
-
-public interface ISOATrait : ISOAUnitTrait
-{
     static const uint kWordsPerElem;
     static const uint kUnitsPerElem;
     static const uint kWordsPerExt;
     static const uint kPaddedWordsPerExt;
-    associatedtype Unit;
-    associatedtype Ext;
-    associatedtype PaddedExt;
+    associatedtype Unit : IRWArray<Word>;
+    associatedtype Ext : IRWArray<Word>;
+    associatedtype PaddedExt : IRWArray<Word>;
     public static PaddedExt padExt(Ext);
     public static Ext unpadExt(PaddedExt);
 };
 
-public struct SOATrait<UnitTrait_T : ISOAUnitTrait, let WordsPerElem_V : uint> : ISOATrait
+public struct SOATrait<Word_T : __BuiltinArithmeticType, let WordsPerUnit_V : uint, let WordsPerElem_V : uint> : ISOATrait
 {
-    public typealias Word = UnitTrait_T::Word;
-    public static const uint kWordsPerUnit = UnitTrait_T::kWordsPerUnit;
+    public typealias Word = Word_T;
+    public static const uint kWordsPerUnit = WordsPerUnit_V;
     public static const uint kWordsPerElem = WordsPerElem_V;
     public static const uint kUnitsPerElem =
         (WordsPerElem_V % kWordsPerUnit == 0) ? (WordsPerElem_V / kWordsPerUnit - 1) : (WordsPerElem_V / kWordsPerUnit);
     public static const uint kWordsPerExt = (WordsPerElem_V % kWordsPerUnit == 0) ? kWordsPerUnit : (WordsPerElem_V % kWordsPerUnit);
     public static const uint kPaddedWordsPerExt = kWordsPerExt == 3 ? 4 : kWordsPerExt;
-    public typealias Unit = vector<Word, kWordsPerUnit>;
-    public typealias Ext = vector<Word, kWordsPerExt>;
-    public typealias PaddedExt = vector<Word, kPaddedWordsPerExt>;
+    public typealias Unit = vector<Word_T, kWordsPerUnit>;
+    public typealias Ext = vector<Word_T, kWordsPerExt>;
+    public typealias PaddedExt = vector<Word_T, kPaddedWordsPerExt>;
     public static PaddedExt padExt(Ext ext)
     {
         PaddedExt paddedExt;
@@ -80,6 +70,35 @@ public struct SOATuple<Trait_T : ISOATrait> : ISOAElement<Trait_T>
 
     public SOATuple<Trait_T> toSOA() { return this; }
     public static SOATuple<Trait_T> fromSOA(SOATuple<Trait_T> soa) { return soa; }
+
+    public Word getWord(uint idx)
+    {
+        if (idx / kWordsPerUnit < kUnitsPerElem)
+            return units[int(idx / kWordsPerUnit)][int(idx % kWordsPerUnit)];
+        return ext[int(idx % kWordsPerUnit)];
+    }
+    public vector<Word, Count_V> getWords<let Count_V : uint>(uint idx)
+    {
+        vector<Word, Count_V> words;
+        [ForceUnroll]
+        for (uint i = 0; i < Count_V; ++i)
+            words[i] = getWord(idx + i);
+        return words;
+    }
+    [mutating]
+    public void setWord(uint idx, Word word)
+    {
+        if (idx / kWordsPerUnit < kUnitsPerElem)
+            units[int(idx / kWordsPerUnit)][int(idx % kWordsPerUnit)] = word;
+        ext[int(idx % kWordsPerUnit)] = word;
+    }
+    [mutating]
+    public void setWords<let Count_V : uint>(uint idx, vector<Word, Count_V> words)
+    {
+        [ForceUnroll]
+        for (uint i = 0; i < Count_V; ++i)
+            setWord(idx + i, words[i]);
+    }
 };
 
 public struct SOABuffer<Trait_T : ISOATrait>
