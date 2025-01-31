@@ -5,7 +5,13 @@ import GaussianGI.Util.SOABufferUtil;
 #include "MeshGSTrainer.slangh"
 #include "Utils/Math/MathConstants.slangh"
 
-#include "Trait/Depth.slangh"
+#ifndef TRAIT_INCLUDE_PATH
+#define TRAIT_INCLUDE_PATH "GaussianGI/Algorithm/MeshGSTrainer/Trait/Depth.slangh"
+#endif
+
+#define TRAIT_IN_MESHGSTRAINER_SLANG
+#include TRAIT_INCLUDE_PATH
+#undef TRAIT_IN_MESHGSTRAINER_SLANG
 
 namespace MeshGSTrain
 {

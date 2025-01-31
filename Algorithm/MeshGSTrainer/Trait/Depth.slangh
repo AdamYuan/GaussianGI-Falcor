@@ -1,4 +1,11 @@
-#include "GaussianGI/Algorithm/MeshGSTrainer/Trait/ITrait.slangh"
+#if !defined(TRAIT_IN_MESHGSTRAINER_SLANG) && !defined(TRAIT_IN_BACKWARDDRAW_3D_SLANG)
+#define TRAIT_IN_MESHGSTRAINER_SLANG
+#define TRAIT_IN_BACKWARDDRAW_3D_SLANG
+#endif
+
+#ifdef TRAIT_IN_MESHGSTRAINER_SLANG
+
+#include "ITrait.slangh"
 
 namespace MeshGSTrain
 {
@@ -138,3 +145,23 @@ namespace MeshGSTrain
         }
     }
 }
+
+#endif
+
+#ifdef TRAIT_IN_BACKWARDDRAW_3D_SLANG
+
+globallycoherent RasterizerOrderedTexture2D<float2> gRs_Ms;
+
+void coherentLoadR_M(uint2 coord, out float o_R, out MeshGSTrain::Trait::SplatChannel o_M)
+{
+    var R_M = gRs_Ms[coord];
+    o_R = R_M.y;
+    o_M.depth = R_M.x;
+}
+
+void coherentStoreR_M(uint2 coord, float R, MeshGSTrain::Trait::SplatChannel M)
+{
+    gRs_Ms[coord] = float2(M.depth, R);
+}
+
+#endif
