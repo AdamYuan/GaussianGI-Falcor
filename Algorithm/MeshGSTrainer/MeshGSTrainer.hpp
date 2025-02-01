@@ -175,11 +175,6 @@ struct MeshGSTrainTraitBase
 
     struct Resource
     {
-        using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
-        using SplatSOATrait = SOATrait<SplatSOAUnitTrait, 10>;
-        using SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, 6>;
-        using SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, 20>;
-
         typename Derived_T::SplatRTTexture splatRT;
         // typename Derived_T::MeshRTTexture meshRT;
         typename Derived_T::SplatTexture splatDLossTex, splatTmpTex;
