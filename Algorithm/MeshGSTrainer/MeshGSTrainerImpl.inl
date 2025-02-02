@@ -335,7 +335,7 @@ void MeshGSTrainer<Trait_T>::forward(
         var["gCamInvProjMat"] = math::inverse(camera.projMat);
         var["gCamProjMat00"] = camera.projMat[0][0];
 
-        mpForwardDrawPass->getState()->setFbo(resource.splatRT.pFbo);
+        mpForwardDrawPass->getState()->setFbo(resource.splatRT.getFbo());
         pRenderContext->drawIndirect(
             mpForwardDrawPass->getState().get(),
             mpForwardDrawPass->getVars().get(),
@@ -359,7 +359,7 @@ void MeshGSTrainer<Trait_T>::loss(
     auto [prog, var] = getShaderProgVar(mpLossPass);
     var["gResolution"] = uint2(mDesc.resolution);
     resource.splatRT.bindShaderData(var["gSplatRT"]);
-    resource.meshRT.bindShaderData(var["gMeshRT"]);
+    data.meshRT.bindShaderData(var["gMeshRT"]);
     resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
     mpLossPass->execute(pRenderContext, mDesc.resolution.x, mDesc.resolution.y, 1);
 }
