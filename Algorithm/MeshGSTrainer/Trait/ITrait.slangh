@@ -15,13 +15,13 @@ namespace MeshGSTrain
         public float3 conic;
     }
 
-    public interface ISplatAttrib
+    public interface ISplatAttrib : IDifferentiable
     {
         float getWord(uint idx);
         [mutating]
         void setWord(uint idx, float value);
     }
-    public interface ISplatChannel
+    public interface ISplatChannel : IDifferentiable
     {
         float getWord(uint idx);
         [mutating]
@@ -55,9 +55,9 @@ namespace MeshGSTrain
     public interface ITrait
     {
         static const uint kFloatsPerSplatAttrib;
-        associatedtype SplatAttrib : ISplatAttrib, IDifferentiable;
+        associatedtype SplatAttrib : ISplatAttrib;
         static const uint kFloatsPerSplatChannel;
-        associatedtype SplatChannel : ISplatChannel, IDifferentiable;
+        associatedtype SplatChannel : ISplatChannel;
         associatedtype SplatTexture : ISplatTexture<SplatChannel>;
         associatedtype RWSplatTexture : IRWSplatTexture<SplatChannel>;
         associatedtype SplatRTTexture : ISplatRTTexture<SplatChannel>;

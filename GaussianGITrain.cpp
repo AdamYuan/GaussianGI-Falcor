@@ -35,21 +35,24 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     mpCamera->setFarPlane(4.0f);
     mpCameraController = std::make_unique<FirstPersonCameraController>(mpCamera);
 
-    MeshGSTrainDesc<MeshGSTrainType::kDepth> trainDesc = {
+    Trainer::Desc trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
         .batchSize = 4,
         .learnRate =
-            {
-                .rotate = float4{0.0002f},
-                .mean = float3(0.00008f),
-                .scale = float3(0.0002f),
+            Trainer::Splat{
+                .geom =
+                    {
+                        .rotate = float4{0.0002f},
+                        .mean = float3(0.00008f),
+                        .scale = float3(0.0002f),
+                    },
             },
     };
-    mTrainResource = MeshGSTrainResource<MeshGSTrainType::kDepth>::create(getDevice(), trainDesc);
-    mTrainer = MeshGSTrainer<MeshGSTrainType::kDepth>(getDevice(), trainDesc);
+    mTrainResource = Trainer::Resource::create(getDevice(), trainDesc);
+    mTrainer = Trainer(getDevice(), trainDesc);
 
-    auto sortDesc = MeshGSTrainer<MeshGSTrainType::kDepth>::getSortDesc();
+    auto sortDesc = Trainer::getSortDesc();
     mSortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(getDevice(), sortDesc, kMaxSplatCount);
     mSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>(getDevice(), sortDesc);
 }
@@ -73,21 +76,21 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     {
         if (mConfig.train)
         {
-            auto trainCamera = MeshGSTrainer<MeshGSTrainType::kDepth>::nextData(pRenderContext, mTrainDataset, mTrainResource);
-            mTrainer.iterate(mTrainState, pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
+            mTrainDataset.generate(pRenderContext, mTrainData, mTrainer.getDesc().resolution, true);
+            mTrainer.iterate(mTrainState, pRenderContext, mTrainResource, mTrainData, mSorter, mSortResource);
         }
         else
         {
-            auto trainCamera = MeshGSTrainCamera::create(*mpCamera);
-            MeshGSTrainer<MeshGSTrainType::kDepth>::drawData(pRenderContext, mTrainDataset, mTrainResource, trainCamera);
-            mTrainer.inference(pRenderContext, mTrainResource, trainCamera, mSorter, mSortResource);
+            mTrainData.camera = MeshGSTrainCamera::create(*mpCamera);
+            mTrainDataset.generate(pRenderContext, mTrainData, mTrainer.getDesc().resolution, false);
+            mTrainer.inference(pRenderContext, mTrainResource, mTrainData.camera, mSorter, mSortResource);
         }
     }
 
     if (mConfig.drawMeshData)
-        pRenderContext->blit(mTrainResource.meshRT.pTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainData.meshRT.pDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
-        pRenderContext->blit(mTrainResource.splatRT.pTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainResource.splatRT.pDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
@@ -117,23 +120,28 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                 kMaxSplatCount
             );
             float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
-            mTrainResource.splatBuf = MeshGSTrainResource<MeshGSTrainType::kDepth>::createSplatBuffer(
+            mTrainResource.splatBuf = Trainer::Resource::createSplatBuffer(
                 getDevice(),
                 kMaxSplatCount,
-                {sampleResult.points |
-                     std::views::transform(
-                         [&](const MeshPoint& meshPoint)
-                         {
-                             auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
-                             return MeshGSTrainSplat<MeshGSTrainType::kDepth>{
-                                 .rotate = float4(
-                                     optimizeResult.rotate.x, optimizeResult.rotate.y, optimizeResult.rotate.z, optimizeResult.rotate.w
-                                 ),
-                                 .mean = meshPoint.getPosition(view),
-                                 .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                             };
-                         }
-                     ),
+                {sampleResult.points | std::views::transform(
+                                           [&](const MeshPoint& meshPoint)
+                                           {
+                                               auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
+                                               return Trainer::Splat{
+                                                   .geom =
+                                                       {
+                                                           .rotate = float4(
+                                                               optimizeResult.rotate.x,
+                                                               optimizeResult.rotate.y,
+                                                               optimizeResult.rotate.z,
+                                                               optimizeResult.rotate.w
+                                                           ),
+                                                           .mean = meshPoint.getPosition(view),
+                                                           .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
+                                                       }
+                                               };
+                                           }
+                                       ),
                  kMaxSplatCount}
             );
         }

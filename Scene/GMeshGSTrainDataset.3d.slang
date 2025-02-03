@@ -4,7 +4,13 @@ import GaussianGI.Scene.GMesh;
 import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Algorithm.MeshGSTrainer.MeshGSTrainer;
 
-uniform MeshGSTrainer::Camera gCamera;
+#ifndef TRAIT
+#define TRAIT DEPTH_TRAIT
+#endif
+
+#define DEPTH_TRAIT 0
+
+uniform MeshGSTrain::Camera gCamera;
 GMesh::RasterData gMeshRasterData;
 SamplerState gSampler;
 
@@ -50,12 +56,15 @@ void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout Triang
     }
 }
 
-MeshGSTrainer::MeshRTOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
+MeshGSTrain::Trait::MeshRTOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
 {
     float4 texColor = gMeshRasterData.textures[pIn.textureID].Sample(gSampler, pIn.texcoord);
     if (alphaShouldDiscard(texColor.a))
         discard;
 
-    float depth = MeshGSTrainer::viewZ2Depth(pIn.viewZ, gCamera.nearZ, gCamera.farZ);
-    return MeshGSTrainer::MeshRTOut::create(depth);
+#if TRAIT == DEPTH_TRAIT
+    MeshGSTrain::Trait::SplatChannel channel;
+    channel.depth = MeshGSTrain::Trait::viewZ2Depth(pIn.viewZ, gCamera.nearZ, gCamera.farZ);
+    return MeshGSTrain::Trait::MeshRTOut::create(channel);
+#endif
 }

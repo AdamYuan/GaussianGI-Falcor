@@ -10,7 +10,7 @@
 #include <Scene/Camera/Camera.h>
 #include <Scene/Camera/CameraController.h>
 #include "Scene/GMesh.hpp"
-#include "Algorithm/MeshGSTrainer/MeshGSTrainer.hpp"
+#include "Algorithm/MeshGSTrainer/Trait/Depth.hpp"
 #include "Scene/GMeshGSTrainDataset.hpp"
 
 using namespace Falcor;
@@ -34,6 +34,7 @@ public:
     void onHotReload(HotReloadFlags reloaded) override;
 
 private:
+    using Trainer = MeshGSTrainer<MeshGSTrainDepthTrait>;
     struct
     {
         bool drawMeshData = false;
@@ -43,9 +44,10 @@ private:
     ref<Camera> mpCamera;
     std::unique_ptr<CameraController> mpCameraController;
 
-    MeshGSTrainer<MeshGSTrainType::kDepth> mTrainer;
-    MeshGSTrainResource<MeshGSTrainType::kDepth> mTrainResource;
-    GMeshGSTrainDataset<MeshGSTrainType::kDepth> mTrainDataset;
+    Trainer mTrainer;
+    Trainer::Resource mTrainResource;
+    Trainer::Data mTrainData;
+    GMeshGSTrainDataset<Trainer::Trait> mTrainDataset;
     MeshGSTrainState mTrainState{};
 
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSorter;

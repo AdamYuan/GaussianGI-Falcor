@@ -81,8 +81,8 @@ bool isResourceCapable(uint elementCount, uint2 resolution, const auto& firstRes
 
 } // namespace
 
-template<typename Derived_T>
-typename MeshGSTrainTraitBase<Derived_T>::Resource MeshGSTrainTraitBase<Derived_T>::Resource::create(
+template<Concepts::MeshGSTrainTrait Trait_T>
+typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::create(
     const ref<Device>& pDevice,
     uint splatCount,
     uint2 resolution,
@@ -102,10 +102,10 @@ typename MeshGSTrainTraitBase<Derived_T>::Resource MeshGSTrainTraitBase<Derived_
     };
     static_assert(sizeof(float16_t4) == sizeof(uint32_t) * 2); // For SplatViewAxis
     return Resource{
-        .splatRT = Derived_T::SplatRTTexture::create(pDevice, resolution),
-        // .meshRT = Derived_T::MeshRTTexture::create(pDevice, resolution),
-        .splatDLossTex = Derived_T::SplatTexture::create(pDevice, resolution),
-        .splatTmpTex = Derived_T::SplatTexture::create(pDevice, resolution),
+        .splatRT = Trait_T::SplatRTTexture::create(pDevice, resolution),
+        // .meshRT = Trait_T::MeshRTTexture::create(pDevice, resolution),
+        .splatDLossTex = Trait_T::SplatTexture::create(pDevice, resolution),
+        .splatTmpTex = Trait_T::SplatTexture::create(pDevice, resolution),
         .splatBuf = createSplatBuffer(pDevice, splatCount, splatInitData),
         .splatDLossBuf = createSplatBuffer(pDevice, splatCount),
         .splatAdamBuf = createSplatAdamBuffer(pDevice, splatCount),
@@ -133,8 +133,8 @@ typename MeshGSTrainTraitBase<Derived_T>::Resource MeshGSTrainTraitBase<Derived_
         ),
     };
 }
-template<typename Derived_T>
-typename MeshGSTrainTraitBase<Derived_T>::SplatBuffer MeshGSTrainTraitBase<Derived_T>::Resource::createSplatBuffer(
+template<Concepts::MeshGSTrainTrait Trait_T>
+typename MeshGSTrainer<Trait_T>::SplatBuffer MeshGSTrainer<Trait_T>::Resource::createSplatBuffer(
     const ref<Device>& pDevice,
     uint splatCount,
     const SplatBufferInitData& splatInitData
@@ -143,24 +143,24 @@ typename MeshGSTrainTraitBase<Derived_T>::SplatBuffer MeshGSTrainTraitBase<Deriv
     FALCOR_CHECK(splatInitData.isEmpty() || splatInitData.isCapable(splatCount), "");
     return {pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource, splatInitData};
 }
-template<typename Derived_T>
-typename MeshGSTrainTraitBase<Derived_T>::SplatAdamBuffer MeshGSTrainTraitBase<Derived_T>::Resource::createSplatAdamBuffer(
+template<Concepts::MeshGSTrainTrait Trait_T>
+typename MeshGSTrainer<Trait_T>::SplatAdamBuffer MeshGSTrainer<Trait_T>::Resource::createSplatAdamBuffer(
     const ref<Device>& pDevice,
     uint splatCount
 )
 {
     return {pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource};
 }
-template<typename Derived_T>
-typename MeshGSTrainTraitBase<Derived_T>::SplatViewBuffer MeshGSTrainTraitBase<Derived_T>::Resource::createSplatViewBuffer(
+template<Concepts::MeshGSTrainTrait Trait_T>
+typename MeshGSTrainer<Trait_T>::SplatViewBuffer MeshGSTrainer<Trait_T>::Resource::createSplatViewBuffer(
     const ref<Device>& pDevice,
     uint splatViewCount
 )
 {
     return {pDevice, splatViewCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource};
 }
-template<typename Derived_T>
-bool MeshGSTrainTraitBase<Derived_T>::Resource::isCapable(uint splatCount, uint2 resolution) const
+template<Concepts::MeshGSTrainTrait Trait_T>
+bool MeshGSTrainer<Trait_T>::Resource::isCapable(uint splatCount, uint2 resolution) const
 {
     return isResourceCapable(
                splatCount,
@@ -183,7 +183,7 @@ bool MeshGSTrainTraitBase<Derived_T>::Resource::isCapable(uint splatCount, uint2
 }
 
 template<Concepts::MeshGSTrainTrait Trait_T>
-MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const typename Trait_T::Desc& desc)
+MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& desc)
 {
     mDesc.batchSize = math::max(mDesc.batchSize, 1u);
 
@@ -192,7 +192,7 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const typename
     // Compute Passes
     DefineList defList;
     defList.add("BATCH_SIZE", fmt::to_string(mDesc.batchSize));
-    defList.add("TRAIT_INCLUDE_PATH", fmt::format("\"{}\"", Trait_T::kIncludePath));
+    addDefine(defList);
     mpForwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/ForwardView.cs.slang", "csMain", defList);
     mpLossPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Loss.cs.slang", "csMain", defList);
     mpBackwardCmdPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardCmd.cs.slang", "csMain", defList);
@@ -253,8 +253,8 @@ template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::iterate(
     MeshGSTrainState& state,
     RenderContext* pRenderContext,
-    const typename Trait_T::Resource& resource,
-    const typename Trait_T::Data& data,
+    const Resource& resource,
+    const Data& data,
     const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
     const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
 ) const
@@ -276,7 +276,7 @@ void MeshGSTrainer<Trait_T>::iterate(
 }
 
 template<Concepts::MeshGSTrainTrait Trait_T>
-void MeshGSTrainer<Trait_T>::reset(RenderContext* pRenderContext, const typename Trait_T::Resource& resource) const
+void MeshGSTrainer<Trait_T>::reset(RenderContext* pRenderContext, const Resource& resource) const
 {
     resource.splatDLossBuf.clearUAV(pRenderContext);
     resource.splatViewDLossBuf.clearUAV(pRenderContext);
@@ -285,7 +285,7 @@ void MeshGSTrainer<Trait_T>::reset(RenderContext* pRenderContext, const typename
 template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::forward(
     RenderContext* pRenderContext,
-    const typename Trait_T::Resource& resource,
+    const Resource& resource,
     const MeshGSTrainCamera& camera,
     const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
     const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
@@ -348,11 +348,7 @@ void MeshGSTrainer<Trait_T>::forward(
     }
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
-void MeshGSTrainer<Trait_T>::loss(
-    RenderContext* pRenderContext,
-    const typename Trait_T::Resource& resource,
-    const typename Trait_T::Data& data
-) const
+void MeshGSTrainer<Trait_T>::loss(RenderContext* pRenderContext, const Resource& resource, const Data& data) const
 {
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::loss");
 
@@ -364,11 +360,7 @@ void MeshGSTrainer<Trait_T>::loss(
     mpLossPass->execute(pRenderContext, mDesc.resolution.x, mDesc.resolution.y, 1);
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
-void MeshGSTrainer<Trait_T>::backward(
-    RenderContext* pRenderContext,
-    const typename Trait_T::Resource& resource,
-    const MeshGSTrainCamera& camera
-) const
+void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resource& resource, const MeshGSTrainCamera& camera) const
 {
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
@@ -421,11 +413,7 @@ void MeshGSTrainer<Trait_T>::backward(
     }
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
-void MeshGSTrainer<Trait_T>::optimize(
-    const MeshGSTrainState& state,
-    RenderContext* pRenderContext,
-    const typename Trait_T::Resource& resource
-) const
+void MeshGSTrainer<Trait_T>::optimize(const MeshGSTrainState& state, RenderContext* pRenderContext, const Resource& resource) const
 {
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::optimize");
 

@@ -7,63 +7,79 @@
 #include "../Util/ShaderUtil.hpp"
 #include <Utils/Math/MathConstants.slangh>
 
+#include "../Algorithm/MeshGSTrainer/Trait/Depth.hpp"
+
 namespace GSGI
 {
 
-template<MeshGSTrainType TrainType_V, typename RandGen_T>
-MeshGSTrainCamera GMeshGSTrainDataset<TrainType_V, RandGen_T>::nextCamera(const MeshGSTrainMeshRT<TrainType_V>& rt)
-{
-    MeshGSTrainCamera trainCamera;
-
-    auto boundExtent = pMesh->getBound().extent();
-    auto boundDiag = math::sqrt(math::dot(boundExtent, boundExtent));
-    trainCamera.farZ = boundDiag * 2.0f;
-    trainCamera.nearZ = boundDiag * 0.01f;
-    trainCamera.projMat = math::perspective(float(M_PI / 3.0), rt.getAspectRatio(), trainCamera.nearZ, trainCamera.farZ);
-
-    auto boundHalfExtent = 0.5f * boundExtent;
-    auto boundCenter = pMesh->getBound().center();
-
-    float3 eyePos, eyeLookAt;
-    float eyeExtent = math::max(1.0f, config.eyeExtent);
-    do
-    {
-        for (int i = 0; i < 3; ++i)
-        {
-            auto distr = std::uniform_real_distribution<float>{-boundHalfExtent[i], boundHalfExtent[i]};
-            eyePos[i] = boundCenter[i] + distr(randGen) * eyeExtent;
-            eyeLookAt[i] = boundCenter[i] + distr(randGen);
-        }
-    } while (math::all(eyeLookAt.xz() == eyePos.xz()));
-    trainCamera.viewMat = math::matrixFromLookAt(eyePos, eyeLookAt, float3{0.0f, 1.0f, 0.0f});
-
-    return trainCamera;
-}
-
-template<MeshGSTrainType TrainType_V, typename RandGen_T>
-void GMeshGSTrainDataset<TrainType_V, RandGen_T>::draw(
+template<Concepts::MeshGSTrainTrait Trait_T, typename RandGen_T>
+void GMeshGSTrainDataset<Trait_T, RandGen_T>::generate(
     RenderContext* pRenderContext,
-    const MeshGSTrainMeshRT<TrainType_V>& rt,
-    const MeshGSTrainCamera& camera
-) const
+    typename MeshGSTrainer<Trait_T>::Data& data,
+    uint2 resolution,
+    bool generateCamera
+)
 {
     const auto& pDevice = pRenderContext->getDevice();
+
+    if (!data.meshRT.isCapable(resolution))
+        data.meshRT = Trait_T::MeshRTTexture::create(pDevice, resolution);
+
+    if (generateCamera)
+        data.camera = [&]
+        {
+            MeshGSTrainCamera trainCamera;
+
+            float aspectRatio = float(resolution.x) / float(resolution.y);
+            auto boundExtent = pMesh->getBound().extent();
+            auto boundDiag = math::sqrt(math::dot(boundExtent, boundExtent));
+            trainCamera.farZ = boundDiag * 2.0f;
+            trainCamera.nearZ = boundDiag * 0.01f;
+            trainCamera.projMat = math::perspective(float(M_PI / 3.0), aspectRatio, trainCamera.nearZ, trainCamera.farZ);
+
+            auto boundHalfExtent = 0.5f * boundExtent;
+            auto boundCenter = pMesh->getBound().center();
+
+            float3 eyePos, eyeLookAt;
+            float eyeExtent = math::max(1.0f, config.eyeExtent);
+            do
+            {
+                for (int i = 0; i < 3; ++i)
+                {
+                    auto distr = std::uniform_real_distribution<float>{-boundHalfExtent[i], boundHalfExtent[i]};
+                    eyePos[i] = boundCenter[i] + distr(randGen) * eyeExtent;
+                    eyeLookAt[i] = boundCenter[i] + distr(randGen);
+                }
+            } while (math::all(eyeLookAt.xz() == eyePos.xz()));
+            trainCamera.viewMat = math::matrixFromLookAt(eyePos, eyeLookAt, float3{0.0f, 1.0f, 0.0f});
+
+            return trainCamera;
+        }();
+
     static ref<RasterPass> spPass = [pDevice]
     {
         ProgramDesc desc;
         desc.addShaderLibrary("GaussianGI/Scene/GMeshGSTrainDataset.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
-        auto pPass = RasterPass::create(pDevice, desc);
+        DefineList defList;
+        MeshGSTrainer<Trait_T>::addDefine(defList);
+        if constexpr (std::same_as<Trait_T, MeshGSTrainDepthTrait>)
+            defList.add("TRAIT", "DEPTH_TRAIT");
+        else
+            static_assert(false, "Not implemented");
+        auto pPass = RasterPass::create(pDevice, desc, defList);
         pPass->getState()->setRasterizerState(GMesh::getRasterizerState());
         return pPass;
     }();
+
+    data.meshRT.clearRtv(pRenderContext);
+    spPass->getState()->setFbo(data.meshRT.getFbo());
     auto [prog, var] = getShaderProgVar(spPass);
     var["gSampler"] = pDevice->getDefaultSampler();
-    camera.bindShaderData(var["gCamera"]);
-    spPass->getState()->setFbo(rt.pFbo);
+    data.camera.bindShaderData(var["gCamera"]);
     pMesh->draw(pRenderContext, spPass, var["gMeshRasterData"]);
 }
 
-template struct GMeshGSTrainDataset<MeshGSTrainType::kDepth>;
-static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainType::kDepth>, MeshGSTrainType::kDepth>);
+template struct GMeshGSTrainDataset<MeshGSTrainDepthTrait>;
+static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthTrait>, MeshGSTrainDepthTrait>);
 
 } // namespace GSGI

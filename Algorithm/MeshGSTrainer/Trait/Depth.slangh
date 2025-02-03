@@ -12,14 +12,14 @@ namespace MeshGSTrain
     public struct Trait : ITrait
     {
         public static const uint kFloatsPerSplatAttrib = 0;
-        public struct SplatAttrib : ISplatAttrib, IDifferentiable
+        public struct SplatAttrib : ISplatAttrib
         {
             public float getWord(uint idx) { return 0; }
             [mutating]
             public void setWord(uint idx, float value) {}
         };
         public static const uint kFloatsPerSplatChannel = 1;
-        public struct SplatChannel : ISplatChannel, IDifferentiable
+        public struct SplatChannel : ISplatChannel
         {
             public float depth;
 

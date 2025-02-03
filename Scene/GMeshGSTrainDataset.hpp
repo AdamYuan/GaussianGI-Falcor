@@ -15,7 +15,7 @@ using namespace Falcor;
 namespace GSGI
 {
 
-template<MeshGSTrainType TrainType_V, typename RandGen_T = std::mt19937>
+template<Concepts::MeshGSTrainTrait Trait_T, typename RandGen_T = std::mt19937>
 struct GMeshGSTrainDataset
 {
     ref<GMesh> pMesh;
@@ -24,8 +24,8 @@ struct GMeshGSTrainDataset
     {
         float eyeExtent = 2.0f;
     } config = {};
-    MeshGSTrainCamera nextCamera(const MeshGSTrainMeshRT<TrainType_V>& rt);
-    void draw(RenderContext* pRenderContext, const MeshGSTrainMeshRT<TrainType_V>& rt, const MeshGSTrainCamera& camera) const;
+
+    void generate(RenderContext* pRenderContext, typename MeshGSTrainer<Trait_T>::Data& data, uint2 resolution, bool generateCamera);
 };
 
 } // namespace GSGI

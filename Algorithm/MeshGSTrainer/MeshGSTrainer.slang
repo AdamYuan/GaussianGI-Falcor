@@ -134,7 +134,6 @@ namespace MeshGSTrain
 
     public extension Trait::SplatChannel
     {
-        [Differentiable]
         public float sum()
         {
             float a = 0;
@@ -143,7 +142,6 @@ namespace MeshGSTrain
                 a += getWord(i);
             return a;
         }
-        [Differentiable]
         public This add(This r)
         {
             This t;
@@ -152,7 +150,6 @@ namespace MeshGSTrain
                 t.setWord(i, getWord(i) + r.getWord(i));
             return t;
         }
-        [Differentiable]
         public This sub(This r)
         {
             This t;
@@ -161,7 +158,6 @@ namespace MeshGSTrain
                 t.setWord(i, getWord(i) - r.getWord(i));
             return t;
         }
-        [Differentiable]
         public This mul(This r)
         {
             This t;
@@ -170,22 +166,12 @@ namespace MeshGSTrain
                 t.setWord(i, getWord(i) * r.getWord(i));
             return t;
         }
-        [Differentiable]
         public This mul(float r)
         {
             This t;
             [ForceUnroll]
             for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
                 t.setWord(i, getWord(i) * r);
-            return t;
-        }
-        [Differentiable]
-        public This abs()
-        {
-            This t;
-            [ForceUnroll]
-            for (uint i = 0; i < Trait::kFloatsPerSplatChannel; ++i)
-                t.setWord(i, abs(getWord(i)));
             return t;
         }
     }
@@ -275,28 +261,13 @@ namespace MeshGSTrain
             {
                 [ForceUnroll]
                 for (uint j = 0; j < This::kWordsPerUnit; ++j)
-                    __atomicAdd(unitBufs[i][id][j], a.units[i][j]);
+                    __atomic_add(unitBufs[i][id][j], a.units[i][j], MemoryOrder.Relaxed);
             }
             [ForceUnroll]
             for (uint j = 0; j < This::kWordsPerExt; ++j)
-                __atomicAdd(extBuf[id][j], a.ext[j]);
+                __atomic_add(extBuf[id][j], a.ext[j], MemoryOrder.Relaxed);
         }
     }
-
-    /* public struct CoherentRasterizerOrderedSplatTexture
-    {
-        globallycoherent RasterizerOrderedTexture2D<float2> depths_Ts;
-
-        public SplatChannel load(uint2 coord, out float o_T)
-        {
-            float2 depth_T = depths_Ts[coord];
-            SplatChannel ch;
-            ch.depth = depth_T.x;
-            o_T = depth_T.y;
-            return ch;
-        }
-        public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
-    }; */
 
     [Differentiable]
     public Trait::SplatView splat2splatView(

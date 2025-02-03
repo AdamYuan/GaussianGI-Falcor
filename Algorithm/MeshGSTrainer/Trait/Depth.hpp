@@ -10,14 +10,17 @@
 
 using namespace Falcor;
 
-namespace GSGI {
+namespace GSGI
+{
 
-struct MeshGSTrainDepthTrait final : public MeshGSTrainTraitBase<MeshGSTrainDepthTrait>
+struct MeshGSTrainDepthTrait
 {
     static constexpr const char* kIncludePath = "GaussianGI/Algorithm/MeshGSTrainer/Trait/Depth.slangh";
     static constexpr uint kFloatsPerSplatAttrib = 0;
     struct SplatAttrib
-    {};
+    {
+        static void bindShaderData(const ShaderVar&) {}
+    };
     static constexpr uint kFloatsPerSplatChannel = 1;
     struct SplatChannel
     {
@@ -62,6 +65,6 @@ struct MeshGSTrainDepthTrait final : public MeshGSTrainTraitBase<MeshGSTrainDept
 
 static_assert(Concepts::MeshGSTrainTrait<MeshGSTrainDepthTrait>);
 
-}
+} // namespace GSGI
 
 #endif // GSGI_DEPTH_HPP
