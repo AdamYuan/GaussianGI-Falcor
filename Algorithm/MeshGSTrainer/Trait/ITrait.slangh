@@ -1,6 +1,7 @@
 namespace MeshGSTrain
 {
-    static const uint kFloatsPerSplatGeom = 10;
+#define FLOATS_PER_SPLAT_GEOM 10
+#define FLOATS_PER_SPLAT_VIEW_GEOM 5
     public struct SplatGeom : IDifferentiable
     {
         public float4 rotate;
@@ -8,7 +9,6 @@ namespace MeshGSTrain
         public float3 scale;
     }
 
-    static const uint kFloatsPerSplatViewGeom = 5;
     public struct SplatViewGeom : IDifferentiable
     {
         public float2 clipMean;
@@ -54,9 +54,7 @@ namespace MeshGSTrain
     }
     public interface ITrait
     {
-        static const uint kFloatsPerSplatAttrib;
         associatedtype SplatAttrib : ISplatAttrib;
-        static const uint kFloatsPerSplatChannel;
         associatedtype SplatChannel : ISplatChannel;
         associatedtype SplatTexture : ISplatTexture<SplatChannel>;
         associatedtype RWSplatTexture : IRWSplatTexture<SplatChannel>;

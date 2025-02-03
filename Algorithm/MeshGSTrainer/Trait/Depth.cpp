@@ -12,8 +12,9 @@ namespace GSGI
 MeshGSTrainDepthTrait::SplatTexture MeshGSTrainDepthTrait::SplatTexture::create(const ref<Device>& pDevice, uint2 resolution)
 {
     SplatTexture splatTex = {};
-    splatTex.pDepthTTexture =
-        createTexture<ResourceFormat::R32Float>(pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget);
+    splatTex.pDepthTTexture = createTexture<ResourceFormat::RG32Float>(
+        pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+    );
     return splatTex;
 }
 void MeshGSTrainDepthTrait::SplatTexture::clearUavRsMs(RenderContext* pRenderContext) const

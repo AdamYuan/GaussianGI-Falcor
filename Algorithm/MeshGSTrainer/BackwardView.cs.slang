@@ -4,9 +4,9 @@ import MeshGSTrainer;
 using namespace MeshGSTrain;
 
 StructuredBuffer<uint> gSplatViewDrawArgs; // drawArgs[1] is instanceCount also splatViewCount
-Trait::RWSplatViewBuffer gDLossDSplatViews;
-Trait::SplatBuffer gSplats;
-Trait::RWSplatBuffer gDLossDSplats;
+RWSplatViewBuffer gDLossDSplatViews;
+SplatBuffer gSplats;
+RWSplatBuffer gDLossDSplats;
 StructuredBuffer<uint> gSplatViewSplatIDs;
 
 uniform Camera gCamera;
@@ -22,10 +22,10 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     uint splatViewCount = gSplatViewDrawArgs[1], splatViewID = threadID.x;
     if (splatViewID >= splatViewCount)
         return;
-    var dL_dsplatView = gDLossDSplatViews.load<Trait::SplatView>(splatViewID);
-    gDLossDSplatViews.store(splatViewID, (Trait::SplatView)0); // Clear splatView gradients
+    var dL_dsplatView = gDLossDSplatViews.load<SplatView>(splatViewID);
+    gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear splatView gradients
     uint splatID = gSplatViewSplatIDs[splatViewID];
-    var splat = gSplats.load<Trait::Splat>(splatID);
+    var splat = gSplats.load<Splat>(splatID);
 
     var dp = diffPair(splat);
     bwd_diff(splat2splatViewGSPP)(
@@ -40,6 +40,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     var dL_dsplat_flat = dp.d.toSOA();
     if (BATCH_SIZE > 1)
-        dL_dsplat_flat = dL_dsplat_flat.add(gDLossDSplats.load<Trait::FlatSplat>(splatID));
+        dL_dsplat_flat = dL_dsplat_flat.add(gDLossDSplats.load<FlatSplat>(splatID));
     gDLossDSplats.store(splatID, dL_dsplat_flat);
 }

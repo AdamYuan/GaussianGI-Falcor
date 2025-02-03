@@ -28,9 +28,8 @@ struct SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>
 {
     static_assert(WordsPerElem_V > WordsPerUnit_V);
     static constexpr uint32_t kWordsPerElem = WordsPerElem_V;
-    static constexpr uint32_t kUnitsPerElem =
-        (WordsPerElem_V % WordsPerUnit_V == 0) ? (WordsPerElem_V / WordsPerUnit_V - 1) : (WordsPerElem_V / WordsPerUnit_V);
-    static constexpr uint32_t kWordsPerExt = (WordsPerElem_V % WordsPerUnit_V == 0) ? WordsPerUnit_V : (WordsPerElem_V % WordsPerUnit_V);
+    static constexpr uint32_t kUnitsPerElem = WordsPerElem_V / WordsPerUnit_V - (WordsPerElem_V % WordsPerUnit_V == 0);
+    static constexpr uint32_t kWordsPerExt = WordsPerElem_V - kUnitsPerElem * WordsPerUnit_V;
     static constexpr uint32_t kPaddedWordsPerExt = kWordsPerExt == 3 ? 4 : kWordsPerExt;
     static_assert(kUnitsPerElem > 0 && kWordsPerExt > 0);
     static_assert(kUnitsPerElem * WordsPerUnit_V + kWordsPerExt == WordsPerElem_V);

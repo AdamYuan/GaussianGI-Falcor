@@ -9,16 +9,16 @@
 
 namespace MeshGSTrain
 {
+#define FLOATS_PER_SPLAT_ATTRIB 0
+#define FLOATS_PER_SPLAT_CHANNEL 1
     public struct Trait : ITrait
     {
-        public static const uint kFloatsPerSplatAttrib = 0;
         public struct SplatAttrib : ISplatAttrib
         {
             public float getWord(uint idx) { return 0; }
             [mutating]
             public void setWord(uint idx, float value) {}
         };
-        public static const uint kFloatsPerSplatChannel = 1;
         public struct SplatChannel : ISplatChannel
         {
             public float depth;

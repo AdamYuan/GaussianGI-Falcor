@@ -1,0 +1,173 @@
+#ifndef SOA_WORD_TYPE
+#define SOA_WORD_TYPE float
+#endif
+
+#ifndef SOA_WORDS_PER_UNIT
+#define SOA_WORDS_PER_UNIT 4
+#endif
+
+#ifndef SOA_WORDS_PER_ELEM
+#define SOA_WORDS_PER_ELEM 11
+#endif
+
+#ifndef SOA_TUPLE_NAME
+#define SOA_TUPLE_NAME SOATuple
+#endif
+
+#ifndef SOA_IELEMENT_NAME
+#define SOA_IELEMENT_NAME ISOAElement
+#endif
+
+#ifndef SOA_BUFFER_NAME
+#define SOA_BUFFER_NAME SOABuffer
+#endif
+
+#ifndef SOA_RWBUFFER_NAME
+#define SOA_RWBUFFER_NAME SOARWBuffer
+#endif
+
+// Checks
+#if !(SOA_WORDS_PER_UNIT == 1 || SOA_WORDS_PER_UNIT == 2 || SOA_WORDS_PER_UNIT == 4)
+#error SOA_WORDS_PER_UNIT should be 1 or 2 or 4
+#endif
+
+#if !(SOA_WORDS_PER_ELEM > SOA_WORDS_PER_UNIT)
+#error SOA_WORDS_PER_ELEM should be greater than SOA_WORDS_PER_UNIT
+#endif
+
+// Values
+#define SOA_UNITS_PER_ELEM (SOA_WORDS_PER_ELEM / SOA_WORDS_PER_UNIT - (SOA_WORDS_PER_ELEM % SOA_WORDS_PER_UNIT == 0))
+#define SOA_WORDS_PER_EXT (SOA_WORDS_PER_ELEM - SOA_UNITS_PER_ELEM * SOA_WORDS_PER_UNIT)
+#define SOA_PAD_EXT ((SOA_WORDS_PER_EXT) == 3)
+#define SOA_PADDED_WORDS_PER_EXT (SOA_PAD_EXT ? 4 : SOA_WORDS_PER_EXT)
+
+#define SOA_UNIT_TYPE vector<SOA_WORD_TYPE, SOA_WORDS_PER_UNIT>
+#define SOA_EXT_TYPE vector<SOA_WORD_TYPE, SOA_WORDS_PER_EXT>
+#define SOA_PADDED_EXT_TYPE vector<SOA_WORD_TYPE, SOA_PADDED_WORDS_PER_EXT>
+
+#define SOA_TRAIT_DEFINE                                                    \
+    public static const uint kWordsPerElem = SOA_WORDS_PER_ELEM;            \
+    public static const uint kWordsPerUnit = SOA_WORDS_PER_UNIT;            \
+    public static const uint kUnitsPerElem = SOA_UNITS_PER_ELEM;            \
+    public static const uint kWordsPerExt = SOA_WORDS_PER_EXT;              \
+    public static const uint kPaddedWordsPerExt = SOA_PADDED_WORDS_PER_EXT; \
+    public typealias Word = SOA_WORD_TYPE;                                  \
+    public typealias Unit = SOA_UNIT_TYPE;                                  \
+    public typealias Ext = SOA_EXT_TYPE;                                    \
+    public typealias PaddedExt = SOA_PADDED_EXT_TYPE
+
+public interface SOA_IELEMENT_NAME
+{
+    SOA_TUPLE_NAME toSOA();
+    static This fromSOA(SOA_TUPLE_NAME);
+}
+
+public struct SOA_TUPLE_NAME : SOA_IELEMENT_NAME
+{
+    SOA_TRAIT_DEFINE;
+
+    public SOA_UNIT_TYPE units[SOA_UNITS_PER_ELEM];
+    public SOA_EXT_TYPE ext;
+
+    public SOA_TUPLE_NAME toSOA() { return this; }
+    public static SOA_TUPLE_NAME fromSOA(SOA_TUPLE_NAME soa) { return soa; }
+
+    public SOA_WORD_TYPE getWord(uint idx)
+    {
+        if (idx < (SOA_UNITS_PER_ELEM * SOA_WORDS_PER_UNIT))
+            return units[int(idx / SOA_WORDS_PER_UNIT)][int(idx % SOA_WORDS_PER_UNIT)];
+        else
+            return ext[int(idx % SOA_WORDS_PER_UNIT)];
+    }
+    public vector<SOA_WORD_TYPE, Count_V> getWords<let Count_V : uint>(uint idx)
+    {
+        vector<SOA_WORD_TYPE, Count_V> words;
+        [ForceUnroll]
+        for (uint i = 0; i < Count_V; ++i)
+            words[i] = getWord(idx + i);
+        return words;
+    }
+    [mutating]
+    public void setWord(uint idx, SOA_WORD_TYPE word)
+    {
+        if (idx < (SOA_UNITS_PER_ELEM * SOA_WORDS_PER_UNIT))
+            units[int(idx / SOA_WORDS_PER_UNIT)][int(idx % SOA_WORDS_PER_UNIT)] = word;
+        else
+            ext[int(idx % SOA_WORDS_PER_UNIT)] = word;
+    }
+    [mutating]
+    public void setWords<let Count_V : uint>(uint idx, vector<SOA_WORD_TYPE, Count_V> words)
+    {
+        [ForceUnroll]
+        for (uint i = 0; i < Count_V; ++i)
+            setWord(idx + i, words[i]);
+    }
+}
+
+public struct SOA_BUFFER_NAME
+{
+    SOA_TRAIT_DEFINE;
+
+    public StructuredBuffer<SOA_UNIT_TYPE> unitBufs[SOA_UNITS_PER_ELEM];
+    public StructuredBuffer<SOA_PADDED_EXT_TYPE> extBuf;
+
+    public T load<T : SOA_IELEMENT_NAME>(uint id)
+    {
+        SOA_TUPLE_NAME a;
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            a.units[i] = unitBufs[i][id];
+#if SOA_PAD_EXT
+        a.ext = extBuf[id].xyz;
+#else
+        a.ext = extBuf[id];
+#endif
+        return T::fromSOA(a);
+    }
+}
+
+public struct SOA_RWBUFFER_NAME
+{
+    SOA_TRAIT_DEFINE;
+
+    public RWStructuredBuffer<SOA_UNIT_TYPE> unitBufs[SOA_UNITS_PER_ELEM];
+    public RWStructuredBuffer<SOA_PADDED_EXT_TYPE> extBuf;
+
+    public T load<T : SOA_IELEMENT_NAME>(uint id)
+    {
+        SOA_TUPLE_NAME a;
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            a.units[i] = unitBufs[i][id];
+#if SOA_PAD_EXT
+        a.ext = extBuf[id].xyz;
+#else
+        a.ext = extBuf[id];
+#endif
+        return T::fromSOA(a);
+    }
+
+    public void store<T : SOA_IELEMENT_NAME>(uint id, T elem)
+    {
+        SOA_TUPLE_NAME a = elem.toSOA();
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            unitBufs[i][id] = a.units[i];
+#if SOA_PAD_EXT
+        extBuf[id] = SOA_PADDED_EXT_TYPE(a.ext, 0);
+#else
+        extBuf[id] = a.ext;
+#endif
+    }
+}
+
+#undef SOA_UNITS_PER_ELEM
+#undef SOA_WORDS_PER_EXT
+#undef SOA_PAD_EXT
+#undef SOA_PADDED_WORDS_PER_EXT
+
+#undef SOA_UNIT_TYPE
+#undef SOA_EXT_TYPE
+#undef SOA_PADDED_EXT_TYPE
+
+#undef SOA_TRAIT_DEFINE

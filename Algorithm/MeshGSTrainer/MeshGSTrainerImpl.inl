@@ -183,7 +183,7 @@ bool MeshGSTrainer<Trait_T>::Resource::isCapable(uint splatCount, uint2 resoluti
 }
 
 template<Concepts::MeshGSTrainTrait Trait_T>
-MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& desc)
+MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& desc) : mDesc{desc}
 {
     mDesc.batchSize = math::max(mDesc.batchSize, 1u);
 

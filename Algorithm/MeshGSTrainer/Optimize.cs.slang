@@ -8,11 +8,11 @@ using namespace MeshGSTrain;
 #endif
 
 uniform uint gSplatCount;
-Trait::RWSplatBuffer gSplats;
-Trait::RWSplatBuffer gDLossDSplats;
+RWSplatBuffer gSplats;
+RWSplatBuffer gDLossDSplats;
 
-Trait::RWSplatAdamBuffer gSplatAdams;
-uniform Trait::Splat gLearnRate;
+RWSplatAdamBuffer gSplatAdams;
+uniform Splat gLearnRate;
 uniform float gAdamBeta1T, gAdamBeta2T;
 
 #define ADAM_EPSILON 1e-8
@@ -24,10 +24,10 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (splatID >= gSplatCount)
         return;
 
-    var splatAdam = gSplatAdams.load<Trait::SplatAdam>(splatID);
-    var splat_flat = gSplats.load<Trait::FlatSplat>(splatID);
-    var dL_dsplat_flat = gDLossDSplats.load<Trait::FlatSplat>(splatID).mul(1.0 / float(BATCH_SIZE));
-    gDLossDSplats.store(splatID, (Trait::Splat)0); // Clear splat gradients
+    var splatAdam = gSplatAdams.load<SplatAdam>(splatID);
+    var splat_flat = gSplats.load<FlatSplat>(splatID);
+    var dL_dsplat_flat = gDLossDSplats.load<FlatSplat>(splatID).mul(1.0 / float(BATCH_SIZE));
+    gDLossDSplats.store(splatID, (Splat)0); // Clear splat gradients
 
     splatAdam.m = splatAdam.m.mul(ADAM_BETA1).add(dL_dsplat_flat.mul(1.0 - ADAM_BETA1));
     splatAdam.v = splatAdam.v.mul(ADAM_BETA2).add(dL_dsplat_flat.mul(dL_dsplat_flat).mul(1.0 - ADAM_BETA2));
@@ -39,7 +39,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     if (!splat_flat.anyIsNanOrInf())
     {
-        var splat = Trait::Splat::fromSOA(splat_flat);
+        var splat = Splat::fromSOA(splat_flat);
         if (all(splat.geom.rotate == 0))
             splat.geom.rotate = float4(0, 0, 0, 1);
         splat.geom.rotate = normalize(splat.geom.rotate);

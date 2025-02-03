@@ -6,7 +6,7 @@ import MeshGSTrainer;
 
 using namespace MeshGSTrain;
 
-Trait::SplatViewBuffer gSplatViews;
+SplatViewBuffer gSplatViews;
 StructuredBuffer<uint> gSplatViewSortPayloads;
 StructuredBuffer<float16_t2x2> gSplatViewAxes;
 uniform float2 gResolution;
@@ -14,7 +14,7 @@ uniform float4x4 gCamInvProjMat;
 uniform float gCamProjMat00;
 
 Trait::SplatTexture gDLossDCs_Ts;
-Trait::RWSplatViewBuffer gDLossDSplatViews;
+RWSplatViewBuffer gDLossDSplatViews;
 
 #ifndef TRAIT_INCLUDE_PATH
 #define TRAIT_INCLUDE_PATH "GaussianGI/Algorithm/MeshGSTrainer/Trait/Depth.slangh"
@@ -27,7 +27,7 @@ Trait::RWSplatViewBuffer gDLossDSplatViews;
 struct PSIn
 {
     nointerpolation uint splatViewID;
-    nointerpolation Trait::SplatView splatView;
+    nointerpolation SplatView splatView;
     linear float4 clipPos : SV_Position;
 };
 
@@ -40,7 +40,7 @@ uint vsMain(uint instanceID: SV_InstanceID)
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
-    var splatView = gSplatViews.load<Trait::SplatView>(splatViewID);
+    var splatView = gSplatViews.load<SplatView>(splatViewID);
     float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
 
     float2 clip = splatView.geom.clipMean;
@@ -100,14 +100,14 @@ void psMain(PSIn pIn)
 
     float Ti = T / Ri_1;
 
-    Trait::SplatView dL_dsplatView;
+    SplatView dL_dsplatView;
     dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}
     float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum(); // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
     bwd_diff(getAlphaGSPP)(dp, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, dL_dalpha);
     dL_dsplatView.geom = dp.d;
     if (shouldDiscard)
-        dL_dsplatView = (Trait::SplatView)0;
+        dL_dsplatView = (SplatView)0;
 
     bool callAtomicAdd;
     [branch]
@@ -115,14 +115,14 @@ void psMain(PSIn pIn)
     {
         // Wave reduction
         callAtomicAdd = WaveIsFirstLane();
-        dL_dsplatView = Trait::SplatView::fromSOA(dL_dsplatView.toSOA().waveActiveSum());
+        dL_dsplatView = SplatView::fromSOA(dL_dsplatView.toSOA().waveActiveSum());
     }
     else
     {
         // Quad reduction
         uint waveLaneIdx = WaveGetLaneIndex();
         callAtomicAdd = waveLaneIdx == QuadReadLaneAt(waveLaneIdx, 0);
-        dL_dsplatView = Trait::SplatView::fromSOA(dL_dsplatView.toSOA().quadSum());
+        dL_dsplatView = SplatView::fromSOA(dL_dsplatView.toSOA().quadSum());
     }
 
     if (callAtomicAdd)

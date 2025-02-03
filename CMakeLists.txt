@@ -12,7 +12,7 @@ target_sources(GaussianGI PRIVATE
         Util/EnumUtil.hpp
         Util/SerializeUtil.hpp
         Util/SOABufferUtil.hpp
-        Util/SOABufferUtil.slang
+        Util/SOABufferDefine.slangh
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp
@@ -156,7 +156,7 @@ target_sources(GaussianGITrain PRIVATE
         Util/DeviceUtil.hpp
         Util/DeviceUtil.cpp
         Util/SOABufferUtil.hpp
-        Util/SOABufferUtil.slang
+        Util/SOABufferDefine.slangh
 
         Scene/GMesh.hpp
         Scene/GMesh.cpp
