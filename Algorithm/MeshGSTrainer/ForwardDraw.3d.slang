@@ -46,8 +46,8 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 Trait::SplatRTOut psMain(PSIn pIn)
 {
     bool shouldDiscard;
-    // float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
-    float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
+    float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
+    // float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
     if (shouldDiscard)
         discard;
     return Trait::SplatRTOut::create(pIn.splatView.channel, alpha);

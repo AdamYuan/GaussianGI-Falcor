@@ -104,8 +104,7 @@ void psMain(PSIn pIn)
     dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}
     float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum(); // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
-    // bwd_diff(getAlphaGSPP)(dp, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, dL_dalpha);
-    bwd_diff(getAlpha)(dp, pIn.clipPos.xy, gResolution, dL_dalpha);
+    bwd_diff(getAlphaGSPP)(dp, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, dL_dalpha);
     dL_dsplatView.geom = dp.d;
     if (shouldDiscard)
         dL_dsplatView = (SplatView)0;
