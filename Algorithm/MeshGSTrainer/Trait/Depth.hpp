@@ -2,8 +2,8 @@
 // Created by adamyuan on 2/1/25.
 //
 
-#ifndef GSGI_DEPTH_HPP
-#define GSGI_DEPTH_HPP
+#ifndef GSGI_MESHGSTRAINER_TRAIT_DEPTH_HPP
+#define GSGI_MESHGSTRAINER_TRAIT_DEPTH_HPP
 
 #include <Falcor.h>
 #include "../MeshGSTrainer.hpp"
@@ -67,4 +67,4 @@ static_assert(Concepts::MeshGSTrainTrait<MeshGSTrainDepthTrait>);
 
 } // namespace GSGI
 
-#endif // GSGI_DEPTH_HPP
+#endif
