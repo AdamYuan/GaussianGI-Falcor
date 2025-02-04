@@ -44,18 +44,18 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     float2x2 screenAxis;
 
-    SplatView splatView = splat2splatViewGSPP(
-        // splat2splatView(
-        splat, //
-        viewPos,
-        clipPos.xyz,
-        screenAxis,
-        gCamera.viewMat,
-        gCamera.projMat[0][0],
-        gCamera.nearZ,
-        gCamera.farZ,
-        gResolution
-    );
+    SplatView splatView = // splat2splatViewGSPP(
+        splat2splatView(
+            splat, //
+            viewPos,
+            clipPos.xyz,
+            screenAxis,
+            gCamera.viewMat,
+            gCamera.projMat[0][0],
+            gCamera.nearZ,
+            gCamera.farZ,
+            gResolution
+        );
 
     uint splatViewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, splatViewID);

@@ -28,7 +28,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     var splat = gSplats.load<Splat>(splatID);
 
     var dp = diffPair(splat);
-    bwd_diff(splat2splatViewGSPP)(
+    // bwd_diff(splat2splatViewGSPP)(
+    bwd_diff(splat2splatView)(
         dp, //
         gCamera.viewMat,
         gCamera.projMat,
