@@ -223,7 +223,8 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& de
                 .gsEntry("gsMain")
                 .psEntry("psMain");
             return desc;
-        }()
+        }(),
+        defList
     );
     mpForwardDrawPass->getState()->setVao(pPointVao);
     mpForwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
@@ -240,7 +241,8 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& de
                 .gsEntry("gsMain")
                 .psEntry("psMain");
             return desc;
-        }()
+        }(),
+        defList
     );
     mpBackwardDrawPass->getState()->setVao(pPointVao);
     mpBackwardDrawPass->getState()->setRasterizerState(pSplatRasterState);

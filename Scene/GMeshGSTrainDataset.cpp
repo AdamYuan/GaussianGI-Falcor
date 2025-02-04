@@ -8,6 +8,7 @@
 #include <Utils/Math/MathConstants.slangh>
 
 #include "../Algorithm/MeshGSTrainer/Trait/Depth.hpp"
+#include "../Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
 
 namespace GSGI
 {
@@ -64,6 +65,8 @@ void GMeshGSTrainDataset<Trait_T, RandGen_T>::generate(
         MeshGSTrainer<Trait_T>::addDefine(defList);
         if constexpr (std::same_as<Trait_T, MeshGSTrainDepthTrait>)
             defList.add("TRAIT", "DEPTH_TRAIT");
+        else if constexpr (std::same_as<Trait_T, MeshGSTrainDepthAlbedoTrait>)
+            defList.add("TRAIT", "DEPTH_ALBEDO_TRAIT");
         else
             static_assert(false, "Not implemented");
         auto pPass = RasterPass::create(pDevice, desc, defList);
@@ -81,5 +84,7 @@ void GMeshGSTrainDataset<Trait_T, RandGen_T>::generate(
 
 template struct GMeshGSTrainDataset<MeshGSTrainDepthTrait>;
 static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthTrait>, MeshGSTrainDepthTrait>);
+template struct GMeshGSTrainDataset<MeshGSTrainDepthAlbedoTrait>;
+static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthAlbedoTrait>, MeshGSTrainDepthAlbedoTrait>);
 
 } // namespace GSGI

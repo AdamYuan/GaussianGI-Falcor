@@ -9,6 +9,7 @@ import GaussianGI.Algorithm.MeshGSTrainer.MeshGSTrainer;
 #endif
 
 #define DEPTH_TRAIT 0
+#define DEPTH_ALBEDO_TRAIT 1
 
 uniform MeshGSTrain::Camera gCamera;
 GMesh::RasterData gMeshRasterData;
@@ -66,5 +67,12 @@ MeshGSTrain::Trait::MeshRTOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
     MeshGSTrain::Trait::SplatChannel channel;
     channel.depth = MeshGSTrain::Trait::viewZ2Depth(pIn.viewZ, gCamera.nearZ, gCamera.farZ);
     return MeshGSTrain::Trait::MeshRTOut::create(channel);
+#elif TRAIT == DEPTH_ALBEDO_TRAIT
+    MeshGSTrain::Trait::SplatChannel channel;
+    channel.albedo = texColor.xyz;
+    channel.depth = MeshGSTrain::Trait::viewZ2Depth(pIn.viewZ, gCamera.nearZ, gCamera.farZ);
+    return MeshGSTrain::Trait::MeshRTOut::create(channel);
+#else
+#error
 #endif
 }

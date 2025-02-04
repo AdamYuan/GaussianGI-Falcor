@@ -1,0 +1,197 @@
+#if !defined(TRAIT_IN_MESHGSTRAINER_SLANG) && !defined(TRAIT_IN_BACKWARDDRAW_3D_SLANG)
+#define TRAIT_IN_MESHGSTRAINER_SLANG
+#define TRAIT_IN_BACKWARDDRAW_3D_SLANG
+#endif
+
+#ifdef TRAIT_IN_MESHGSTRAINER_SLANG
+
+#include "ITrait.slangh"
+
+namespace MeshGSTrain
+{
+#define FLOATS_PER_SPLAT_ATTRIB 3
+#define FLOATS_PER_SPLAT_CHANNEL 4
+    public struct Trait : ITrait
+    {
+        public struct SplatAttrib : ISplatAttrib
+        {
+            public float3 albedo;
+
+            public float getWord(uint idx) { return albedo[idx]; }
+            [mutating]
+            public void setWord(uint idx, float value) { albedo[idx] = value; }
+        };
+        public struct SplatChannel : ISplatChannel
+        {
+            public float3 albedo;
+            public float depth;
+
+            public float getWord(uint idx)
+            {
+                if (idx < 3)
+                    return albedo[idx];
+                else
+                    return depth;
+            }
+            [mutating]
+            public void setWord(uint idx, float value)
+            {
+                if (idx < 3)
+                    albedo[idx] = value;
+                else
+                    depth = value;
+            }
+        };
+
+        public struct SplatTexture : ISplatTexture<SplatChannel>
+        {
+            Texture2D<float4> albedos_depths;
+            Texture2D<float> Ts;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float4 albedo_depth = albedos_depths[coord];
+                float T = Ts[coord];
+                SplatChannel ch;
+                ch.albedo = albedo_depth.xyz;
+                ch.depth = albedo_depth.w;
+                o_T = T;
+                return ch;
+            }
+        };
+
+        public struct RWSplatTexture : IRWSplatTexture<SplatChannel>
+        {
+            public RWTexture2D<float4> albedos_depths;
+            public RWTexture2D<float> Ts;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float4 albedo_depth = albedos_depths[coord];
+                float T = Ts[coord];
+                SplatChannel ch;
+                ch.albedo = albedo_depth.xyz;
+                ch.depth = albedo_depth.w;
+                o_T = T;
+                return ch;
+            }
+            public void store(uint2 coord, SplatChannel ch, float T)
+            {
+                albedos_depths[coord] = float4(ch.albedo, ch.depth);
+                Ts[coord] = T;
+            }
+        };
+
+        public struct SplatRTTexture : ISplatRTTexture<SplatChannel>
+        {
+            Texture2D<float4> albedos_oneMinusTs;
+            Texture2D<float> depths;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float4 albedo_oneMinusT = albedos_oneMinusTs[coord];
+                SplatChannel ch;
+                ch.depth = depths[coord].x;
+                ch.albedo = albedo_oneMinusT.xyz;
+                o_T = 1.0 - albedo_oneMinusT.w;
+                return ch;
+            }
+        };
+
+        public struct SplatRTOut : ISplatRTOut<SplatChannel>
+        {
+            public float4 albedo : SV_Target0;
+            public float4 depth : SV_Target1;
+
+            public static SplatRTOut create(SplatChannel channel, float alpha)
+            {
+                SplatRTOut o;
+                o.albedo = float4(channel.albedo, alpha);
+                o.depth = float4(float3(channel.depth), alpha);
+                return o;
+            }
+        };
+
+        public struct MeshRTTexture : IMeshRTTexture<SplatChannel>
+        {
+            Texture2D<float4> albedos_depths;
+
+            public SplatChannel load(uint2 coord)
+            {
+                float4 albedo_depth = albedos_depths[coord];
+                SplatChannel ch;
+                ch.albedo = albedo_depth.xyz;
+                ch.depth = albedo_depth.w;
+                return ch;
+            }
+        };
+
+        public struct MeshRTOut : IMeshRTOut<SplatChannel>
+        {
+            public float4 albedo_depth : SV_Target0;
+
+            public static MeshRTOut create(SplatChannel channel)
+            {
+                MeshRTOut o;
+                o.albedo_depth = float4(channel.albedo, channel.depth);
+                return o;
+            }
+        };
+
+        [Differentiable]
+        public static float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
+        {
+            viewZ = -viewZ; // make viewZ positive
+            return camNearZ / viewZ + 0.02;
+        }
+
+        [Differentiable]
+        public static SplatChannel getSplatChannel(
+            SplatGeom splatGeom,
+            SplatAttrib splatAttrib,
+            SplatViewGeom splatViewGeom,
+            float3 splatViewPos,
+            float3 splatClipPos,
+            float2x3 splatCov3d,
+            float3 splatCov2d,
+            no_diff float4x4 camViewMat,
+            no_diff float camProjMat00,
+            no_diff float camNearZ,
+            no_diff float camFarZ,
+            no_diff float2 screenResolution
+        )
+        {
+            SplatChannel channel;
+            channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
+            channel.albedo = splatAttrib.albedo;
+            return channel;
+        }
+
+        [Differentiable]
+        public static float loss(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
+        {
+            float dDepth = data.depth - predict.depth;
+            float3 dAlbedo = data.albedo - predict.albedo;
+            float lDepth = dDepth * dDepth;
+            float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
+            return (lDepth + lAlbedo) / float(pixelCount);
+        }
+    }
+}
+
+#endif
+
+#ifdef TRAIT_IN_BACKWARDDRAW_3D_SLANG
+
+globallycoherent RWTexture2D<float4> gAlbedoDepthMs;
+globallycoherent RWTexture2D<float> gRs;
+
+MeshGSTrain::Trait::RWSplatTexture getCoherentRsMs()
+{
+    MeshGSTrain::Trait::RWSplatTexture splatTex;
+    splatTex.albedos_depths = gAlbedoDepthMs;
+    splatTex.Ts = gRs;
+    return splatTex;
+}
+
+#endif

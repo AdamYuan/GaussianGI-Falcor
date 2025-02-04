@@ -47,6 +47,10 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
                         .mean = float3(0.00008f),
                         .scale = float3(0.0002f),
                     },
+                .attrib =
+                    {
+                        .albedo = float3{0.001f},
+                    },
             },
     };
     mTrainResource = Trainer::Resource::create(getDevice(), trainDesc);
@@ -88,9 +92,9 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     }
 
     if (mConfig.drawMeshData)
-        pRenderContext->blit(mTrainData.meshRT.pDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainData.meshRT.pAlbedoDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
-        pRenderContext->blit(mTrainResource.splatRT.pDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainResource.splatRT.pAlbedoOneMinusTTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
@@ -138,7 +142,11 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                                                            ),
                                                            .mean = meshPoint.getPosition(view),
                                                            .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                                                       }
+                                                       },
+                                                   .attrib =
+                                                       {
+                                                           .albedo = float3{0.0f},
+                                                       },
                                                };
                                            }
                                        ),

@@ -204,6 +204,9 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/Trait/Depth.slangh
         Algorithm/MeshGSTrainer/Trait/Depth.hpp
         Algorithm/MeshGSTrainer/Trait/Depth.cpp
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedo.slangh
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedo.cpp
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)

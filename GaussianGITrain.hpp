@@ -10,7 +10,7 @@
 #include <Scene/Camera/Camera.h>
 #include <Scene/Camera/CameraController.h>
 #include "Scene/GMesh.hpp"
-#include "Algorithm/MeshGSTrainer/Trait/Depth.hpp"
+#include "Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
 #include "Scene/GMeshGSTrainDataset.hpp"
 
 using namespace Falcor;
@@ -34,7 +34,7 @@ public:
     void onHotReload(HotReloadFlags reloaded) override;
 
 private:
-    using Trainer = MeshGSTrainer<MeshGSTrainDepthTrait>;
+    using Trainer = MeshGSTrainer<MeshGSTrainDepthAlbedoTrait>;
     struct
     {
         bool drawMeshData = false;
