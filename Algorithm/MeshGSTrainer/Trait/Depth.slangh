@@ -18,6 +18,8 @@ namespace MeshGSTrain
             public float getWord(uint idx) { return 0; }
             [mutating]
             public void setWord(uint idx, float value) {}
+            [mutating]
+            public void regularize() {}
         };
         public struct SplatChannel : ISplatChannel
         {

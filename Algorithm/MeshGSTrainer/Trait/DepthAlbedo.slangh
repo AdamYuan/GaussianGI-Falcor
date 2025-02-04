@@ -20,6 +20,8 @@ namespace MeshGSTrain
             public float getWord(uint idx) { return albedo[idx]; }
             [mutating]
             public void setWord(uint idx, float value) { albedo[idx] = value; }
+            [mutating]
+            public void regularize() { albedo = max(albedo, float3(0)); }
         };
         public struct SplatChannel : ISplatChannel
         {
@@ -91,7 +93,7 @@ namespace MeshGSTrain
             {
                 float4 albedo_oneMinusT = albedos_oneMinusTs[coord];
                 SplatChannel ch;
-                ch.depth = depths[coord].x;
+                ch.depth = depths[coord];
                 ch.albedo = albedo_oneMinusT.xyz;
                 o_T = 1.0 - albedo_oneMinusT.w;
                 return ch;
@@ -172,7 +174,7 @@ namespace MeshGSTrain
         {
             float dDepth = data.depth - predict.depth;
             float3 dAlbedo = data.albedo - predict.albedo;
-            float lDepth = dDepth * dDepth;
+            float lDepth = 3.0 * dDepth * dDepth;
             float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
             return (lDepth + lAlbedo) / float(pixelCount);
         }

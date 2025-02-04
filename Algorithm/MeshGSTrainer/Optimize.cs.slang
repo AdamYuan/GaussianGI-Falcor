@@ -43,6 +43,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         if (all(splat.geom.rotate == 0))
             splat.geom.rotate = float4(0, 0, 0, 1);
         splat.geom.rotate = normalize(splat.geom.rotate);
+        splat.attrib.regularize();
         gSplats.store(splatID, splat);
     }
 }

@@ -20,6 +20,8 @@ namespace MeshGSTrain
         float getWord(uint idx);
         [mutating]
         void setWord(uint idx, float value);
+        [mutating]
+        void regularize();
     }
     public interface ISplatChannel : IDifferentiable
     {
