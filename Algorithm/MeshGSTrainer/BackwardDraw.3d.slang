@@ -90,12 +90,12 @@ void psMain(PSIn pIn)
     Trait::SplatChannel ciMulAlpha = ci.mul(alpha);
 
     beginInvocationInterlock();
-    float Ri;               // R_i
-    Trait::SplatChannel Mi; // M_i
-    coherentLoadR_M(coord, Ri, Mi);
+    Trait::RWSplatTexture coherentRsMs = getCoherentRsMs();
+    float Ri;                                                         // R_i
+    Trait::SplatChannel Mi = coherentRsMs.load(coord, Ri);            // M_i
     float Ri_1 = Ri * oneMinusAlpha;                                  // R_{i - 1}
     Trait::SplatChannel Mi_1 = ciMulAlpha.add(Mi.mul(oneMinusAlpha)); // M_{i - 1}
-    coherentStoreR_M(coord, Ri_1, Mi_1);
+    coherentRsMs.store(coord, Mi_1, Ri_1);
     endInvocationInterlock();
 
     float Ti = T / Ri_1;

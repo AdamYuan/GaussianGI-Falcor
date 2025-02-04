@@ -44,7 +44,7 @@ namespace MeshGSTrain
 
         public struct RWSplatTexture : IRWSplatTexture<SplatChannel>
         {
-            RWTexture2D<float2> depths_Ts;
+            public RWTexture2D<float2> depths_Ts;
 
             public SplatChannel load(uint2 coord, out float o_T)
             {
@@ -150,18 +150,13 @@ namespace MeshGSTrain
 
 #ifdef TRAIT_IN_BACKWARDDRAW_3D_SLANG
 
-globallycoherent RasterizerOrderedTexture2D<float2> gRs_Ms;
+globallycoherent RWTexture2D<float2> gRs_Ms;
 
-void coherentLoadR_M(uint2 coord, out float o_R, out MeshGSTrain::Trait::SplatChannel o_M)
+MeshGSTrain::Trait::RWSplatTexture getCoherentRsMs()
 {
-    var R_M = gRs_Ms[coord];
-    o_R = R_M.y;
-    o_M.depth = R_M.x;
-}
-
-void coherentStoreR_M(uint2 coord, float R, MeshGSTrain::Trait::SplatChannel M)
-{
-    gRs_Ms[coord] = float2(M.depth, R);
+    MeshGSTrain::Trait::RWSplatTexture splatTex;
+    splatTex.depths_Ts = gRs_Ms;
+    return splatTex;
 }
 
 #endif
