@@ -13,8 +13,41 @@
 namespace GSGI
 {
 
-template<Concepts::MeshGSTrainTrait Trait_T, typename RandGen_T>
-void GMeshGSTrainDataset<Trait_T, RandGen_T>::generate(
+namespace
+{
+MeshGSTrainCamera randomCamera(const AABB& bound, float eyeExtent, uint2 resolution, auto& randGen)
+{
+    MeshGSTrainCamera trainCamera;
+
+    float aspectRatio = float(resolution.x) / float(resolution.y);
+    auto boundExtent = bound.extent();
+    auto boundDiag = math::sqrt(math::dot(boundExtent, boundExtent));
+    trainCamera.farZ = boundDiag * 2.0f;
+    trainCamera.nearZ = boundDiag * 0.01f;
+    trainCamera.projMat = math::perspective(float(M_PI / 3.0), aspectRatio, trainCamera.nearZ, trainCamera.farZ);
+
+    auto boundHalfExtent = 0.5f * boundExtent;
+    auto boundCenter = bound.center();
+
+    float3 eyePos, eyeLookAt;
+    eyeExtent = math::max(1.0f, eyeExtent);
+    do
+    {
+        for (int i = 0; i < 3; ++i)
+        {
+            auto distr = std::uniform_real_distribution<float>{-boundHalfExtent[i], boundHalfExtent[i]};
+            eyePos[i] = boundCenter[i] + distr(randGen) * eyeExtent;
+            eyeLookAt[i] = boundCenter[i] + distr(randGen);
+        }
+    } while (math::all(eyeLookAt.xz() == eyePos.xz()));
+    trainCamera.viewMat = math::matrixFromLookAt(eyePos, eyeLookAt, float3{0.0f, 1.0f, 0.0f});
+
+    return trainCamera;
+}
+} // namespace
+
+template<Concepts::MeshGSTrainTrait Trait_T>
+void GMeshGSTrainDataset<Trait_T>::generate(
     RenderContext* pRenderContext,
     typename MeshGSTrainer<Trait_T>::Data& data,
     uint2 resolution,
@@ -27,35 +60,7 @@ void GMeshGSTrainDataset<Trait_T, RandGen_T>::generate(
         data.meshRT = Trait_T::MeshRTTexture::create(pDevice, resolution);
 
     if (generateCamera)
-        data.camera = [&]
-        {
-            MeshGSTrainCamera trainCamera;
-
-            float aspectRatio = float(resolution.x) / float(resolution.y);
-            auto boundExtent = pMesh->getBound().extent();
-            auto boundDiag = math::sqrt(math::dot(boundExtent, boundExtent));
-            trainCamera.farZ = boundDiag * 2.0f;
-            trainCamera.nearZ = boundDiag * 0.01f;
-            trainCamera.projMat = math::perspective(float(M_PI / 3.0), aspectRatio, trainCamera.nearZ, trainCamera.farZ);
-
-            auto boundHalfExtent = 0.5f * boundExtent;
-            auto boundCenter = pMesh->getBound().center();
-
-            float3 eyePos, eyeLookAt;
-            float eyeExtent = math::max(1.0f, config.eyeExtent);
-            do
-            {
-                for (int i = 0; i < 3; ++i)
-                {
-                    auto distr = std::uniform_real_distribution<float>{-boundHalfExtent[i], boundHalfExtent[i]};
-                    eyePos[i] = boundCenter[i] + distr(randGen) * eyeExtent;
-                    eyeLookAt[i] = boundCenter[i] + distr(randGen);
-                }
-            } while (math::all(eyeLookAt.xz() == eyePos.xz()));
-            trainCamera.viewMat = math::matrixFromLookAt(eyePos, eyeLookAt, float3{0.0f, 1.0f, 0.0f});
-
-            return trainCamera;
-        }();
+        data.camera = randomCamera(pMesh->getBound(), config.eyeExtent, resolution, randGen);
 
     static ref<RasterPass> spPass = [pDevice]
     {

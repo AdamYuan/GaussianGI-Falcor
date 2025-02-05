@@ -15,11 +15,11 @@ using namespace Falcor;
 namespace GSGI
 {
 
-template<Concepts::MeshGSTrainTrait Trait_T, typename RandGen_T = std::mt19937>
+template<Concepts::MeshGSTrainTrait Trait_T>
 struct GMeshGSTrainDataset
 {
     ref<GMesh> pMesh;
-    RandGen_T randGen;
+    std::mt19937 randGen;
     struct
     {
         float eyeExtent = 2.0f;
