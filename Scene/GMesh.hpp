@@ -67,6 +67,7 @@ private:
     static void dataReorderOpaque(Data& data);
     static void dataUpdateBound(Data& data);
     void prepareDraw();
+    void prepareBuffer();
 
 public:
     GMesh(ref<Device> pDevice, Data data);
@@ -116,6 +117,8 @@ public:
 
     void renderUIImpl(Gui::Widgets& widget) const;
     void draw(RenderContext* pRenderContext, const ref<RasterPass>& pRasterPass, const ShaderVar& rasterDataVar);
+
+    void bindShaderData(const ShaderVar& var);
 };
 
 } // namespace GSGI

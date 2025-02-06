@@ -74,7 +74,7 @@ void GMesh::dataUpdateBound(Data& data)
         data.bound.include(vertex.position);
 }
 
-void GMesh::prepareDraw()
+void GMesh::prepareBuffer()
 {
     if (mpIndexBuffer == nullptr)
     {
@@ -82,7 +82,7 @@ void GMesh::prepareDraw()
         mpIndexBuffer = getDevice()->createStructuredBuffer(
             sizeof(Index), //
             getIndexCount(),
-            ResourceBindFlags::Index,
+            ResourceBindFlags::Index | ResourceBindFlags::ShaderResource,
             MemoryType::DeviceLocal,
             mData.indices.data()
         );
@@ -92,7 +92,7 @@ void GMesh::prepareDraw()
         mpVertexBuffer = getDevice()->createStructuredBuffer(
             sizeof(Vertex), //
             getVertexCount(),
-            ResourceBindFlags::Vertex,
+            ResourceBindFlags::Vertex | ResourceBindFlags::ShaderResource,
             MemoryType::DeviceLocal,
             mData.vertices.data()
         );
@@ -104,6 +104,11 @@ void GMesh::prepareDraw()
             ResourceFormat::R8Uint, getPrimitiveCount(), ResourceBindFlags::ShaderResource, MemoryType::DeviceLocal, mData.textureIDs.data()
         );
     }
+}
+
+void GMesh::prepareDraw()
+{
+    prepareBuffer();
     if (mpVao == nullptr)
         mpVao = Vao::create(Vao::Topology::TriangleList, getVertexLayout(), {mpVertexBuffer}, mpIndexBuffer, getIndexFormat());
 }
@@ -125,6 +130,16 @@ void GMesh::draw(RenderContext* pRenderContext, const ref<RasterPass>& pRasterPa
         rasterDataVar["textures"][textureID] = mData.textures[textureID].pTexture;
     pRasterPass->getState()->setVao(mpVao);
     pRenderContext->drawIndexed(pRasterPass->getState().get(), pRasterPass->getVars().get(), getIndexCount(), 0, 0);
+}
+
+void GMesh::bindShaderData(const ShaderVar& var)
+{
+    prepareBuffer();
+    var["vertices"] = mpVertexBuffer;
+    var["indices"] = mpIndexBuffer;
+    var["textureIDs"] = mpTextureIDBuffer;
+    for (uint32_t textureID = 0; textureID < getTextureCount(); ++textureID)
+        var["textures"][textureID] = mData.textures[textureID].pTexture;
 }
 
 std::filesystem::path GMesh::getPersistPath(std::string_view keyStr) const

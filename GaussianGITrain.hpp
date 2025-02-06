@@ -46,7 +46,7 @@ private:
 
     Trainer mTrainer;
     Trainer::Resource mTrainResource;
-    Trainer::Data mTrainData;
+    Trainer::Data mTrainData{};
     GMeshGSTrainDataset<Trainer::Trait> mTrainDataset;
     MeshGSTrainState mTrainState{};
 

@@ -4,14 +4,10 @@
 
 #include "GaussianGITrain.hpp"
 
-#include "Algorithm/MeshGSOptimize.hpp"
-#include "Algorithm/MeshSample.hpp"
 #include "Scene/GMeshGSTrainDataset.hpp"
+#include "Scene/GMeshGSTrainSplatInit.hpp"
 #include "Scene/GMeshLoader.hpp"
 #include "Scene/GMeshView.hpp"
-
-#include <boost/random/sobol.hpp>
-#include <ranges>
 
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
@@ -107,51 +103,8 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
         {
             mTrainState = {};             // Reset train state
             mTrainDataset.pMesh = mpMesh; // Set dataset source
-
-            auto view = GMeshView{mpMesh};
-            auto sampleResult = MeshSample::sample(
-                view,
-                [sobolEngine = boost::random::sobol_engine<uint32_t, 32>{4}] mutable
-                {
-                    uint2 u2;
-                    float2 f2;
-                    u2.x = sobolEngine();
-                    u2.y = sobolEngine();
-                    f2.x = float(sobolEngine()) / 4294967296.0f;
-                    f2.y = float(sobolEngine()) / 4294967296.0f;
-                    return std::tuple{u2, f2};
-                },
-                kMaxSplatCount
-            );
-            float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, kMaxSplatCount, 0.5f);
-            mTrainResource.splatBuf = Trainer::Resource::createSplatBuffer(
-                getDevice(),
-                kMaxSplatCount,
-                {sampleResult.points | std::views::transform(
-                                           [&](const MeshPoint& meshPoint)
-                                           {
-                                               auto optimizeResult = MeshGSOptimize::runNoSample(view, meshPoint, initialScale);
-                                               return Trainer::Splat{
-                                                   .geom =
-                                                       {
-                                                           .rotate = float4(
-                                                               optimizeResult.rotate.x,
-                                                               optimizeResult.rotate.y,
-                                                               optimizeResult.rotate.z,
-                                                               optimizeResult.rotate.w
-                                                           ),
-                                                           .mean = meshPoint.getPosition(view),
-                                                           .scale = float3{optimizeResult.scaleXY, 0.1f * initialScale},
-                                                       },
-                                                   .attrib =
-                                                       {
-                                                           .albedo = float3{0.0f},
-                                                       },
-                                               };
-                                           }
-                                       ),
-                 kMaxSplatCount}
-            );
+            // Initialize splats
+            GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(getRenderContext(), mTrainResource, kMaxSplatCount, 0.2f);
         }
     }
     if (mpMesh)
