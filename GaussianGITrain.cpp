@@ -8,6 +8,7 @@
 #include "Scene/GMeshGSTrainSplatInit.hpp"
 #include "Scene/GMeshLoader.hpp"
 #include "Scene/GMeshView.hpp"
+#include "Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp"
 
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
@@ -34,7 +35,7 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     Trainer::Desc trainDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
-        .batchSize = 4,
+        .batchSize = 1,
         .learnRate =
             Trainer::Splat{
                 .geom =
@@ -111,6 +112,25 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     {
         if (auto g = w.group("Mesh"))
             mpMesh->renderUI(g);
+
+        if (w.button("Save Splats"))
+        {
+            auto splatData = mTrainResource.splatBuf.getData(0, kMaxSplatCount);
+            auto splats = splatData.getElements<Trainer::Splat>(kMaxSplatCount);
+            std::vector<GS3DIndLightSplat> indLightSplats(kMaxSplatCount);
+            for (uint i = 0; i < kMaxSplatCount; ++i)
+            {
+                const auto& splat = splats[i];
+                indLightSplats[i] = GS3DIndLightSplat{
+                    .mean = splat.geom.mean,
+                    .rotate = float16_t4{splat.geom.rotate},
+                    .scale = float16_t3{splat.geom.scale},
+                    .irradiance = float16_t3{splat.attrib.albedo},
+                };
+            }
+
+            GS3DIndLightSplat::persistMesh(mpMesh, indLightSplats);
+        }
     }
     if (auto g = w.group("Camera"))
         mpCamera->renderUI(g);

@@ -4,7 +4,7 @@
 
 #include "GS3DMiscRenderer.hpp"
 
-#include "GS3DMiscData.hpp"
+#include "GS3DIndLightSplat.hpp"
 #include "../../../Util/ShaderUtil.hpp"
 #include "../../../Util/TextureUtil.hpp"
 
@@ -98,7 +98,7 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         {
             mSplatViewCount = splatViewCount;
 
-            mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DPackedSplatView), mSplatViewCount);
+            mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DIndLightSplatView), mSplatViewCount);
             mpSplatViewSortKeyBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
             mpSplatViewSortPayloadBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatViewCount);
             mSplatViewSortResource =

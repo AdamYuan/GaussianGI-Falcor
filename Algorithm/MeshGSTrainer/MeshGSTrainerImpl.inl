@@ -86,7 +86,7 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
     const ref<Device>& pDevice,
     uint splatCount,
     uint2 resolution,
-    const SplatBufferInitData& splatInitData
+    const SplatBufferData& splatInitData
 )
 {
     DrawArguments drawArgs = {
@@ -137,7 +137,7 @@ template<Concepts::MeshGSTrainTrait Trait_T>
 typename MeshGSTrainer<Trait_T>::SplatBuffer MeshGSTrainer<Trait_T>::Resource::createSplatBuffer(
     const ref<Device>& pDevice,
     uint splatCount,
-    const SplatBufferInitData& splatInitData
+    const SplatBufferData& splatInitData
 )
 {
     FALCOR_CHECK(splatInitData.isEmpty() || splatInitData.isCapable(splatCount), "");

@@ -26,6 +26,7 @@ private:
     struct Config
     {
         uint splatsPerMesh = 65536;
+        uint hashGridDim = 128;
 
         bool operator==(const Config&) const = default;
     } mConfig = {};

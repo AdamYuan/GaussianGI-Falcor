@@ -22,26 +22,44 @@ template<typename>
 struct Serializer;
 
 // Ignore big/little-endian for simplicity
-template<Concepts::StandardLayout T>
-struct Serializer<T>
-{
-    static void write(auto&& ostr, const T& val)
-    {
-        const char* src = (const char*)(&val);
-        ostr.write(src, sizeof(T));
+#define SERIALIZER_REGISTER_POD(TYPE)                   \
+    template<>                                          \
+    struct Serializer<TYPE>                             \
+    {                                                   \
+        static void write(auto&& ostr, const TYPE& val) \
+        {                                               \
+            const char* src = (const char*)(&val);      \
+            ostr.write(src, sizeof(TYPE));              \
+        }                                               \
+        static TYPE read(auto&& istr)                   \
+        {                                               \
+            TYPE val{};                                 \
+            istr.read((char*)(&val), sizeof(TYPE));     \
+            return val;                                 \
+        }                                               \
     }
-    static T read(auto&& istr)
-    {
-        T val;
-        istr.read((char*)(&val), sizeof(T));
-        return val;
-    }
-};
+
+SERIALIZER_REGISTER_POD(bool);
+SERIALIZER_REGISTER_POD(char);
+SERIALIZER_REGISTER_POD(uint8_t);
+SERIALIZER_REGISTER_POD(int8_t);
+SERIALIZER_REGISTER_POD(uint16_t);
+SERIALIZER_REGISTER_POD(int16_t);
+SERIALIZER_REGISTER_POD(uint32_t);
+SERIALIZER_REGISTER_POD(int32_t);
+SERIALIZER_REGISTER_POD(uint64_t);
+SERIALIZER_REGISTER_POD(int64_t);
 
 template<typename T>
 struct Serializer<std::vector<T>>
 {
     static void write(auto&& ostr, const std::vector<T>& val)
+    {
+        Serializer<uint32_t>::write(ostr, val.size());
+        for (const auto& i : val)
+            Serializer<T>::write(ostr, i);
+    }
+    static void write(auto&& ostr, std::span<const T> val)
     {
         Serializer<uint32_t>::write(ostr, val.size());
         for (const auto& i : val)
@@ -111,28 +129,26 @@ struct Serializer<std::tuple<Ts...>>
     }
 };
 
+template<typename Version_T, typename... Ts>
 struct SerializePersist
 {
-    template<typename Version_T, typename... Ts>
-    static void store(auto&& ostr, const Version_T& version, const Ts&... vals)
+    inline static const char* const kIdentifier =
+        typeid(std::pair<std::tuple<Version_T, Ts...>, std::index_sequence<sizeof(Version_T), sizeof(Ts)...>>).name();
+
+    static void store(auto&& ostr, const auto& version, const auto&... vals)
     {
         if (!ostr)
             return;
-        Serializer<std::string>::write(ostr, typeid(std::tuple<Version_T, Ts...>).name());
-        Serializer<std::size_t>::write(ostr, sizeof(Version_T));
-        (Serializer<std::size_t>::write(ostr, sizeof(Ts)), ...);
+        Serializer<std::string>::write(ostr, kIdentifier);
         Serializer<Version_T>::write(ostr, version);
         (Serializer<Ts>::write(ostr, vals), ...);
     }
 
-    template<typename Version_T, typename... Ts>
-    static bool load(auto&& istr, const Version_T& version, Ts&... vals)
+    static bool load(auto&& istr, const auto& version, auto&... vals)
     {
         if (!istr)
             return false;
-        if (Serializer<std::string>::read(istr) != typeid(std::tuple<Version_T, Ts...>).name())
-            return false;
-        if (Serializer<std::size_t>::read(istr) != sizeof(Version_T) || ((Serializer<std::size_t>::read(istr) != sizeof(Ts)) || ...))
+        if (Serializer<std::string>::read(istr) != kIdentifier)
             return false;
         if (Serializer<Version_T>::read(istr) != version)
             return false;

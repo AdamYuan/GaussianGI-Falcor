@@ -36,19 +36,19 @@ struct SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>
 };
 
 template<typename>
-struct SOABufferInitData;
+struct SOABufferData;
 template<typename Word_T, uint32_t WordsPerUnit_V, uint32_t WordsPerElem_V>
-struct SOABufferInitData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
+struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
 {
     using Trait = SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>;
 
     std::array<std::vector<uint32_t>, Trait::kUnitsPerElem> unitData;
     std::vector<uint32_t> extData;
 
-    SOABufferInitData() = default;
+    SOABufferData() = default;
 
     template<std::ranges::input_range ElementRange_T>
-    SOABufferInitData(ElementRange_T&& elements, uint elementCount)
+    SOABufferData(ElementRange_T&& elements, uint elementCount)
     {
         static_assert(sizeof(std::ranges::range_value_t<ElementRange_T>) == sizeof(Word_T) * WordsPerElem_V);
 
@@ -64,13 +64,38 @@ struct SOABufferInitData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPer
 
             for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
             {
-                std::copy(pElementWords, pElementWords + WordsPerUnit_V, unitData[unitIdx].data() + elemIdx * WordsPerUnit_V);
+                std::copy_n(pElementWords, WordsPerUnit_V, unitData[unitIdx].data() + elemIdx * WordsPerUnit_V);
                 pElementWords += WordsPerUnit_V;
             }
-            std::copy(pElementWords, pElementWords + Trait::kWordsPerExt, extData.data() + elemIdx * Trait::kPaddedWordsPerExt);
+            std::copy_n(pElementWords, Trait::kWordsPerExt, extData.data() + elemIdx * Trait::kPaddedWordsPerExt);
 
             ++elemIdx;
         }
+    }
+
+    template<typename Element_T>
+    Element_T getElement(uint elemIdx) const
+        requires(sizeof(Element_T) == sizeof(Word_T) * WordsPerElem_V)
+    {
+        Element_T element;
+        auto pElementWords = reinterpret_cast<uint32_t*>(&element);
+        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+        {
+            std::copy_n(unitData[unitIdx].data() + elemIdx * WordsPerUnit_V, WordsPerUnit_V, pElementWords);
+            pElementWords += WordsPerUnit_V;
+        }
+        std::copy_n(extData.data() + elemIdx * Trait::kPaddedWordsPerExt, Trait::kWordsPerExt, pElementWords);
+        return element;
+    }
+
+    template<typename Element_T>
+    std::vector<Element_T> getElements(uint32_t elementCount) const
+    {
+        FALCOR_CHECK(isCapable(elementCount), "Unable to get elements of elementCount");
+        std::vector<Element_T> elements(elementCount);
+        for (uint elemIdx = 0; elemIdx < elementCount; ++elemIdx)
+            elements[elemIdx] = getElement<Element_T>(elemIdx);
+        return elements;
     }
 
     bool isEmpty() const
@@ -80,8 +105,6 @@ struct SOABufferInitData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPer
 
     bool isCapable(uint32_t elementCount) const
     {
-        if (unitData.size() != Trait::kUnitsPerElem)
-            return false;
         for (const auto& data : unitData)
             if (elementCount * WordsPerUnit_V > data.size())
                 return false;
@@ -102,7 +125,7 @@ struct SOABuffer<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
     ref<Buffer> pExtBuffer;
 
     SOABuffer() = default;
-    SOABuffer(const ref<Device>& pDevice, uint elementCount, ResourceBindFlags bindFlags, const SOABufferInitData<Trait>& initData = {})
+    SOABuffer(const ref<Device>& pDevice, uint elementCount, ResourceBindFlags bindFlags, const SOABufferData<Trait>& initData = {})
     {
         bool isInitDataCapable = initData.isCapable(elementCount);
         for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
@@ -147,6 +170,17 @@ struct SOABuffer<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
         for (const auto& pUnitBuffer : pUnitBuffers)
             pRenderContext->clearUAV(pUnitBuffer->getUAV().get(), uint4{});
         pRenderContext->clearUAV(pExtBuffer->getUAV().get(), uint4{});
+    }
+
+    SOABufferData<Trait> getData(uint firstElement = 0, uint elementCount = 0) const
+    {
+        SOABufferData<Trait> data = {};
+        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+            data.unitData[unitIdx] =
+                pUnitBuffers[unitIdx]->template getElements<uint32_t>(firstElement * WordsPerUnit_V, elementCount * WordsPerUnit_V);
+        data.extData =
+            pExtBuffer->getElements<uint32_t>(firstElement * Trait::kPaddedWordsPerExt, elementCount * Trait::kPaddedWordsPerExt);
+        return data;
     }
 };
 

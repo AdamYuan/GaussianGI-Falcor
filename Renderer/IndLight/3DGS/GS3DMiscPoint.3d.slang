@@ -3,15 +3,15 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.ShaderMisc;
-import GS3DMiscData;
+import GS3DIndLightSplat;
 
-StructuredBuffer<PackedSplat> gSplats;
+StructuredBuffer<IndLightSplat> gSplats;
 uniform uint gSplatsPerMesh;
 
 struct PSIn
 {
     linear float4 clipPos : SV_Position;
-    nointerpolation float viewZRemap;
+    nointerpolation float16_t3 indirect;
 }
 
 PSIn vsMain(uint vertexID: SV_VertexID)
@@ -19,18 +19,18 @@ PSIn vsMain(uint vertexID: SV_VertexID)
     uint instanceID = vertexID / gSplatsPerMesh;
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
 
-    PackedSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + vertexID % gSplatsPerMesh];
-    float3 position = instanceInfo.transform.apply(splat.position);
+    var splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + vertexID % gSplatsPerMesh];
+    float3 position = instanceInfo.transform.apply(splat.mean);
     float viewZ = mul(gGStaticScene.camera.data.viewMat, float4(position, 1.0)).z;
     float viewZRemap = -viewZ / gGStaticScene.camera.data.farZ;
 
     PSIn o;
     o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(position, 1));
-    o.viewZRemap = viewZRemap;
+    o.indirect = splat.indirect;
     return o;
 }
 
 float4 psMain(PSIn pIn)
 {
-    return float4(float3(pIn.viewZRemap), 1);
+    return float4(float3(pIn.indirect), 1);
 }

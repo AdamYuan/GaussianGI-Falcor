@@ -160,7 +160,7 @@ public:
     using SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatAdam>;
 
     using SplatBuffer = SOABuffer<SplatSOATrait>;
-    using SplatBufferInitData = SOABufferInitData<SplatSOATrait>;
+    using SplatBufferData = SOABufferData<SplatSOATrait>;
     using SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
     using SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
 
@@ -187,13 +187,13 @@ public:
             const ref<Device>& pDevice,
             uint splatCount,
             uint2 resolution,
-            const SplatBufferInitData& splatInitData = {}
+            const SplatBufferData& splatInitData = {}
         );
-        static Resource create(const ref<Device>& pDevice, const Desc& desc, const SplatBufferInitData& splatInitData = {})
+        static Resource create(const ref<Device>& pDevice, const Desc& desc, const SplatBufferData& splatInitData = {})
         {
             return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
         }
-        static SplatBuffer createSplatBuffer(const ref<Device>& pDevice, uint splatCount, const SplatBufferInitData& splatInitData = {});
+        static SplatBuffer createSplatBuffer(const ref<Device>& pDevice, uint splatCount, const SplatBufferData& splatInitData = {});
         static SplatAdamBuffer createSplatAdamBuffer(const ref<Device>& pDevice, uint splatCount);
         static SplatViewBuffer createSplatViewBuffer(const ref<Device>& pDevice, uint splatViewCount);
         bool isCapable(uint splatCount, uint2 resolution) const;

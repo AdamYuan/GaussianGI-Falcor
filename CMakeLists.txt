@@ -34,22 +34,6 @@ target_sources(GaussianGI PRIVATE
         Algorithm/DeviceSort/ScanHist.cs.slang
         Algorithm/DeviceSort/OneSweep.cs.slang
 
-        Algorithm/MeshGSTrainer/ForwardView.cs.slang
-        Algorithm/MeshGSTrainer/ForwardDraw.3d.slang
-        Algorithm/MeshGSTrainer/Loss.cs.slang
-        Algorithm/MeshGSTrainer/BackwardDraw.3d.slang
-        Algorithm/MeshGSTrainer/BackwardView.cs.slang
-        Algorithm/MeshGSTrainer/BackwardCmd.cs.slang
-        Algorithm/MeshGSTrainer/Optimize.cs.slang
-        Algorithm/MeshGSTrainer/MeshGSTrainer.slang
-        Algorithm/MeshGSTrainer/MeshGSTrainer.slangh
-        Algorithm/MeshGSTrainer/MeshGSTrainer.hpp
-        Algorithm/MeshGSTrainer/MeshGSTrainerImpl.inl
-        Algorithm/MeshGSTrainer/Trait/ITrait.slangh
-        Algorithm/MeshGSTrainer/Trait/Depth.slangh
-        Algorithm/MeshGSTrainer/Trait/Depth.hpp
-        Algorithm/MeshGSTrainer/Trait/Depth.cpp
-
         Scene/GScene.hpp
         Scene/GScene.cpp
         Scene/GScene.slang
@@ -59,12 +43,6 @@ target_sources(GaussianGI PRIVATE
         Scene/GMesh.slang
         Scene/GMesh.slangh
         Scene/GMeshView.hpp
-        Scene/GMeshGSTrainDataset.3d.slang
-        Scene/GMeshGSTrainDataset.hpp
-        Scene/GMeshGSTrainDataset.cpp
-        Scene/GMeshGSTrainSplatInit.cs.slang
-        Scene/GMeshGSTrainSplatInit.hpp
-        Scene/GMeshGSTrainSplatInit.cpp
         Scene/GMeshLoader.hpp
         Scene/GMeshLoader.cpp
         Scene/GTransform.hpp
@@ -114,8 +92,9 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DIndLight.hpp
         Renderer/IndLight/3DGS/GS3DIndLight.cpp
         Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
-        Renderer/IndLight/3DGS/GS3DMiscData.hpp
-        Renderer/IndLight/3DGS/GS3DMiscData.slang
+        Renderer/IndLight/3DGS/GS3DIndLightSplat.slang
+        Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
+        Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
         Renderer/IndLight/3DGS/GS3DMiscRenderer.hpp
         Renderer/IndLight/3DGS/GS3DMiscRenderer.cpp
         Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang
@@ -213,6 +192,9 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.slangh
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.cpp
+
+        Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
+        Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)
