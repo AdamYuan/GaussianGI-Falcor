@@ -101,7 +101,7 @@ struct MeshGSOptimize
     static Result run(
         const Concepts::MeshView auto& meshView,
         const MeshPoint& meshPoint,
-        const MeshClosestPointBVH& meshBvh,
+        const MeshBVH<AABB>& meshBvh,
         Concepts::MeshGS2DSampler auto&& sampler,
         const Config& cfg
     )

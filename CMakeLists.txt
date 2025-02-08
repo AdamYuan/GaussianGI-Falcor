@@ -19,6 +19,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshView.hpp
         Algorithm/MeshSample.hpp
         Algorithm/MeshBVH.hpp
+        Algorithm/MeshVHBVH.hpp
         Algorithm/MeshClosestPoint.hpp
         Algorithm/MeshGSOptimize.hpp
         Algorithm/ThreadGroupTilingX.slang
@@ -92,6 +93,8 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DIndLight.hpp
         Renderer/IndLight/3DGS/GS3DIndLight.cpp
         Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.cpp
         Renderer/IndLight/3DGS/GS3DIndLightSplat.slang
         Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
         Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp

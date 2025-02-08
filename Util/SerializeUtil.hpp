@@ -22,7 +22,7 @@ template<typename>
 struct Serializer;
 
 // Ignore big/little-endian for simplicity
-#define SERIALIZER_REGISTER_POD(TYPE)                   \
+#define GSGI_SERIALIZER_REGISTER_POD(TYPE)              \
     template<>                                          \
     struct Serializer<TYPE>                             \
     {                                                   \
@@ -39,16 +39,16 @@ struct Serializer;
         }                                               \
     }
 
-SERIALIZER_REGISTER_POD(bool);
-SERIALIZER_REGISTER_POD(char);
-SERIALIZER_REGISTER_POD(uint8_t);
-SERIALIZER_REGISTER_POD(int8_t);
-SERIALIZER_REGISTER_POD(uint16_t);
-SERIALIZER_REGISTER_POD(int16_t);
-SERIALIZER_REGISTER_POD(uint32_t);
-SERIALIZER_REGISTER_POD(int32_t);
-SERIALIZER_REGISTER_POD(uint64_t);
-SERIALIZER_REGISTER_POD(int64_t);
+GSGI_SERIALIZER_REGISTER_POD(bool);
+GSGI_SERIALIZER_REGISTER_POD(char);
+GSGI_SERIALIZER_REGISTER_POD(uint8_t);
+GSGI_SERIALIZER_REGISTER_POD(int8_t);
+GSGI_SERIALIZER_REGISTER_POD(uint16_t);
+GSGI_SERIALIZER_REGISTER_POD(int16_t);
+GSGI_SERIALIZER_REGISTER_POD(uint32_t);
+GSGI_SERIALIZER_REGISTER_POD(int32_t);
+GSGI_SERIALIZER_REGISTER_POD(uint64_t);
+GSGI_SERIALIZER_REGISTER_POD(int64_t);
 
 template<typename T>
 struct Serializer<std::vector<T>>
