@@ -13,6 +13,25 @@ using namespace Falcor;
 namespace GSGI
 {
 
+namespace Concepts
+{
+
+template<typename T, typename Bound_T>
+concept MeshClosestPointFinder = requires(const float3& point, const Bound_T& bound) {
+    { T::getDist2(point, bound) } -> std::convertible_to<float>;
+};
+
+} // namespace Concepts
+
+struct MeshClosestPointAABBFinder
+{
+    static float getDist2(const float3& point, const AABB& aabb)
+    {
+        float3 d = math::max(math::max(point - aabb.maxPoint, float3(0)), aabb.minPoint - point);
+        return math::dot(d, d);
+    }
+};
+
 struct MeshClosestPoint
 {
     struct Result
@@ -20,12 +39,6 @@ struct MeshClosestPoint
         std::optional<uint32_t> optPrimitiveID;
         float dist2{};
     };
-
-    static float getAABBDist2(const float3& point, const AABB& aabb)
-    {
-        float3 d = math::max(math::max(point - aabb.maxPoint, float3(0)), aabb.minPoint - point);
-        return math::dot(d, d);
-    }
 
     static float getPrimitiveDist2(const float3& point, const Concepts::PrimitiveView auto& primitiveView)
     {
@@ -62,12 +75,13 @@ struct MeshClosestPoint
                 math::dot(nor, p1) * math::dot(nor, p1) / dot2(nor);
     }
 
-    static Result query(const Concepts::MeshView auto& meshView, const MeshBVH<AABB>& bvh, const float3& point, float maxDist2)
+    template<typename Bound_T, Concepts::MeshClosestPointFinder<Bound_T> Finder_T>
+    static Result query(const Concepts::MeshView auto& meshView, const MeshBVH<Bound_T>& bvh, const float3& point, float maxDist2)
     {
         float dist2 = maxDist2;
         std::optional<uint32_t> optPrimitiveID = std::nullopt;
 
-        const auto queryImpl = [&](const MeshBVH<AABB>::NodeView& node, float aabbDist2, auto&& queryFunc)
+        const auto queryImpl = [&](const typename MeshBVH<Bound_T>::NodeView& node, float aabbDist2, auto&& queryFunc)
         {
             if (aabbDist2 >= dist2)
                 return;
@@ -86,8 +100,8 @@ struct MeshClosestPoint
             {
                 const auto& leftChild = bvh.getNode(node.getLeftChildID());
                 const auto& rightChild = bvh.getNode(node.getRightChildID());
-                float leftAabbDist2 = getAABBDist2(point, leftChild.getBound());
-                float rightAabbDist2 = getAABBDist2(point, rightChild.getBound());
+                float leftAabbDist2 = Finder_T::getDist2(point, leftChild.getBound());
+                float rightAabbDist2 = Finder_T::getDist2(point, rightChild.getBound());
 
                 // Query child with smaller distance first
                 if (leftAabbDist2 < rightAabbDist2)
@@ -104,7 +118,7 @@ struct MeshClosestPoint
         };
 
         const auto& rootNode = bvh.getRootNode();
-        queryImpl(rootNode, getAABBDist2(point, rootNode.getBound()), queryImpl);
+        queryImpl(rootNode, Finder_T::getDist2(point, rootNode.getBound()), queryImpl);
 
         return Result{
             .optPrimitiveID = optPrimitiveID,

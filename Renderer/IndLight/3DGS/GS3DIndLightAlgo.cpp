@@ -48,7 +48,7 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const
             meshSplats[splatID] = [&]
             {
                 const auto& meshPoint = sampleResult.points[splatID];
-                auto result = MeshGSOptimize::run(
+                auto result = MeshGSOptimize::run<AABB, MeshClosestPointAABBFinder>(
                     view,
                     meshPoint,
                     bvh,

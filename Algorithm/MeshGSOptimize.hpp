@@ -98,10 +98,11 @@ struct MeshGSOptimize
         };
     }
 
+    template<typename Bound_T, Concepts::MeshClosestPointFinder<Bound_T> Finder_T>
     static Result run(
         const Concepts::MeshView auto& meshView,
         const MeshPoint& meshPoint,
-        const MeshBVH<AABB>& meshBvh,
+        const MeshBVH<Bound_T>& meshBvh,
         Concepts::MeshGS2DSampler auto&& sampler,
         const Config& cfg
     )
@@ -127,7 +128,7 @@ struct MeshGSOptimize
             bool isOutlier = [&]
             {
                 float maxDist2 = cfg.epsDistance * cfg.epsDistance;
-                auto closestPointResult = MeshClosestPoint::query(meshView, meshBvh, center + sample, maxDist2);
+                auto closestPointResult = MeshClosestPoint::query<Bound_T, Finder_T>(meshView, meshBvh, center + sample, maxDist2);
                 if (!closestPointResult.optPrimitiveID)
                 {
                     // distance >= cfg.epsDistance, outlier
