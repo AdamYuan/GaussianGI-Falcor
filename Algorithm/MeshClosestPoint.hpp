@@ -75,8 +75,9 @@ struct MeshClosestPoint
                 math::dot(nor, p1) * math::dot(nor, p1) / dot2(nor);
     }
 
-    template<typename Bound_T, Concepts::MeshClosestPointFinder<Bound_T> Finder_T>
+    template<typename Finder_T, typename Bound_T>
     static Result query(const Concepts::MeshView auto& meshView, const MeshBVH<Bound_T>& bvh, const float3& point, float maxDist2)
+        requires Concepts::MeshClosestPointFinder<Finder_T, Bound_T>
     {
         float dist2 = maxDist2;
         std::optional<uint32_t> optPrimitiveID = std::nullopt;
