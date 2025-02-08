@@ -198,6 +198,8 @@ target_sources(GaussianGITrain PRIVATE
 
         Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
         Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.cpp
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)

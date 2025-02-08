@@ -14,8 +14,7 @@ namespace GSGI
 namespace
 {
 constexpr const char* kPersistKey = "GS3D";
-constexpr const char* kVersion = __TIMESTAMP__;
-
+constexpr const char* kVersion = ""; // __TIMESTAMP__; // Ignore version
 } // namespace
 
 using IndLightSplatPersist = SerializePersist<std::string, std::vector<GS3DIndLightSplat>>;
