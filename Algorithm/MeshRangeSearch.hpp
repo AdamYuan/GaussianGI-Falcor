@@ -15,10 +15,10 @@ namespace GSGI
 
 namespace Concepts
 {
-template<typename T, typename Range_T, typename Bound_T, typename Primitive_T>
-concept MeshRangeSearcher = requires(const Range_T& range, const Bound_T& bound, const Primitive_T& primitive) {
-    T::isIntersected(range, bound);
-    T::isIntersected(range, primitive);
+template<typename T, typename Bound_T, typename Primitive_T>
+concept MeshRangeSearcher = requires(const T& ct, const Bound_T& bound, const Primitive_T& primitive) {
+    { ct.isIntersected(bound) } -> std::convertible_to<bool>;
+    { ct.isIntersected(primitive) } -> std::convertible_to<bool>;
 };
 } // namespace Concepts
 
@@ -29,9 +29,11 @@ struct MeshRangeSearch
         std::vector<uint32_t> primitiveIDs;
     };
 
-    template<typename Searcher_T, typename Range_T, typename Bound_T, Concepts::MeshView MeshView_T>
-    static Result query(const MeshView_T& meshView, const MeshBVH<Bound_T>& bvh, const Range_T& range)
-        requires Concepts::MeshRangeSearcher<Searcher_T, Range_T, Bound_T, MeshViewMethod::PrimitiveView<MeshView_T>>
+    template<
+        Concepts::MeshView MeshView_T,
+        typename Bound_T,
+        Concepts::MeshRangeSearcher<Bound_T, MeshViewMethod::PrimitiveView<MeshView_T>> Searcher_T>
+    static Result query(const MeshView_T& meshView, const MeshBVH<Bound_T>& bvh, const Searcher_T& searcher)
     {
         std::vector<uint32_t> primitiveIDs;
 
@@ -40,7 +42,7 @@ struct MeshRangeSearch
             if (node.isLeaf())
             {
                 uint32_t primitiveID = node.getLeafPrimitiveID();
-                if (Searcher_T::isIntersected(range, meshView.getPrimitive(primitiveID)))
+                if (searcher.isIntersected(meshView.getPrimitive(primitiveID)))
                     primitiveIDs.push_back(primitiveID);
             }
             else
@@ -48,16 +50,16 @@ struct MeshRangeSearch
                 const auto& leftChild = bvh.getNode(node.getLeftChildID());
                 const auto& rightChild = bvh.getNode(node.getRightChildID());
 
-                if (Searcher_T::isIntersected(range, leftChild.getBound()))
+                if (searcher.isIntersected(leftChild.getBound()))
                     queryFunc(leftChild, queryFunc);
 
-                if (Searcher_T::isIntersected(range, rightChild.getBound()))
+                if (searcher.isIntersected(rightChild.getBound()))
                     queryFunc(rightChild, queryFunc);
             }
         };
 
         const auto& rootNode = bvh.getRootNode();
-        if (Searcher_T::isIntersected(range, rootNode.getBound()))
+        if (searcher.isIntersected(rootNode.getBound()))
             queryImpl(rootNode, queryImpl);
 
         return Result{
