@@ -21,6 +21,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/MeshBVH.hpp
         Algorithm/MeshVHBVH.hpp
         Algorithm/MeshClosestPoint.hpp
+        Algorithm/MeshRangeSearch.hpp
         Algorithm/MeshGSOptimize.hpp
         Algorithm/ThreadGroupTilingX.slang
         Algorithm/ShaderMisc.slang

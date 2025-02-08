@@ -42,6 +42,9 @@ concept MeshView = requires(const T ct) {
 
 struct PrimitiveViewMethod
 {
+    template<Concepts::PrimitiveView PrimitiveView_T>
+    using VertexView = std::remove_cvref_t<decltype(std::declval<PrimitiveView_T>().getVertex(0))>;
+
     static std::tuple<float3, float3, float3> getVertexPositions(const Concepts::PrimitiveView auto& primitiveView)
     {
         float3 p0 = primitiveView.getVertex(0).getPosition();
@@ -54,6 +57,15 @@ struct PrimitiveViewMethod
         auto [p0, p1, p2] = getVertexPositions(primitiveView);
         return math::normalize(math::cross(p1 - p0, p2 - p0));
     }
+};
+
+struct MeshViewMethod
+{
+    template<Concepts::MeshView MeshView_T>
+    using PrimitiveView = std::remove_cvref_t<decltype(std::declval<MeshView_T>().getPrimitive(0))>;
+
+    template<Concepts::MeshView MeshView_T>
+    using VertexView = PrimitiveViewMethod::VertexView<PrimitiveView<MeshView_T>>;
 };
 
 struct MeshPoint
