@@ -19,13 +19,13 @@ struct GS3DIndLightAlgo
     {
         float3 mean;
         float3x3 rotateScaleMat, invRotateScaleMat;
-        // float3 boundScale, invBoundScale;
 
         static SplatTransformData fromSplat(const GS3DIndLightSplat& splat);
 
         float3 rotateScale(const float3& d) const;
         float3 transform(const float3& p) const;
         AABB getAABB() const;
+        bool isTriangleIntersected(float3 v0, float3 v1, float3 v2) const;
     };
 
     static std::vector<GS3DIndLightSplat> getSplatsFromMeshFallback(const ref<GMesh>& pMesh, uint splatCount);

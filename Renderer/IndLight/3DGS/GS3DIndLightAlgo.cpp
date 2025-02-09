@@ -51,6 +51,34 @@ AABB GS3DIndLightAlgo::SplatTransformData::getAABB() const
     return AABB{mean - extent, mean + extent};
 }
 
+bool GS3DIndLightAlgo::SplatTransformData::isTriangleIntersected(float3 v0, float3 v1, float3 v2) const
+{
+    // From https://iquilezles.org/articles/distfunctions/
+    const auto getTriangleSDF = [](float3 p, float3 a, float3 b, float3 c)
+    {
+        using namespace math;
+        float3 ba = b - a;
+        float3 pa = p - a;
+        float3 cb = c - b;
+        float3 pb = p - b;
+        float3 ac = a - c;
+        float3 pc = p - c;
+        float3 nor = cross(ba, ac);
+        const auto dot2 = [](auto a) { return dot(a, a); };
+        return sqrt(
+            (sign(dot(cross(ba, nor), pa)) + sign(dot(cross(cb, nor), pb)) + sign(dot(cross(ac, nor), pc)) < 2.0f)
+                ? min(min(dot2(ba * clamp(dot(ba, pa) / dot2(ba), 0.0f, 1.0f) - pa),
+                          dot2(cb * clamp(dot(cb, pb) / dot2(cb), 0.0f, 1.0f) - pb)),
+                      dot2(ac * clamp(dot(ac, pc) / dot2(ac), 0.0f, 1.0f) - pc))
+                : dot(nor, pa) * dot(nor, pa) / dot2(nor)
+        );
+    };
+    v0 = transform(v0);
+    v1 = transform(v1);
+    v2 = transform(v2);
+    return getTriangleSDF(float3{}, v0, v1, v2) < 1.0f;
+}
+
 std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const ref<GMesh>& pMesh, uint splatCount)
 {
     std::vector<GS3DIndLightSplat> meshSplats;
@@ -112,10 +140,15 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const
 
 struct MeshSplatRangeSearcher
 {
+    GS3DIndLightAlgo::SplatTransformData splatData;
     AABB splatAABB;
 
     bool isIntersected(AABB bound) const { return bound.intersection(splatAABB).valid(); }
-    bool isIntersected(const GMeshPrimitiveView& primitive) const {}
+    bool isIntersected(const GMeshPrimitiveView& primitive) const
+    {
+        auto [v0, v1, v2] = PrimitiveViewMethod::getVertexPositions(primitive);
+        return splatData.isTriangleIntersected(v0, v1, v2);
+    }
 };
 
 std::vector<uint32_t> GS3DIndLightAlgo::getSplatIntersectedPrimitiveIDs(const ref<GMesh>& pMesh, const GS3DIndLightSplat& splat) {}
