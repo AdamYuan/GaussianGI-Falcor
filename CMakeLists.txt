@@ -128,8 +128,13 @@ target_sources(GaussianGITest PRIVATE
         Algorithm/DeviceSort/OneSweep.cs.slang
 
         Test/IndirectDispatchTest.cpp
+
+        Test/GS3DIndLightAlgoTest.cpp
+        Algorithm/AliasTable.cpp
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp
+        Renderer/IndLight/3DGS/GS3DIndLightAlgo.cpp
 )
-target_link_libraries(GaussianGITest PRIVATE args)
+target_link_libraries(GaussianGITest PRIVATE args tbb)
 target_copy_shaders(GaussianGITest GaussianGI)
 target_source_group(GaussianGITest "GaussianGI")
 
