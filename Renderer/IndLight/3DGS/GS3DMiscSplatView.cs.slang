@@ -29,7 +29,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (instanceID >= gGStaticScene.instanceCount)
         return;
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
-    IndLightSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + idx % gSplatsPerMesh];
+
+    uint meshSplatID = idx % gSplatsPerMesh;
+    IndLightSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + meshSplatID];
     float3 mean = instanceInfo.transform.apply(splat.mean);
 
     float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(mean, 1)).xyz;
@@ -55,12 +57,11 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     view.axis0 = float16_t2(axis0);
     view.axis1 = float16_t2(axis1);
     view.clipXY = float16_t2(clipPos.xy);
-    float viewZRemap = -viewPos.z / gGStaticScene.camera.data.farZ;
-    view.indirect = float16_t4(splat.indirect, 0.0h);
+    // view.indirect = float16_t4(splat.indirect, 0.0h);
 
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount
-    gSplatViews[viewID] = view;
+    gSplatViews[idx] = view;
     gSplatViewSortKeys[viewID] = float2Uint(viewPos.z);
-    gSplatViewSortPayloads[viewID] = viewID;
+    gSplatViewSortPayloads[viewID] = idx;
 }

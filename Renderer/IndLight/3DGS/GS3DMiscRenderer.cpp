@@ -151,6 +151,9 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         {
             FALCOR_PROFILE(pRenderContext, "drawSplat");
             auto [prog, var] = getShaderProgVar(mpSplatDrawPass);
+            args.pStaticScene->bindRootShaderData(var);
+            var["gSplats"] = args.pSplatBuffer;
+            var["gSplatsPerMesh"] = args.splatsPerMesh;
             var["gSplatViews"] = mpSplatViewBuffer;
             var["gSplatViewSortPayloads"] = mpSplatViewSortPayloadBuffer;
             var["gResolution"] = resolutionFloat;

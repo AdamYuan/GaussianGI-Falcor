@@ -32,10 +32,10 @@ struct GS3DIndLightSplatView
 {
     float16_t2 axis0, axis1;
     float16_t2 clipXY;
-    float16_t4 indirect;
+    uint padding;
 };
 
-static_assert(sizeof(GS3DIndLightSplatView) == 5 * sizeof(uint32_t));
+static_assert(sizeof(GS3DIndLightSplatView) == 4 * sizeof(uint32_t));
 
 } // namespace GSGI
 

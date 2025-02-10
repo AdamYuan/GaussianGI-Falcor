@@ -10,5 +10,5 @@ public struct IndLightSplatView
 {
     public float16_t2 axis0, axis1;
     public float16_t2 clipXY;
-    public float16_t4 indirect;
+    uint padding;
 }
