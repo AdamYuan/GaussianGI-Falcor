@@ -9,10 +9,7 @@
 namespace GSGI
 {
 
-PTIndLight::PTIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
-{
-    mpPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/PathTraced/PTIndLight.cs.slang", "csMain");
-}
+PTIndLight::PTIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
 
 void PTIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
 {
@@ -38,6 +35,8 @@ void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& ar
         mSPP = 0;
     }
 
+    if (!mpPass)
+        mpPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/PathTraced/PTIndLight.cs.slang", "csMain");
     auto [prog, var] = getShaderProgVar(mpPass);
     var["gIndLight"] = pIndirectTexture;
     var["gSPP"] = mSPP;

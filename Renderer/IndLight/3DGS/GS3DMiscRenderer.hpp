@@ -45,6 +45,9 @@ private:
         float splatOpacity = 1.0f;
     } mConfig = {};
 
+    void initialize();
+    bool mIsInitialized = false;
+
 public:
     struct DrawArgs
     {

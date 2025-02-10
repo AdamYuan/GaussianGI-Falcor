@@ -5,7 +5,6 @@
 #include "GS3DIndLightSplat.hpp"
 
 #include "../../../Util/SerializeUtil.hpp"
-#include "GS3DIndLightAlgo.hpp"
 #include <fstream>
 
 namespace GSGI
@@ -26,16 +25,13 @@ void GS3DIndLightSplat::persistMesh(const ref<GMesh>& pMesh, std::span<const GS3
     IndLightSplatPersist::store(std::ofstream{meshSplatPersistPath}, kVersion, splats);
 }
 
-std::vector<GS3DIndLightSplat> GS3DIndLightSplat::fromMesh(const ref<GMesh>& pMesh, uint splatCount)
+std::vector<GS3DIndLightSplat> GS3DIndLightSplat::loadMesh(const ref<GMesh>& pMesh, uint splatCount)
 {
     std::vector<GS3DIndLightSplat> meshSplats;
     auto meshSplatPersistPath = pMesh->getPersistPath(kPersistKey);
-    if (!IndLightSplatPersist::load(std::ifstream{meshSplatPersistPath}, kVersion, meshSplats) || meshSplats.size() != splatCount)
-    {
-        meshSplats = GS3DIndLightAlgo::getSplatsFromMeshFallback(pMesh, splatCount);
-        IndLightSplatPersist::store(std::ofstream{meshSplatPersistPath}, kVersion, meshSplats);
-    }
-    return meshSplats;
+    if (IndLightSplatPersist::load(std::ifstream{meshSplatPersistPath}, kVersion, meshSplats) && meshSplats.size() == splatCount)
+        return meshSplats;
+    return {};
 }
 
 } // namespace GSGI

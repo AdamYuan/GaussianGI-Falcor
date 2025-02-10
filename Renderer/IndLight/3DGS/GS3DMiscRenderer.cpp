@@ -11,10 +11,12 @@
 namespace GSGI
 {
 
-GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(pDevice)
+GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(pDevice) {}
+
+void GS3DMiscRenderer::initialize()
 {
     mSplatViewSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>{
-        pDevice,
+        getDevice(),
         DeviceSortDesc({
             DeviceSortBufferType::kKey32,
             DeviceSortBufferType::kPayload,
@@ -71,6 +73,11 @@ GS3DMiscRenderer::GS3DMiscRenderer(const ref<Device>& pDevice) : GDeviceObject(p
 
 void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args)
 {
+    if (!mIsInitialized)
+    {
+        initialize();
+        mIsInitialized = true;
+    }
     FALCOR_PROFILE(pRenderContext, "GS3DMisc");
 
     pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});

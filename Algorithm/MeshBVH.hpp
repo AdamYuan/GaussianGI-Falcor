@@ -95,6 +95,7 @@ public:
     static NodeID getRootID() { return static_cast<NodeID>(0); }
     NodeView getNode(NodeID nodeID) const { return NodeView(mNodes[static_cast<uint32_t>(nodeID)], nodeID); }
     NodeView getRootNode() const { return getNode(getRootID()); }
+    bool isEmpty() const { return mNodes.empty(); }
 
     template<typename Builder_T, Concepts::MeshView MeshView_T>
     static MeshBVH build(const MeshView_T& meshView)

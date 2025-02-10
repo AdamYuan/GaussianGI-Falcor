@@ -7,6 +7,8 @@
 
 #include <Falcor.h>
 #include "GS3DIndLightSplat.hpp"
+#include "../../../Algorithm/MeshBVH.hpp"
+#include "../../../Scene/GMeshView.hpp"
 
 using namespace Falcor;
 
@@ -28,10 +30,14 @@ struct GS3DIndLightAlgo
         bool isTriangleIntersected(float3 v0, float3 v1, float3 v2) const;
     };
 
-    static std::vector<GS3DIndLightSplat> getSplatsFromMeshFallback(const ref<GMesh>& pMesh, uint splatCount);
-    static std::vector<uint32_t> getSplatIntersectedPrimitiveIDs(const ref<GMesh>& pMesh, const GS3DIndLightSplat& splat);
-    static std::vector<std::vector<uint32_t>> getSplatIntersectedPrimitiveIDs(
-        const ref<GMesh>& pMesh,
+    static std::vector<GS3DIndLightSplat> getSplatsFromMeshFallback(
+        const GMeshView& meshView,
+        const MeshBVH<AABB>& meshBVH,
+        uint splatCount
+    );
+    static std::vector<std::vector<uint32_t>> getPrimitiveIntersectedSplatIDs(
+        const GMeshView& meshView,
+        const MeshBVH<AABB>& meshBVH,
         std::span<const GS3DIndLightSplat> splats
     );
 };

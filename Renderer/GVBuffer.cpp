@@ -9,12 +9,7 @@
 namespace GSGI
 {
 
-GVBuffer::GVBuffer(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
-{
-    ProgramDesc rasterDesc;
-    rasterDesc.addShaderLibrary("GaussianGI/Renderer/GVBuffer.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
-    mpRasterPass = RasterPass::create(getDevice(), rasterDesc);
-}
+GVBuffer::GVBuffer(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
 
 uint2 GVBuffer::getResolution() const
 {
@@ -23,6 +18,12 @@ uint2 GVBuffer::getResolution() const
 
 void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene)
 {
+    if (!mpRasterPass)
+    {
+        ProgramDesc rasterDesc;
+        rasterDesc.addShaderLibrary("GaussianGI/Renderer/GVBuffer.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
+        mpRasterPass = RasterPass::create(getDevice(), rasterDesc);
+    }
     uint2 resolution = getTextureResolution2(pScreenFbo);
     updateTextureSize(
         mpAlbedoTexture,

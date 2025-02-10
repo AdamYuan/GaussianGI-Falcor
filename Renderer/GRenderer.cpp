@@ -15,13 +15,14 @@ GRenderer::GRenderer(const ref<GScene>& pScene) : GSceneObject(pScene)
     mpVBuffer = make_ref<GVBuffer>(getDevice());
     mpShadow = make_ref<GShadow>(getDevice());
     mpIndirectLight = make_ref<GIndLight>(getDevice());
-    mpPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/GRenderer.cs.slang", "csMain");
 }
 
 void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {
     auto resolution = getTextureResolution2(pTargetFbo);
 
+    if (!mpPass)
+        mpPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/GRenderer.cs.slang", "csMain");
     // Create Target Texture
     updateTextureSize(
         mpTargetTexture,

@@ -29,15 +29,13 @@ struct MeshRangeSearch
         std::vector<uint32_t> primitiveIDs;
     };
 
-    template<
-        Concepts::MeshView MeshView_T,
-        typename Bound_T,
-        Concepts::MeshRangeSearcher<Bound_T, MeshViewMethod::PrimitiveView<MeshView_T>> Searcher_T>
+    template<typename Searcher_T, Concepts::MeshView MeshView_T, typename Bound_T>
+        requires Concepts::MeshRangeSearcher<Searcher_T, Bound_T, MeshViewMethod::PrimitiveView<MeshView_T>>
     static Result query(const MeshView_T& meshView, const MeshBVH<Bound_T>& bvh, const Searcher_T& searcher)
     {
         std::vector<uint32_t> primitiveIDs;
 
-        const auto queryImpl = [&](const typename MeshBVH<Bound_T>::NodeView& node, auto&& queryFunc)
+        const auto queryImpl = [&](const typename MeshBVH<Bound_T>::NodeView& node, auto&& queryFunc) -> void
         {
             if (node.isLeaf())
             {

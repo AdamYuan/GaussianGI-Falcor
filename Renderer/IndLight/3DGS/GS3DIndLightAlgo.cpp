@@ -5,7 +5,6 @@
 #include "GS3DIndLightAlgo.hpp"
 
 #include "../../../Scene/GMeshView.hpp"
-#include "../../../Algorithm/MeshVHBVH.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Algorithm/MeshGSOptimize.hpp"
 #include "../../../Algorithm/MeshRangeSearch.hpp"
@@ -79,12 +78,15 @@ bool GS3DIndLightAlgo::SplatTransformData::isTriangleIntersected(float3 v0, floa
     return getTriangleSDF(float3{}, v0, v1, v2) < 1.0f;
 }
 
-std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const ref<GMesh>& pMesh, uint splatCount)
+std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(
+    const GMeshView& meshView,
+    const MeshBVH<AABB>& meshBVH,
+    uint splatCount
+)
 {
     std::vector<GS3DIndLightSplat> meshSplats;
-    auto view = GMeshView{pMesh};
     auto sampleResult = MeshSample::sample(
-        view,
+        meshView,
         [sobolEngine = boost::random::sobol_engine<uint32_t, 32>{4}] mutable
         {
             uint2 u2;
@@ -101,7 +103,6 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const
     float initialScale = MeshGSOptimize::getInitialScale(sampleResult.totalArea, splatCount, 0.5f);
     logInfo("area: {}, initialScale: {}", sampleResult.totalArea, initialScale);
 
-    auto bvh = MeshBVH<AABB>::build<MeshVHBVHBuilder>(view);
     meshSplats.resize(splatCount);
 
     tbb::parallel_for(
@@ -113,9 +114,9 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const
             {
                 const auto& meshPoint = sampleResult.points[splatID];
                 auto result = MeshGSOptimize::run<MeshClosestPointAABBFinder>(
-                    view,
+                    meshView,
                     meshPoint,
-                    bvh,
+                    meshBVH,
                     MeshGSSamplerDefault{std::mt19937{splatID}},
                     {
                         .initialScale = initialScale,
@@ -127,7 +128,7 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(const
                     }
                 );
                 return GS3DIndLightSplat{
-                    .mean = meshPoint.getPosition(view),
+                    .mean = meshPoint.getPosition(meshView),
                     .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
                     .scale = float16_t3(result.scaleXY, 0.1f * math::min(result.scaleXY.x, result.scaleXY.y)),
                     .irradiance = float16_t3{1.0f},
@@ -143,6 +144,13 @@ struct MeshSplatRangeSearcher
     GS3DIndLightAlgo::SplatTransformData splatData;
     AABB splatAABB;
 
+    static MeshSplatRangeSearcher fromSplat(const GS3DIndLightSplat& splat)
+    {
+        MeshSplatRangeSearcher searcher = {.splatData = GS3DIndLightAlgo::SplatTransformData::fromSplat(splat)};
+        searcher.splatAABB = searcher.splatData.getAABB();
+        return searcher;
+    }
+
     bool isIntersected(AABB bound) const { return bound.intersection(splatAABB).valid(); }
     bool isIntersected(const GMeshPrimitiveView& primitive) const
     {
@@ -151,12 +159,35 @@ struct MeshSplatRangeSearcher
     }
 };
 
-std::vector<uint32_t> GS3DIndLightAlgo::getSplatIntersectedPrimitiveIDs(const ref<GMesh>& pMesh, const GS3DIndLightSplat& splat) {}
-
-std::vector<std::vector<uint32_t>> GS3DIndLightAlgo::getSplatIntersectedPrimitiveIDs(
-    const ref<GMesh>& pMesh,
+std::vector<std::vector<uint32_t>> GS3DIndLightAlgo::getPrimitiveIntersectedSplatIDs(
+    const GMeshView& meshView,
+    const MeshBVH<AABB>& meshBVH,
     std::span<const GS3DIndLightSplat> splats
 )
-{}
+{
+    std::vector<std::vector<uint32_t>> splatIntersectPrimitiveIDs(splats.size());
+    tbb::parallel_for(
+        uint32_t{0},
+        (uint32_t)splats.size(),
+        [&](uint32_t splatID)
+        {
+            splatIntersectPrimitiveIDs[splatID] = [&]
+            {
+                MeshSplatRangeSearcher searcher = MeshSplatRangeSearcher::fromSplat(splats[splatID]);
+                auto result = MeshRangeSearch::query<MeshSplatRangeSearcher>(meshView, meshBVH, searcher);
+                return result.primitiveIDs;
+            }();
+        }
+    );
+
+    std::vector<std::vector<uint32_t>> primitiveIntersectedSplatIDs(meshView.getPrimitiveCount());
+    for (uint32_t splatID = 0; splatID < splats.size(); ++splatID)
+    {
+        const auto& primitiveIDs = splatIntersectPrimitiveIDs[splatID];
+        for (uint32_t primitiveID : primitiveIDs)
+            primitiveIntersectedSplatIDs[primitiveID].push_back(splatID);
+    }
+    return primitiveIntersectedSplatIDs;
+}
 
 } // namespace GSGI

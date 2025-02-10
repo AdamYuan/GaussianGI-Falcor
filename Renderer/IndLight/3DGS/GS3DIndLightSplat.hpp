@@ -5,6 +5,8 @@
 #ifndef GSGI_GS3DINDLIGHTSPLAT_HPP
 #define GSGI_GS3DINDLIGHTSPLAT_HPP
 
+#include "../../../Algorithm/MeshBVH.hpp"
+
 #include <Falcor.h>
 #include "../../../Scene/GMesh.hpp"
 
@@ -20,7 +22,7 @@ struct GS3DIndLightSplat
     float16_t3 scale;
     float16_t3 irradiance;
 
-    static std::vector<GS3DIndLightSplat> fromMesh(const ref<GMesh>& pMesh, uint splatCount);
+    static std::vector<GS3DIndLightSplat> loadMesh(const ref<GMesh>& pMesh, uint splatCount);
     static void persistMesh(const ref<GMesh>& pMesh, std::span<const GS3DIndLightSplat> splats);
 };
 
