@@ -78,7 +78,6 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         initialize();
         mIsInitialized = true;
     }
-    FALCOR_PROFILE(pRenderContext, "GS3DMisc");
 
     pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
 

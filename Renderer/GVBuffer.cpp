@@ -18,6 +18,8 @@ uint2 GVBuffer::getResolution() const
 
 void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene)
 {
+    FALCOR_PROFILE(pRenderContext, "GVBuffer::draw");
+
     if (!mpRasterPass)
     {
         ProgramDesc rasterDesc;

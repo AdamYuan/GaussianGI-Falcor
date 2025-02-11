@@ -38,6 +38,7 @@ ref<GStaticScene> GIndLight::getStaticScene(GIndLightType type) const
 
 void GIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type)
 {
+    FALCOR_PROFILE(pRenderContext, "GIndLight::draw");
     enumVisit(
         type,
         [&]<typename EnumInfo_T>(EnumInfo_T)
@@ -47,6 +48,7 @@ void GIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& arg
 
 void GIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, GIndLightType type)
 {
+    FALCOR_PROFILE(pRenderContext, "GIndLight::drawMisc");
     enumVisit(
         type,
         [&]<typename EnumInfo_T>(EnumInfo_T) { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->drawMisc(pRenderContext, pTargetFbo); }
