@@ -22,7 +22,7 @@ struct GS3DIndLightSplat
     float16_t3 scale;
     float16_t3 irradiance;
 
-    static std::vector<GS3DIndLightSplat> loadMesh(const ref<GMesh>& pMesh, uint splatCount);
+    static std::vector<GS3DIndLightSplat> loadMesh(const ref<GMesh>& pMesh);
     static void persistMesh(const ref<GMesh>& pMesh, std::span<const GS3DIndLightSplat> splats);
 };
 
@@ -36,6 +36,19 @@ struct GS3DIndLightSplatView
 };
 
 static_assert(sizeof(GS3DIndLightSplatView) == 4 * sizeof(uint32_t));
+
+struct GS3DIndLightSplatInstancedBuffer
+{
+    ref<Buffer> pSplatBuffer, pSplatDescBuffer;
+    uint32_t splatCount;
+
+    void bindShaderData(const ShaderVar& var) const
+    {
+        var["splats"] = pSplatBuffer;
+        var["splatDescs"] = pSplatDescBuffer;
+        var["splatCount"] = splatCount;
+    }
+};
 
 } // namespace GSGI
 

@@ -3,10 +3,9 @@ import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
 import GS3DIndLightSplat;
 
-StructuredBuffer<IndLightSplat> gSplats;
+uniform IndLightSplatInstancedBuffer gSplats;
 RWStructuredBuffer<IndLightSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
-uniform uint gSplatsPerMesh;
 uniform float2 gResolution;
 uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d = \sqrt{\ln{255 \alpha}}
 
@@ -28,10 +27,9 @@ uint vsMain(uint instanceID: SV_InstanceID)
 [maxvertexcount(4)]
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
-    uint idx = gSplatViewSortPayloads[gIn[0]];
-    var splatView = gSplatViews[idx];
-    uint splatID = idx; // TODO: support multi meshes and instances
-    var splat = gSplats[idx];
+    uint splatID = gSplatViewSortPayloads[gIn[0]];
+    var splatView = gSplatViews[splatID];
+    var splat = gSplats.load(splatID);
 
     float2 clip = float2(splatView.clipXY);
     float2 deltaClip0 = float2(splatView.axis0) * 2 / gResolution.xy;

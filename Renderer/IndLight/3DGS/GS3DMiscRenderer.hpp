@@ -52,8 +52,8 @@ public:
     struct DrawArgs
     {
         const ref<GStaticScene>& pStaticScene;
-        const ref<Buffer>& pSplatBuffer;
-        uint splatsPerMesh;
+        const ref<Buffer>&pSplatBuffer, pSplatDescBuffer;
+        uint splatCount;
     };
     explicit GS3DMiscRenderer(const ref<Device>& pDevice);
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);

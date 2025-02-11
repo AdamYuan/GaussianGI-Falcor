@@ -3,8 +3,7 @@ import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
 import GS3DIndLightSplat;
 
-StructuredBuffer<IndLightSplat> gSplats;
-uniform uint gSplatsPerMesh;
+uniform IndLightSplatInstancedBuffer gSplats;
 uniform float2 gResolution;
 
 RWStructuredBuffer<IndLightSplatView> gSplatViews;
@@ -23,18 +22,13 @@ uint float2Uint(float f)
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
 {
-    uint idx = threadID.x;
-
-    uint instanceID = idx / gSplatsPerMesh;
-    if (instanceID >= gGStaticScene.instanceCount)
+    uint splatID = threadID.x;
+    if (splatID >= gSplats.splatCount)
         return;
-    var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
 
-    uint meshSplatID = idx % gSplatsPerMesh;
-    IndLightSplat splat = gSplats[instanceInfo.meshID * gSplatsPerMesh + meshSplatID];
-    float3 mean = instanceInfo.transform.apply(splat.mean);
+    IndLightSplat splat = gSplats.load(splatID);
 
-    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(mean, 1)).xyz;
+    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(splat.mean, 1)).xyz;
     float4 clipPos = mul(gGStaticScene.camera.data.projMat, float4(viewPos, 1));
     if (clipPos.w <= 0) // Behind Camera
         return;
@@ -42,8 +36,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (any(abs(clipPos.xy) > 1.3) || clipPos.z > 1 || clipPos.z < 0) // Frustum Culled
         return;
 
-    float2x3 cov3d =
-        GS3D::getCovariance3D(splat.rotate, float3(splat.scale), instanceInfo.transform.getRotateMatrix(), instanceInfo.transform.scale);
+    float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, float3(splat.scale));
     float3 cov2d = GS3D::getCovariance2D(
         cov3d, viewPos, float3x3(gGStaticScene.camera.data.viewMat), gGStaticScene.camera.data.projMat[0][0], gResolution
     );
@@ -61,7 +54,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount
-    gSplatViews[idx] = view;
+    gSplatViews[splatID] = view;
     gSplatViewSortKeys[viewID] = float2Uint(viewPos.z);
-    gSplatViewSortPayloads[viewID] = idx;
+    gSplatViewSortPayloads[viewID] = splatID;
 }

@@ -55,6 +55,13 @@ public struct GTransform
         );
     }
 
+    public float4 getRotateQuat()
+    {
+        float halfRotY = rotateY * 0.5;
+        float cosHalfRotY = cos(halfRotY), sinHalfRotY = sin(halfRotY);
+        return float4(0, -sinHalfRotY, 0, cosHalfRotY);
+    }
+
     public float3 apply(float3 p)
     {
         p = applyRotation(p);

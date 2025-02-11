@@ -25,11 +25,11 @@ void GS3DIndLightSplat::persistMesh(const ref<GMesh>& pMesh, std::span<const GS3
     IndLightSplatPersist::store(std::ofstream{meshSplatPersistPath}, kVersion, splats);
 }
 
-std::vector<GS3DIndLightSplat> GS3DIndLightSplat::loadMesh(const ref<GMesh>& pMesh, uint splatCount)
+std::vector<GS3DIndLightSplat> GS3DIndLightSplat::loadMesh(const ref<GMesh>& pMesh)
 {
     std::vector<GS3DIndLightSplat> meshSplats;
     auto meshSplatPersistPath = pMesh->getPersistPath(kPersistKey);
-    if (IndLightSplatPersist::load(std::ifstream{meshSplatPersistPath}, kVersion, meshSplats) && meshSplats.size() == splatCount)
+    if (IndLightSplatPersist::load(std::ifstream{meshSplatPersistPath}, kVersion, meshSplats))
         return meshSplats;
     return {};
 }

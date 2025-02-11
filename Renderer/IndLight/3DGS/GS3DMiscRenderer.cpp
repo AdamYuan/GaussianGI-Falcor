@@ -82,6 +82,12 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
 
     pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
 
+    GS3DIndLightSplatInstancedBuffer splatInstancedBuffer = {
+        .pSplatBuffer = args.pSplatBuffer,
+        .pSplatDescBuffer = args.pSplatDescBuffer,
+        .splatCount = args.splatCount,
+    };
+
     if (mConfig.type == GS3DMiscType::kPoint) // Point
     {
         pRenderContext->clearDsv(pTargetFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
@@ -89,17 +95,14 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         FALCOR_PROFILE(pRenderContext, "drawPoint");
         auto [prog, var] = getShaderProgVar(mpPointPass);
         args.pStaticScene->bindRootShaderData(var);
-        var["gSplats"] = args.pSplatBuffer;
-        var["gSplatsPerMesh"] = args.splatsPerMesh;
+        splatInstancedBuffer.bindShaderData(var["gSplats"]);
 
         mpPointPass->getState()->setFbo(pTargetFbo);
-        pRenderContext->draw(
-            mpPointPass->getState().get(), mpPointPass->getVars().get(), args.splatsPerMesh * args.pStaticScene->getInstanceCount(), 0
-        );
+        pRenderContext->draw(mpPointPass->getState().get(), mpPointPass->getVars().get(), args.splatCount, 0);
     }
     else // Splat
     {
-        uint splatViewCount = args.splatsPerMesh * args.pStaticScene->getInstanceCount();
+        uint splatViewCount = args.splatCount;
         FALCOR_CHECK(splatViewCount != 0, "");
         if (splatViewCount != mSplatViewCount)
         {
@@ -123,8 +126,7 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
             FALCOR_PROFILE(pRenderContext, "splatView");
             auto [prog, var] = getShaderProgVar(mpSplatViewPass);
             args.pStaticScene->bindRootShaderData(var);
-            var["gSplats"] = args.pSplatBuffer;
-            var["gSplatsPerMesh"] = args.splatsPerMesh;
+            splatInstancedBuffer.bindShaderData(var["gSplats"]);
             var["gResolution"] = resolutionFloat;
 
             var["gSplatViews"] = mpSplatViewBuffer;
@@ -152,8 +154,7 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
             FALCOR_PROFILE(pRenderContext, "drawSplat");
             auto [prog, var] = getShaderProgVar(mpSplatDrawPass);
             args.pStaticScene->bindRootShaderData(var);
-            var["gSplats"] = args.pSplatBuffer;
-            var["gSplatsPerMesh"] = args.splatsPerMesh;
+            splatInstancedBuffer.bindShaderData(var["gSplats"]);
             var["gSplatViews"] = mpSplatViewBuffer;
             var["gSplatViewSortPayloads"] = mpSplatViewSortPayloadBuffer;
             var["gResolution"] = resolutionFloat;

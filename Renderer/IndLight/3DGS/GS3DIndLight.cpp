@@ -11,6 +11,11 @@
 namespace GSGI
 {
 
+namespace
+{
+constexpr uint32_t kDefaultSplatsPerMesh = 65536;
+}
+
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
 {
     mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
@@ -22,18 +27,21 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
     if (isSceneChanged)
     {
         std::vector<GS3DIndLightSplat> splats;
-        for (const auto& pMesh : pDefaultStaticScene->getMeshes())
+        std::vector<uint32_t> meshFirstSplatIdx;
+        meshFirstSplatIdx.reserve(mpStaticScene->getMeshCount());
+        for (const auto& pMesh : mpStaticScene->getMeshes())
         {
             auto meshView = GMeshView{pMesh};
             MeshBVH<AABB> meshBVH;
-            auto meshSplats = GS3DIndLightSplat::loadMesh(pMesh, mConfig.splatsPerMesh);
+            auto meshSplats = GS3DIndLightSplat::loadMesh(pMesh);
             if (meshSplats.empty())
             {
                 if (meshBVH.isEmpty())
                     meshBVH = MeshBVH<AABB>::build<MeshVHBVHBuilder>(meshView);
-                meshSplats = GS3DIndLightAlgo::getSplatsFromMeshFallback(meshView, meshBVH, mConfig.splatsPerMesh);
+                meshSplats = GS3DIndLightAlgo::getSplatsFromMeshFallback(meshView, meshBVH, kDefaultSplatsPerMesh);
                 GS3DIndLightSplat::persistMesh(pMesh, meshSplats);
             }
+            meshFirstSplatIdx.push_back(splats.size());
             splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
 
             /* {
@@ -57,6 +65,22 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             } */
         }
 
+        std::vector<uint32_t> splatDescs;
+
+        for (uint32_t instanceID = 0; instanceID < mpStaticScene->getInstanceCount(); ++instanceID)
+        {
+            const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
+            uint32_t meshID = instanceInfo.meshID;
+            uint32_t firstSplatIdx = meshFirstSplatIdx[meshID];
+            uint32_t splatCount =
+                (meshID == mpStaticScene->getMeshCount() - 1 ? splats.size() : meshFirstSplatIdx[instanceInfo.meshID + 1]) - firstSplatIdx;
+
+            for (uint32_t splatOfst = 0; splatOfst < splatCount; ++splatOfst)
+                splatDescs.push_back((firstSplatIdx + splatOfst) | (instanceID << 24u));
+
+            static_assert(GStaticScene::kMaxInstanceCount <= 256);
+        }
+
         mpSplatBuffer = getDevice()->createStructuredBuffer(
             sizeof(GS3DIndLightSplat), //
             splats.size(),
@@ -64,6 +88,14 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             MemoryType::DeviceLocal,
             splats.data()
         );
+        mpSplatDescBuffer = getDevice()->createStructuredBuffer(
+            sizeof(uint32_t), //
+            splatDescs.size(),
+            ResourceBindFlags::ShaderResource,
+            MemoryType::DeviceLocal,
+            splatDescs.data()
+        );
+        mSplatCount = splatDescs.size();
     }
 }
 
@@ -77,7 +109,8 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         {
             .pStaticScene = mpStaticScene,
             .pSplatBuffer = mpSplatBuffer,
-            .splatsPerMesh = mConfig.splatsPerMesh,
+            .pSplatDescBuffer = mpSplatDescBuffer,
+            .splatCount = mSplatCount,
         }
     );
 }

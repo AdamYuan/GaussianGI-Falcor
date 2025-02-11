@@ -21,13 +21,11 @@ class GS3DIndLight final : public GDeviceObject<GS3DIndLight>
 private:
     ref<GStaticScene> mpStaticScene;
     ref<GS3DMiscRenderer> mpMiscRenderer;
-    ref<Buffer> mpSplatBuffer;
+    ref<Buffer> mpSplatBuffer, mpSplatDescBuffer;
+    uint32_t mSplatCount{};
 
     struct Config
     {
-        uint splatsPerMesh = 65536;
-        uint hashGridDim = 128;
-
         bool operator==(const Config&) const = default;
     } mConfig = {};
 
