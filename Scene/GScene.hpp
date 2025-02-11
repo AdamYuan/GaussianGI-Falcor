@@ -34,7 +34,7 @@ public:
     };
     using Version = uint64_t;
 
-    static constexpr uint32_t kMaxInstanceCount = 256;
+    static constexpr std::size_t kMaxInstanceCount = 256;
 
 private:
     ref<RasterPass> mpDefaultRasterPass;

@@ -32,6 +32,8 @@ public:
         uint meshID{};
     };
 
+    static constexpr uint32_t kMaxInstanceCount = GScene::kMaxInstanceCount;
+
 private:
     void import(std::vector<ref<GMesh>>&& pMeshes);
     void buildBLAS(RenderContext* pRenderContext);

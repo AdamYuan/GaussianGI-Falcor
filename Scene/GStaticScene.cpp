@@ -76,6 +76,8 @@ void GStaticScene::import(std::vector<ref<GMesh>>&& pMeshes)
         }
     }
 
+    FALCOR_CHECK(mInstanceInfos.size() <= kMaxInstanceCount, "");
+
     mpVertexBuffer = getDevice()->createStructuredBuffer(
         sizeof(GMesh::Vertex), //
         vertices.size(),
