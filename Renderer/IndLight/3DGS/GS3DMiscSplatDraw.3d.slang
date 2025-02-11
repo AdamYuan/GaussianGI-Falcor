@@ -3,8 +3,10 @@ import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
 import GS3DIndLightSplat;
 
-uniform IndLightSplatInstancedBuffer gSplats;
-RWStructuredBuffer<IndLightSplatView> gSplatViews;
+using namespace GS3DIndLight;
+
+uniform InstancedSplatBuffer gSplats;
+RWStructuredBuffer<MiscSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d = \sqrt{\ln{255 \alpha}}

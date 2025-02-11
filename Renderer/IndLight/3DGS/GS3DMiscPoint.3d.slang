@@ -5,8 +5,10 @@ import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.ShaderMisc;
 import GS3DIndLightSplat;
 
+using namespace GS3DIndLight;
+
 StructuredBuffer<uint> gSplatDescs;
-uniform IndLightSplatInstancedBuffer gSplats;
+uniform InstancedSplatBuffer gSplats;
 uniform uint gSplatCount;
 
 struct PSIn

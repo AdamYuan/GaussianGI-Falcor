@@ -28,16 +28,16 @@ struct GS3DIndLightSplat
 
 static_assert(sizeof(GS3DIndLightSplat) == 8 * sizeof(uint32_t));
 
-struct GS3DIndLightSplatView
+struct GS3DIndLightMiscSplatView
 {
     float16_t2 axis0, axis1;
     float16_t2 clipXY;
     uint padding;
 };
 
-static_assert(sizeof(GS3DIndLightSplatView) == 4 * sizeof(uint32_t));
+static_assert(sizeof(GS3DIndLightMiscSplatView) == 4 * sizeof(uint32_t));
 
-struct GS3DIndLightSplatInstancedBuffer
+struct GS3DIndLightInstancedSplatBuffer
 {
     ref<Buffer> pSplatBuffer, pSplatDescBuffer;
     uint32_t splatCount;

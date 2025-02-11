@@ -3,10 +3,12 @@ import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
 import GS3DIndLightSplat;
 
-uniform IndLightSplatInstancedBuffer gSplats;
+using namespace GS3DIndLight;
+
+uniform InstancedSplatBuffer gSplats;
 uniform float2 gResolution;
 
-RWStructuredBuffer<IndLightSplatView> gSplatViews;
+RWStructuredBuffer<MiscSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewDrawArgs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
@@ -26,7 +28,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (splatID >= gSplats.splatCount)
         return;
 
-    IndLightSplat splat = gSplats.load(splatID);
+    var splat = gSplats.load(splatID);
 
     float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(splat.mean, 1)).xyz;
     float4 clipPos = mul(gGStaticScene.camera.data.projMat, float4(viewPos, 1));
@@ -46,7 +48,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     float2 axis1 = eigen2d.eigen[1] * sqrt(2.0 * eigen2d.lambda[1]);
     // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
     // Let a = 2\sqrt{2} \sigma < 3 \sigma, then d = 2
-    IndLightSplatView view;
+    MiscSplatView view;
     view.axis0 = float16_t2(axis0);
     view.axis1 = float16_t2(axis1);
     view.clipXY = float16_t2(clipPos.xy);
