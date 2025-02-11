@@ -145,6 +145,12 @@ DeviceSorter<DispatchType_V>::DeviceSorter(const ref<Device>& pDevice, DeviceSor
 }
 
 template<DeviceSortDispatchType DispatchType_V>
+bool DeviceSorter<DispatchType_V>::isInitialized() const
+{
+    return mpResetPass && mpGlobalHistPass && mpScanHistPass && mpOneSweepPass;
+}
+
+template<DeviceSortDispatchType DispatchType_V>
 void DeviceSorter<DispatchType_V>::dispatchImpl(
     ComputeContext* pComputeContext,
     const std::vector<ref<Buffer>>& pBuffers,

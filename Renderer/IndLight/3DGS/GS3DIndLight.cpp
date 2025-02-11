@@ -7,6 +7,8 @@
 #include "GS3DIndLightSplat.hpp"
 #include "GS3DIndLightAlgo.hpp"
 #include "../../../Algorithm/MeshVHBVH.hpp"
+#include "../../../Util/ShaderUtil.hpp"
+#include "../../../Util/TextureUtil.hpp"
 
 namespace GSGI
 {
@@ -14,6 +16,101 @@ namespace GSGI
 namespace
 {
 constexpr uint32_t kDefaultSplatsPerMesh = 65536;
+}
+
+void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
+{
+    if (!mDrawResource.pCullPass)
+        mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightCull.cs.slang", "csMain");
+
+    if (!mDrawResource.pDrawPass)
+    {
+        ProgramDesc splatDrawDesc;
+        splatDrawDesc.addShaderLibrary("GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightDraw.3d.slang")
+            .vsEntry("vsMain")
+            .gsEntry("gsMain")
+            .psEntry("psMain");
+        mDrawResource.pDrawPass = RasterPass::create(getDevice(), splatDrawDesc);
+        mDrawResource.pDrawPass->getState()->setVao(Vao::create(Vao::Topology::PointList));
+
+        DepthStencilState::Desc splatDepthDesc;
+        splatDepthDesc.setDepthEnabled(false);
+        BlendState::Desc splatBlendDesc;
+        splatBlendDesc.setRtBlend(0, true).setRtParams(
+            0,
+            BlendState::BlendOp::Add,
+            BlendState::BlendOp::Add,
+            BlendState::BlendFunc::SrcAlpha,
+            BlendState::BlendFunc::OneMinusSrcAlpha,
+            BlendState::BlendFunc::One,
+            BlendState::BlendFunc::OneMinusSrcAlpha
+        );
+        RasterizerState::Desc splatRasterDesc;
+        splatRasterDesc.setCullMode(RasterizerState::CullMode::None);
+        mDrawResource.pDrawPass->getState()->setRasterizerState(RasterizerState::create(splatRasterDesc));
+        mDrawResource.pDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
+        mDrawResource.pDrawPass->getState()->setDepthStencilState(DepthStencilState::create(splatDepthDesc));
+    }
+
+    if (!mDrawResource.splatViewSorter.isInitialized())
+        mDrawResource.splatViewSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>{
+            getDevice(),
+            DeviceSortDesc({
+                DeviceSortBufferType::kKey32,
+                DeviceSortBufferType::kPayload,
+            })
+        };
+
+    if (!mDrawResource.pSplatViewBuffer || mDrawResource.pSplatViewBuffer->getElementCount() != mSplatCount)
+    {
+        mDrawResource.splatViewSortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(
+            getDevice(), mDrawResource.splatViewSorter.getDesc(), mSplatCount
+        );
+        mDrawResource.pSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DIndLightSplatView), mSplatCount);
+        mDrawResource.pSplatViewSortKeyBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatCount);
+        mDrawResource.pSplatViewSortPayloadBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mSplatCount);
+    }
+
+    if (!mDrawResource.pSplatViewDrawArgBuffer)
+    {
+        DrawArguments splatViewDrawArgs = {
+            .VertexCountPerInstance = 1,
+            .InstanceCount = 0,
+            .StartVertexLocation = 0,
+            .StartInstanceLocation = 0,
+        };
+        mDrawResource.pSplatViewDrawArgBuffer = getDevice()->createStructuredBuffer(
+            sizeof(DrawArguments),
+            1,
+            ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::IndirectArg,
+            MemoryType::DeviceLocal,
+            &splatViewDrawArgs
+        );
+        static_assert(sizeof(DrawArguments) == 4 * sizeof(uint32_t));
+    }
+
+    uint2 resolution = getTextureResolution2(pIndirectTexture);
+    updateTextureSize(
+        mDrawResource.pSplatTexture,
+        resolution,
+        [this](uint width, uint height)
+        {
+            return getDevice()->createTexture2D(
+                width,
+                height,
+                ResourceFormat::R11G11B10Float,
+                1,
+                1,
+                nullptr,
+                ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget
+            );
+        }
+    );
+    updateTextureSize(
+        mDrawResource.pSplatFbo,
+        resolution,
+        [&](uint width, uint height) { return Fbo::create(getDevice(), {mDrawResource.pSplatTexture}, nullptr); }
+    );
 }
 
 GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
@@ -99,7 +196,75 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
     }
 }
 
-void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture) {}
+void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
+{
+    updateDrawResource(args, pIndirectTexture);
+
+    float2 resolutionFloat = float2(getTextureResolution2(pIndirectTexture));
+
+    GS3DIndLightInstancedSplatBuffer instancedSplatBuffer = {
+        .pSplatBuffer = mpSplatBuffer,
+        .pSplatDescBuffer = mpSplatDescBuffer,
+        .splatCount = mSplatCount,
+    };
+
+    // Reset
+    static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint32_t));
+    mDrawResource.pSplatViewDrawArgBuffer->setElement<uint32_t>(offsetof(DrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
+
+    // Splat Cull Pass
+    {
+        FALCOR_PROFILE(pRenderContext, "splatCull");
+        auto [prog, var] = getShaderProgVar(mDrawResource.pCullPass);
+        mpStaticScene->bindRootShaderData(var);
+        instancedSplatBuffer.bindShaderData(var["gSplats"]);
+        var["gResolution"] = resolutionFloat;
+
+        var["gSplatViews"] = mDrawResource.pSplatViewBuffer;
+        var["gSplatViewDrawArgs"] = mDrawResource.pSplatViewDrawArgBuffer;
+        var["gSplatViewSortKeys"] = mDrawResource.pSplatViewSortKeyBuffer;
+        var["gSplatViewSortPayloads"] = mDrawResource.pSplatViewSortPayloadBuffer;
+
+        mDrawResource.pCullPass->execute(pRenderContext, mSplatCount, 1, 1);
+    }
+
+    // Sort
+    {
+        FALCOR_PROFILE(pRenderContext, "sortSplat");
+        mDrawResource.splatViewSorter.dispatch(
+            pRenderContext,
+            {mDrawResource.pSplatViewSortKeyBuffer, mDrawResource.pSplatViewSortPayloadBuffer},
+            mDrawResource.pSplatViewDrawArgBuffer,
+            offsetof(DrawArguments, InstanceCount),
+            mDrawResource.splatViewSortResource
+        );
+    }
+
+    // Splat Draw Pass
+    {
+        FALCOR_PROFILE(pRenderContext, "drawSplat");
+        pRenderContext->clearRtv(mDrawResource.pSplatTexture->getRTV().get(), float4{});
+        auto [prog, var] = getShaderProgVar(mDrawResource.pDrawPass);
+        mpStaticScene->bindRootShaderData(var);
+        instancedSplatBuffer.bindShaderData(var["gSplats"]);
+        var["gSplatViews"] = mDrawResource.pSplatViewBuffer;
+        var["gSplatViewSortPayloads"] = mDrawResource.pSplatViewSortPayloadBuffer;
+        var["gResolution"] = resolutionFloat;
+
+        mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
+        pRenderContext->drawIndirect(
+            mDrawResource.pDrawPass->getState().get(),
+            mDrawResource.pDrawPass->getVars().get(),
+            1,
+            mDrawResource.pSplatViewDrawArgBuffer.get(),
+            0,
+            nullptr,
+            0
+        );
+    }
+
+    pRenderContext->blit(mDrawResource.pSplatTexture->getSRV(), pIndirectTexture->getRTV());
+}
 
 void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
 {

@@ -29,6 +29,7 @@ public:
     uint2 getResolution() const;
     const auto& getAlbedoTexture() const { return mpAlbedoTexture; }
     const auto& getPrimitiveTexture() const { return mpHitTexture; }
+    const ref<Texture>& getDepthStencilTexture() const { return mpFbo->getDepthStencilTexture(); }
 
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, const ref<GStaticScene>& pStaticScene);
 

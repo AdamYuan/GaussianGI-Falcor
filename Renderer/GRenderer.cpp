@@ -54,7 +54,7 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
                 1,
                 1,
                 nullptr,
-                ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+                ResourceBindFlags::ShaderResource | ResourceBindFlags::RenderTarget | ResourceBindFlags::UnorderedAccess
             );
         }
     );

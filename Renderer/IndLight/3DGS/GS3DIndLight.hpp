@@ -24,10 +24,24 @@ private:
     ref<Buffer> mpSplatBuffer, mpSplatDescBuffer;
     uint32_t mSplatCount{};
 
+    struct
+    {
+        ref<ComputePass> pCullPass;
+        ref<RasterPass> pDrawPass;
+        DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
+        DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
+        ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
+        ref<Buffer> pSplatViewDrawArgBuffer;
+        ref<Texture> pSplatTexture;
+        ref<Fbo> pSplatFbo;
+    } mDrawResource{};
+
     struct Config
     {
         bool operator==(const Config&) const = default;
     } mConfig = {};
+
+    void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
 
 public:
     explicit GS3DIndLight(ref<Device> pDevice);

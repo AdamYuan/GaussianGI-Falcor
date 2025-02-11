@@ -133,6 +133,8 @@ public:
     DeviceSorter() = default;
     DeviceSorter(const ref<Device>& pDevice, DeviceSortDesc desc);
 
+    bool isInitialized() const;
+
     const auto& getDesc() const { return mDesc; }
 
     void dispatch(
