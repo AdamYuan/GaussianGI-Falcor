@@ -30,8 +30,19 @@ static void removeVectorIndices(auto& vector, auto& indexSet)
 void GScene::update_countInstance()
 {
     mInstanceCount = 0;
-    for (const auto& entry : mMeshEntries)
+    for (auto& entry : mMeshEntries)
+    {
+        FALCOR_CHECK(mInstanceCount <= kMaxInstanceCount, "");
+        // Remove exceeding instances
+        if (mInstanceCount + entry.instances.size() > kMaxInstanceCount)
+        {
+            std::size_t eraseCount = mInstanceCount + entry.instances.size() - kMaxInstanceCount;
+            FALCOR_CHECK(eraseCount <= entry.instances.size(), "");
+            entry.instances.erase(entry.instances.end() - (int)eraseCount, entry.instances.end());
+        }
         mInstanceCount += entry.instances.size();
+        FALCOR_CHECK(mInstanceCount <= kMaxInstanceCount, "");
+    }
 }
 
 void GScene::update_makeUnique()
@@ -62,6 +73,8 @@ void GScene::update_makeUnique()
 
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
+    bool canAddInstance = mInstanceCount < kMaxInstanceCount;
+
     const auto loadMesh = [this](const std::filesystem::path& path, std::invocable<ref<GMesh>&&> auto&& onSuccess)
     {
         auto pMesh = GMeshLoader::load(getDevice(), path);
@@ -77,6 +90,8 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
     widget.text(fmt::format("Version: {}", mVersion));
     widget.text(fmt::format("Instance Count: {}", mInstanceCount));
 
+    if (!canAddInstance)
+        ImGui::BeginDisabled();
     if (widget.button("Add Mesh"))
     {
         std::filesystem::path path;
@@ -95,6 +110,8 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
             );
         }
     }
+    if (!canAddInstance)
+        ImGui::EndDisabled();
 
     std::unordered_set<std::size_t> entryRemoveIndexSet;
     for (std::size_t entryID = 0; entryID < mMeshEntries.size(); ++entryID)
@@ -118,11 +135,15 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 
             entry.pMesh->renderUI(meshGrp);
 
+            if (!canAddInstance)
+                ImGui::BeginDisabled();
             if (meshGrp.button("Add Instance"))
             {
                 modified = true;
                 entry.instances.push_back({.name = "new"});
             }
+            if (!canAddInstance)
+                ImGui::EndDisabled();
 
             std::unordered_set<std::size_t> instanceRemoveIndexSet;
             for (std::size_t instanceID = 0; instanceID < entry.instances.size(); ++instanceID)

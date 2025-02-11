@@ -34,6 +34,8 @@ public:
     };
     using Version = uint64_t;
 
+    static constexpr uint32_t kMaxInstanceCount = 256;
+
 private:
     ref<RasterPass> mpDefaultRasterPass;
 
