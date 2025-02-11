@@ -17,23 +17,12 @@ namespace GSGI
 struct GTransform
 {
     float3 center{};
-    float scale{1.0f};
-    float cosRotY{1.0f}, sinRotY{0.0f};
+    float16_t scale{1.0f};
+    float16_t rotateY{0.0f};
 
-    void normalizeRotY()
-    {
-        float invLength = 1.0f / math::length(float2(cosRotY, sinRotY));
-        cosRotY *= invLength;
-        sinRotY *= invLength;
-    }
-    float getRotYAngle() const { return math::atan2(sinRotY, cosRotY); }
-    void setRotYAngle(float a)
-    {
-        cosRotY = math::cos(a);
-        sinRotY = math::sin(a);
-    }
     float3 apply(float3 p) const
     {
+        float cosRotY = math::cos(float{rotateY}), sinRotY = math::sin(float{rotateY});
         // [ cosR  -sinR ]
         // [ sinR   cosR ]
         float2 pXZ = {
@@ -42,12 +31,13 @@ struct GTransform
         };
         p.x = pXZ[0];
         p.z = pXZ[1];
-        p *= this->scale;
+        p *= float{this->scale};
         p += this->center;
         return p;
     }
     AABB apply(AABB b) const
     {
+        float cosRotY = math::cos(float{rotateY}), sinRotY = math::sin(float{rotateY});
         // [ cosR  -sinR ]
         // [ sinR   cosR ]
         float2 maxPointXZ{
@@ -64,8 +54,8 @@ struct GTransform
         b.minPoint.x = minPointXZ[0];
         b.minPoint.z = minPointXZ[1];
 
-        b.maxPoint *= this->scale;
-        b.minPoint *= this->scale;
+        b.maxPoint *= float{this->scale};
+        b.minPoint *= float{this->scale};
 
         b.maxPoint += this->center;
         b.minPoint += this->center;
@@ -74,6 +64,7 @@ struct GTransform
     }
     float4x4 getMatrix() const
     {
+        float cosRotY = math::cos(float{rotateY}), sinRotY = math::sin(float{rotateY});
         float4x4 mat{};
         mat[0] = float4{scale * cosRotY, 0, -scale * sinRotY, center.x};
         mat[1] = float4{0, scale, 0, center.y};
@@ -88,13 +79,18 @@ struct GTransform
         bool changed = false;
         if (widget.var("Center", center))
             changed = true;
-        if (widget.var("Scale", scale, 0.0f))
-            changed = true;
-        float rotY = getRotYAngle();
-        if (widget.var("Y-Rotate", rotY))
+        float fScale = scale;
+        if (widget.var("Scale", fScale, 0.0f))
         {
+            scale = float16_t{fScale};
             changed = true;
-            setRotYAngle(rotY);
+        }
+        float fRotY = rotateY;
+        if (widget.var("Y-Rotate", fRotY))
+        {
+            fRotY = std::remainder(fRotY, float{M_2PI});
+            rotateY = float16_t{fRotY};
+            changed = true;
         }
         return changed;
     }
@@ -102,11 +98,11 @@ struct GTransform
     void bindShaderData(const ShaderVar& var) const
     {
         var["center"] = this->center;
-        var["scale"] = this->scale;
-        var["cosRotateY"] = this->cosRotY;
-        var["sinRotateY"] = this->sinRotY;
+        var["packedScaleRotateY"] = uint32_t{math::asuint16(this->scale)} | uint32_t{math::asuint16(this->rotateY)} << 16u;
     }
 };
+
+static_assert(sizeof(GTransform) == 4 * sizeof(uint32_t));
 
 } // namespace GSGI
 
