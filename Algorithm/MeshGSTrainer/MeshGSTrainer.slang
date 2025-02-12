@@ -12,6 +12,8 @@ import GaussianGI.Algorithm.ShaderMisc;
 #include TRAIT_INCLUDE_PATH
 #undef TRAIT_IN_MESHGSTRAINER_SLANG
 
+#define USE_N2_GENERALIZED_GAUSSIAN 0
+
 namespace MeshGSTrain
 {
     public struct Camera
@@ -20,11 +22,15 @@ namespace MeshGSTrain
         public float nearZ, farZ;
     }
 
-    public const static float kOpacity = 0.975;                   // O
-    public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
+    public const static float kOpacity = 0.975;              // O
+    public const static float kAlphaThreshold = 1.0 / 255.0; // \alpha_T
+#if USE_N2_GENERALIZED_GAUSSIAN
+    public const static float kQuadPosBound = 1.5325159255235876;
+#else
     public const static float kQuadPosBound = 2.3486050619834185; // Q
-                                                                  // \alpha = O \exp{-Q^2} = \alpha_T
-                                                                  // \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
+// \alpha = O \exp{-Q^2} = \alpha_T
+// \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
+#endif
 
 #define SOA_WORD_TYPE float
 #define SOA_WORDS_PER_UNIT 4
@@ -452,11 +458,15 @@ namespace MeshGSTrain
         float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
         float2 deltaScreen = screenPos - screenMean;
         deltaScreen.y = -deltaScreen.y;
-        float power = -0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
-                              splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) -
+        float power = 0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
+                             splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) +
                       splatViewGeom.conic.y * deltaScreen.x * deltaScreen.y;
-        float alpha = kOpacity * exp(power);
-        o_shouldDiscard = power > 0.0 || alpha < kAlphaThreshold;
+#if USE_N2_GENERALIZED_GAUSSIAN
+        float alpha = kOpacity * exp(-power * power);
+#else
+        float alpha = kOpacity * exp(-power);
+#endif
+        o_shouldDiscard = power < 0.0 || alpha < kAlphaThreshold;
         return alpha;
     }
 
@@ -479,11 +489,15 @@ namespace MeshGSTrain
         float3x3 planeRotMat = getAlignRotMatT(viewMeanDir);
         float2 planePos = GS3D::project(mul(planeRotMat, viewPosDir), camProjMat00, screenResolution);
 
-        float power = -0.5 * (splatViewGeom.conic.x * planePos.x * planePos.x + //
-                              splatViewGeom.conic.z * planePos.y * planePos.y) -
+        float power = 0.5 * (splatViewGeom.conic.x * planePos.x * planePos.x + //
+                             splatViewGeom.conic.z * planePos.y * planePos.y) +
                       splatViewGeom.conic.y * planePos.x * planePos.y;
-        float alpha = kOpacity * exp(power);
-        o_shouldDiscard = power > 0.0 || alpha < kAlphaThreshold;
+#if USE_N2_GENERALIZED_GAUSSIAN
+        float alpha = kOpacity * exp(-power * power);
+#else
+        float alpha = kOpacity * exp(-power);
+#endif
+        o_shouldDiscard = power < 0.0 || alpha < kAlphaThreshold;
         return alpha;
     }
 
