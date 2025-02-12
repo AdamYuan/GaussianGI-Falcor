@@ -250,6 +250,7 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
         var["gSplatViews"] = mDrawResource.pSplatViewBuffer;
         var["gSplatViewSortPayloads"] = mDrawResource.pSplatViewSortPayloadBuffer;
         var["gResolution"] = resolutionFloat;
+        args.pVBuffer->bindShaderData(var["gGVBuffer"]);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
         pRenderContext->drawIndirect(
