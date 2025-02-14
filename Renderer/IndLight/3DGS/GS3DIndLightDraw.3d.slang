@@ -3,6 +3,7 @@ import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
 import GS3DIndLightSplat;
 import GaussianGI.Renderer.GVBuffer;
+#include "GaussianGI/Algorithm/Icosahedron.slangh"
 
 using namespace GS3DIndLight;
 
@@ -12,7 +13,7 @@ RWStructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
 
-#define BOUND_FACTOR 2.3539888583335364
+#define BOUND_FACTOR 3.3290429691304455 // \sqrt{2.0 * \ln(255)}
 
 struct PSIn
 {
@@ -20,7 +21,6 @@ struct PSIn
     nointerpolation float16_t3 splatInvScale;
     nointerpolation float16_t4 splatInvRotate;
     nointerpolation float16_t3 indirect;
-    linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 }
 
@@ -29,17 +29,12 @@ uint vsMain(uint instanceID: SV_InstanceID)
     return instanceID;
 }
 
-[maxvertexcount(4)]
+[maxvertexcount(ICOSAHEDRON_TRISTRIP_INDEX_COUNT)]
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatID = gSplatViewSortPayloads[gIn[0]];
-    var splatView = gSplatViews[splatID];
+    // var splatView = gSplatViews[splatID];
     var splat = gSplats.load(splatID);
-
-    float2 clip = float2(splatView.clipXY);
-    float2 deltaClip0 = float2(splatView.axis0) * 2 / gResolution.xy;
-    float2 deltaClip1 = float2(splatView.axis1) * 2 / gResolution.xy;
-    // deltaClip * 2 to scale from [0, 1] to [-1, 1]
 
     PSIn o;
     o.splatMean = splat.mean;
@@ -47,21 +42,28 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     o.splatInvRotate = float16_t4(float4(-splat.rotate.xyz, splat.rotate.w) / dot(splat.rotate, splat.rotate));
     o.indirect = splat.indirect;
 
-    o.quadPos = float2(-BOUND_FACTOR, -BOUND_FACTOR);
-    o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
-    output.Append(o);
+    float4 clips[ICOSAHEDRON_VERTEX_COUNT];
 
-    o.quadPos = float2(BOUND_FACTOR, -BOUND_FACTOR);
-    o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
-    output.Append(o);
+    [ForceUnroll]
+    for (uint i = 0; i < ICOSAHEDRON_VERTEX_COUNT; ++i)
+    {
+        float3 pos =
+            splat.mean + BOUND_FACTOR / ICOSAHEDRON_FACE_DIST * rotate_vector(splat.scale * Icosahedron::kVertices[i], splat.rotate);
+        clips[i] = mul(gGStaticScene.camera.getViewProj(), float4(pos, 1.0));
+    }
 
-    o.quadPos = float2(-BOUND_FACTOR, BOUND_FACTOR);
-    o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
-    output.Append(o);
-
-    o.quadPos = float2(BOUND_FACTOR, BOUND_FACTOR);
-    o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
-    output.Append(o);
+    [ForceUnroll]
+    for (uint i = 0; i < ICOSAHEDRON_TRISTRIP_COUNT; ++i)
+    {
+        uint icoIdx = Icosahedron::kTriStrips[i];
+        if (icoIdx == ICOSAHEDRON_TRISTRIP_RESTART)
+            output.RestartStrip();
+        else
+        {
+            o.clipPos = clips[icoIdx];
+            output.Append(o);
+        }
+    }
 }
 
 float4 psMain(PSIn pIn)
@@ -73,18 +75,18 @@ float4 psMain(PSIn pIn)
     float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
     float3 x = ray.eval(t_max);
 
-    float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale; */
-    // float alpha = exp(-0.5 * max(dot(x_g, x_g), 0));
+    float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
+    float alpha = exp(-0.5 * max(dot(x_g, x_g), 0)); */
 
     var hitInfo = gGVBuffer.LoadHitInfo(coord);
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
 
     float3 x_s = rotate_vector(hitPoint.position - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float opacity = 1.0 - smoothstep(10.0, 20.0, length(x_s));
+    // float opacity = 1.0 - smoothstep(10.0, 20.0, length(x_s)); */
     /* if (distance(hitPoint.position, pIn.splatMean) > 0.05)
         discard; */
 
-    float alpha = exp(-0.25 * max(dot(x_s, x_s), 0));
+    float alpha = exp(-0.5 * max(dot(x_s, x_s), 0));
     // float alpha = opacity * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;

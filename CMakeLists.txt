@@ -26,6 +26,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/ThreadGroupTilingX.slang
         Algorithm/ShaderMisc.slang
         Algorithm/GS3D.slang
+        Algorithm/Icosahedron.hpp
+        Algorithm/Icosahedron.slangh
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
