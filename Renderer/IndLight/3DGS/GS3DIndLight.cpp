@@ -47,7 +47,7 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
             BlendState::BlendFunc::OneMinusSrcAlpha
         );
         RasterizerState::Desc splatRasterDesc;
-        splatRasterDesc.setCullMode(RasterizerState::CullMode::Back);
+        splatRasterDesc.setCullMode(RasterizerState::CullMode::None);
         mDrawResource.pDrawPass->getState()->setRasterizerState(RasterizerState::create(splatRasterDesc));
         mDrawResource.pDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
         mDrawResource.pDrawPass->getState()->setDepthStencilState(DepthStencilState::create(splatDepthDesc));

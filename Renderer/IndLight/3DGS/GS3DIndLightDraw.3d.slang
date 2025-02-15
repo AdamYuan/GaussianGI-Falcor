@@ -15,6 +15,12 @@ uniform GVBuffer gGVBuffer;
 
 #define BOUND_FACTOR 3.3290429691304455 // \sqrt{2.0 * \ln(255)}
 
+#define WRAP_GEOM_ICOSAHEDRON 0 // Must enable culling
+#define WRAP_GEOM_BOX 1
+#define WRAP_GEOM_QUAD 2 // Must disable culling
+
+#define WRAP_GEOM WRAP_GEOM_QUAD
+
 struct PSIn
 {
     nointerpolation float3 splatMean;
@@ -29,7 +35,13 @@ uint vsMain(uint instanceID: SV_InstanceID)
     return instanceID;
 }
 
+#if WRAP_GEOM == WRAP_GEOM_ICOSAHEDRON
 [maxvertexcount(ICOSAHEDRON_TRISTRIP_INDEX_COUNT)]
+#elif WRAP_GEOM == WRAP_GEOM_QUAD
+[maxvertexcount(4)]
+#else
+#error
+#endif
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatID = gSplatViewSortPayloads[gIn[0]];
@@ -42,6 +54,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     o.splatInvRotate = float16_t4(float4(-splat.rotate.xyz, splat.rotate.w) / dot(splat.rotate, splat.rotate));
     o.indirect = splat.indirect;
 
+#if WRAP_GEOM == WRAP_GEOM_ICOSAHEDRON
     float4 clips[ICOSAHEDRON_VERTEX_COUNT];
 
     [ForceUnroll]
@@ -64,6 +77,57 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
             output.Append(o);
         }
     }
+#elif WRAP_GEOM == WRAP_GEOM_QUAD
+
+    float3 splatCamMean = splat.mean - gGStaticScene.camera.getPosition();
+    float splatCamDist = length(splatCamMean);
+
+    float3 splatViewDir = splatCamMean / splatCamDist;
+
+    float3x3 splatRotMatT = float3x3(
+        rotate_vector(float3(1, 0, 0), splat.rotate),
+        rotate_vector(float3(0, 1, 0), splat.rotate),
+        rotate_vector(float3(0, 0, 1), splat.rotate)
+    );
+    float3x3 splatRotMat = transpose(splatRotMatT);
+    float3x3 splatScaleMat = float3x3(float3(splat.scale.x, 0, 0), float3(0, splat.scale.y, 0), float3(0, 0, splat.scale.z));
+
+    float3 splatViewSideDir = select(
+        all(splat.scale.x > splat.scale.yz), //
+        splatRotMatT[0],
+        select(splat.scale.y > splat.scale.z, splatRotMatT[1], splatRotMatT[2])
+    );
+    splatViewSideDir = normalize(cross(splatViewDir, splatViewSideDir));
+
+    float3x3 splatVDMatT = float3x3(splatViewSideDir, cross(splatViewDir, splatViewSideDir), splatViewDir);
+    float3x3 splatVDMat = transpose(splatVDMatT);
+
+    float3 splatVDMean = float3(0, 0, splatCamDist);
+    float3x3 splatVDRotScaleMat = mul(splatVDMatT, mul(splatRotMat, splatScaleMat));
+
+    float3 splatVDExtent = float3(length(splatVDRotScaleMat[0]), length(splatVDRotScaleMat[1]), length(splatVDRotScaleMat[2]));
+
+    float3x3 splatExtent = float3x3(splatVDMatT[0] * splatVDExtent.x, splatVDMatT[1] * splatVDExtent.y, splatVDMatT[2] * splatVDExtent.z);
+    splatExtent *= BOUND_FACTOR;
+
+    float3 splatQuadCenter = splat.mean - splatExtent[2];
+
+    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter - splatExtent[0] - splatExtent[1], 1));
+    output.Append(o);
+
+    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter + splatExtent[0] - splatExtent[1], 1));
+    output.Append(o);
+
+    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter - splatExtent[0] + splatExtent[1], 1));
+    output.Append(o);
+
+    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter + splatExtent[0] + splatExtent[1], 1));
+    output.Append(o);
+
+    output.RestartStrip();
+#else
+#error
+#endif
 }
 
 float4 psMain(PSIn pIn)
