@@ -111,17 +111,22 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     splatExtent *= BOUND_FACTOR;
 
     float3 splatQuadCenter = splat.mean - splatExtent[2];
+    float4 splatClipQuadCenter = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter, 1));
+    float2x4 splatClipExtentXY = float2x4(
+        mul(gGStaticScene.camera.getViewProj(), float4(splatExtent[0], 0)),
+        mul(gGStaticScene.camera.getViewProj(), float4(splatExtent[1], 0))
+    );
 
-    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter - splatExtent[0] - splatExtent[1], 1));
+    o.clipPos = splatClipQuadCenter - splatClipExtentXY[0] - splatClipExtentXY[1];
     output.Append(o);
 
-    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter + splatExtent[0] - splatExtent[1], 1));
+    o.clipPos = splatClipQuadCenter + splatClipExtentXY[0] - splatClipExtentXY[1];
     output.Append(o);
 
-    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter - splatExtent[0] + splatExtent[1], 1));
+    o.clipPos = splatClipQuadCenter - splatClipExtentXY[0] + splatClipExtentXY[1];
     output.Append(o);
 
-    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter + splatExtent[0] + splatExtent[1], 1));
+    o.clipPos = splatClipQuadCenter + splatClipExtentXY[0] + splatClipExtentXY[1];
     output.Append(o);
 
     output.RestartStrip();
