@@ -8,8 +8,7 @@ import GaussianGI.Renderer.GVBuffer;
 using namespace GS3DIndLight;
 
 uniform InstancedSplatBuffer gSplats;
-RWStructuredBuffer<SplatView> gSplatViews;
-RWStructuredBuffer<uint> gSplatViewSortPayloads;
+RWStructuredBuffer<uint> gSplatIDs;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
 
@@ -44,8 +43,7 @@ uint vsMain(uint instanceID: SV_InstanceID)
 #endif
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
-    uint splatID = gSplatViewSortPayloads[gIn[0]];
-    // var splatView = gSplatViews[splatID];
+    uint splatID = gSplatIDs[gIn[0]];
     var splat = gSplats.load(splatID);
 
     PSIn o;
@@ -138,25 +136,22 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 float4 psMain(PSIn pIn)
 {
     uint2 coord = uint2(pIn.clipPos.xy);
+
     /* Ray ray = gGStaticScene.camera.computeRayPinhole(coord, uint2(gResolution), false);
     float3 o_g = rotate_vector(ray.origin - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
     float3 d_g = rotate_vector(ray.dir, pIn.splatInvRotate) * pIn.splatInvScale;
     float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
     float3 x = ray.eval(t_max);
-
     float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float alpha = exp(-0.5 * max(dot(x_g, x_g), 0)); */
+    float power = max(dot(x_g, x_g), 0);
+    float alpha = exp(-0.5 * power); */
 
     var hitInfo = gGVBuffer.LoadHitInfo(coord);
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-
     float3 x_s = rotate_vector(hitPoint.position - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    // float opacity = 1.0 - smoothstep(10.0, 20.0, length(x_s)); */
-    /* if (distance(hitPoint.position, pIn.splatMean) > 0.05)
-        discard; */
+    float power = max(dot(x_s, x_s), 0);
+    float alpha = exp(-0.5 * power);
 
-    float alpha = exp(-0.5 * max(dot(x_s, x_s), 0));
-    // float alpha = opacity * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;
     return float4(float3(pIn.indirect), alpha);

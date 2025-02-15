@@ -26,13 +26,13 @@ private:
 
     struct
     {
-        ref<ComputePass> pCullPass;
+        ref<ComputePass> pCullPass, pBlendPass;
         ref<RasterPass> pDrawPass;
-        DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
-        DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
-        ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
-        ref<Buffer> pSplatViewDrawArgBuffer;
-        ref<Texture> pSplatTexture;
+        // DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
+        // DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
+        // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
+        ref<Buffer> pSplatIDBuffer;
+        ref<Buffer> pSplatDrawArgBuffer;
         ref<Fbo> pSplatFbo;
     } mDrawResource{};
 

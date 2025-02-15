@@ -8,18 +8,8 @@ using namespace GS3DIndLight;
 uniform InstancedSplatBuffer gSplats;
 uniform float2 gResolution;
 
-RWStructuredBuffer<SplatView> gSplatViews;
-RWStructuredBuffer<uint> gSplatViewDrawArgs;
-RWStructuredBuffer<uint> gSplatViewSortKeys;
-RWStructuredBuffer<uint> gSplatViewSortPayloads;
-
-// Radix Tricks by Michael Herf
-// http://stereopsis.com/radix.html
-uint float2Uint(float f)
-{
-    uint mask = -((int)(asuint(f) >> 31)) | 0x80000000;
-    return asuint(f) ^ mask;
-}
+RWStructuredBuffer<uint> gSplatDrawArgs;
+RWStructuredBuffer<uint> gSplatIDs;
 
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
@@ -54,8 +44,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     view.clipXY = float16_t2(clipPos.xy);
 
     uint viewID;
-    InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount
-    gSplatViews[splatID] = view;
-    gSplatViewSortKeys[viewID] = float2Uint(viewPos.z);
-    gSplatViewSortPayloads[viewID] = splatID;
+    InterlockedAdd(gSplatDrawArgs[1], 1, viewID); // gSplatDrawArgs[1] is instanceCount
+    gSplatIDs[viewID] = splatID;
 }
