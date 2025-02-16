@@ -145,15 +145,18 @@ float4 psMain(PSIn pIn)
     float3 o_g = rotate_vector(ray.origin - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
     float3 d_g = rotate_vector(ray.dir, pIn.splatInvRotate) * pIn.splatInvScale;
     float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
+    if (isinf(t_max) || isnan(t_max))
+        discard;
     float3 x = ray.eval(t_max);
     float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
     float power = max(dot(x_g, x_g), 0);
     float alpha = exp(-0.5 * power);
 
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    float weight = 1.0 / (distance(x, hitPoint.position) + 1e-4);
-    if (isnan(weight))
-        weight = 0;
+    // float maxDist = 16.0, dist = length(rotate_vector(hitPoint.position - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale);
+    // TODO: Replace with ellipsoid distance
+    float maxDist = 0.1, dist = distance(pIn.splatMean, hitPoint.position);
+    float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
     if (alpha < 1.0 / 255.0)
         discard;
