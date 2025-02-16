@@ -34,14 +34,14 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pDrawPass->getState()->setVao(Vao::create(Vao::Topology::PointList));
 
         DepthStencilState::Desc splatDepthDesc;
-        splatDepthDesc.setDepthEnabled(true);
+        splatDepthDesc.setDepthEnabled(false);
         splatDepthDesc.setDepthWriteMask(false);
         BlendState::Desc splatBlendDesc;
         splatBlendDesc.setRtBlend(0, true).setRtParams(
             0,
             BlendState::BlendOp::Add,
             BlendState::BlendOp::Add,
-            BlendState::BlendFunc::SrcAlpha,
+            BlendState::BlendFunc::One,
             BlendState::BlendFunc::One,
             BlendState::BlendFunc::One,
             BlendState::BlendFunc::One
@@ -84,7 +84,14 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     updateTextureSize(
         mDrawResource.pSplatFbo,
         resolution,
-        [&](uint width, uint height) { return Fbo::create(getDevice(), {pIndirectTexture}, args.pVBuffer->getDepthStencilTexture()); }
+        [&](uint width, uint height)
+        {
+            return Fbo::create(
+                getDevice(),
+                {pIndirectTexture},
+                nullptr // args.pVBuffer->getDepthStencilTexture()
+            );
+        }
     );
 }
 
