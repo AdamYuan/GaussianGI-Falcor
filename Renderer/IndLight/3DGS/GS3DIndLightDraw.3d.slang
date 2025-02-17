@@ -49,7 +49,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
     PSIn o;
     o.splatMean = splat.mean;
-    o.splatInvScale = float16_t3(1.0 / splat.scale);
+    o.splatInvScale = 1.0h / splat.scale;
     o.indirect = splat.indirect;
 
     float3x3 splatRotMatT = float3x3(
@@ -162,9 +162,21 @@ float4 psMain(PSIn pIn)
     float alpha = exp(-0.5 * power);
 
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    float maxDist = 16.0, dist = length(mul(splatRotMatT, hitPoint.position - pIn.splatMean) * pIn.splatInvScale);
-    // TODO: Replace with ellipsoid distance
-    // float maxDist = 0.1, dist = distance(pIn.splatMean, hitPoint.position);
+    float3 p = hitPoint.position - pIn.splatMean;
+
+    // Ellipsoid SDF: https://iquilezles.org/articles/ellipsoids/
+    /* float3 p_invScale = pIn.splatInvScale * 2.0;
+    float3 p_g = mul(splatRotMatT, p);
+    float k1 = length(p_g * p_invScale);
+    float k2 = length(p_g * p_invScale * p_invScale);
+    float maxDist = 0.1, dist = k1 * (k1 - 1.0) / k2; */
+
+    float maxDist = 0.1, dist = length(p);
+
+    // float maxDist = 0.1, dist = length(hitPoint.position - x);
+
+    // float maxDist = 16.0, dist = length(mul(splatRotMatT, p) * pIn.splatInvScale);
+
     float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
     if (alpha < 1.0 / 255.0)
