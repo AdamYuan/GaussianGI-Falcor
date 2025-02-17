@@ -63,16 +63,16 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
 float4 psMain(PSIn pIn)
 {
-    Ray ray = gGStaticScene.camera.computeRayPinhole(uint2(pIn.clipPos.xy), uint2(gResolution), false);
+    /* Ray ray = gGStaticScene.camera.computeRayPinhole(uint2(pIn.clipPos.xy), uint2(gResolution), false);
     float3 o_g = rotate_vector(ray.origin - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
     float3 d_g = rotate_vector(ray.dir, pIn.splatInvRotate) * pIn.splatInvScale;
     float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
     float3 x = ray.eval(t_max);
 
     float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float alpha = gAlpha * exp(-0.5 * dot(x_g, x_g));
+    float alpha = gAlpha * exp(-0.5 * dot(x_g, x_g)); */
 
-    // float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
+    float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;
     return float4(float3(pIn.indirect), alpha);
