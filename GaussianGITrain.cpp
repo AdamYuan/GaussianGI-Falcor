@@ -15,11 +15,6 @@ FALCOR_EXPORT_D3D12_AGILITY_SDK
 namespace GSGI
 {
 
-namespace
-{
-constexpr uint kMaxSplatCount = 65536;
-}
-
 GaussianGITrain::GaussianGITrain(const SampleAppConfig& config) : SampleApp(config)
 {
     //
@@ -58,6 +53,12 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     mSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>(getDevice(), sortDesc);
 }
 
+void GaussianGITrain::resetTrainer()
+{
+    GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(getRenderContext(), mTrainResource, mConfig.splatCount, 0.2f);
+    mTrainState = mTrainer.resetState(mConfig.splatCount);
+}
+
 void GaussianGITrain::onShutdown()
 {
     //
@@ -84,7 +85,7 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
         {
             mTrainData.camera = MeshGSTrainCamera::create(*mpCamera);
             mTrainDataset.generate(pRenderContext, mTrainData, mTrainer.getDesc().resolution, false);
-            mTrainer.inference(pRenderContext, mTrainResource, mTrainData.camera, mSorter, mSortResource);
+            mTrainer.inference(mTrainState, pRenderContext, mTrainResource, mTrainData.camera, mSorter, mSortResource);
         }
     }
 
@@ -102,23 +103,18 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     {
         if (std::filesystem::path filename; openFileDialog({}, filename) && ((mpMesh = GMeshLoader::load(getDevice(), filename))))
         {
-            mTrainState = {};             // Reset train state
             mTrainDataset.pMesh = mpMesh; // Set dataset source
-            // Initialize splats
-            GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(getRenderContext(), mTrainResource, kMaxSplatCount, 0.2f);
+            resetTrainer();
         }
     }
     if (mpMesh)
     {
-        if (auto g = w.group("Mesh"))
-            mpMesh->renderUI(g);
-
-        if (w.button("Save Splats"))
+        if (w.button("Save Mesh Splats"))
         {
-            auto splatData = mTrainResource.splatBuf.getData(0, kMaxSplatCount);
-            auto splats = splatData.getElements<Trainer::Splat>(kMaxSplatCount);
-            std::vector<GS3DIndLightSplat> indLightSplats(kMaxSplatCount);
-            for (uint i = 0; i < kMaxSplatCount; ++i)
+            auto splatData = mTrainResource.splatBuf.getData(0, mConfig.splatCount);
+            auto splats = splatData.getElements<Trainer::Splat>(mConfig.splatCount);
+            std::vector<GS3DIndLightSplat> indLightSplats(mConfig.splatCount);
+            for (uint i = 0; i < mConfig.splatCount; ++i)
             {
                 const auto& splat = splats[i];
                 indLightSplats[i] = GS3DIndLightSplat{
@@ -131,13 +127,24 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
 
             GS3DIndLightSplat::persistMesh(mpMesh, indLightSplats);
         }
+        if (auto g = w.group("Mesh"))
+            mpMesh->renderUI(g);
     }
     if (auto g = w.group("Camera"))
         mpCamera->renderUI(g);
 
     w.checkbox("Draw Mesh", mConfig.drawMeshData);
 
+    static uint32_t sSplatCount = mConfig.splatCount;
+    w.var("Splat Count", sSplatCount, 1u, kMaxSplatCount);
+    if (w.button("Apply Splat Count") && mConfig.splatCount != sSplatCount)
+    {
+        mConfig.splatCount = sSplatCount;
+        resetTrainer();
+    }
+
     w.checkbox("Train", mConfig.train);
+    w.text(fmt::format("Splat Count: {}", mConfig.splatCount));
     w.text(fmt::format("Iteration: {}", mTrainState.iteration));
     w.text(fmt::format("Batch: {}", mTrainState.batch));
     w.var("Eye Extent", mTrainDataset.config.eyeExtent, 1.0f);

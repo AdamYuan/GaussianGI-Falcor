@@ -33,12 +33,17 @@ public:
     bool onMouseEvent(const MouseEvent& mouseEvent) override;
     void onHotReload(HotReloadFlags reloaded) override;
 
+    void resetTrainer();
+
 private:
     using Trainer = MeshGSTrainer<MeshGSTrainDepthAlbedoTrait>;
+
+    static constexpr uint32_t kMaxSplatCount = 65536;
     struct
     {
         bool drawMeshData = false;
         bool train = false;
+        uint32_t splatCount = kMaxSplatCount;
     } mConfig = {};
     ref<GMesh> mpMesh;
     ref<Camera> mpCamera;

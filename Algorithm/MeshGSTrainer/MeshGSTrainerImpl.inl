@@ -264,7 +264,7 @@ void MeshGSTrainer<Trait_T>::iterate(
     if (state.iteration == 0)
         reset(pRenderContext, resource);
 
-    forward(pRenderContext, resource, data.camera, sorter, sortResource);
+    forward(state, pRenderContext, resource, data.camera, sorter, sortResource);
     loss(pRenderContext, resource, data);
     backward(pRenderContext, resource, data.camera);
 
@@ -286,6 +286,7 @@ void MeshGSTrainer<Trait_T>::reset(RenderContext* pRenderContext, const Resource
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::forward(
+    const MeshGSTrainState& state,
     RenderContext* pRenderContext,
     const Resource& resource,
     const MeshGSTrainCamera& camera,
@@ -300,7 +301,7 @@ void MeshGSTrainer<Trait_T>::forward(
         auto [prog, var] = getShaderProgVar(mpForwardViewPass);
         camera.bindShaderData(var["gCamera"]);
         var["gResolution"] = float2(mDesc.resolution);
-        var["gSplatCount"] = mDesc.maxSplatCount;
+        var["gSplatCount"] = state.splatCount;
         resource.splatBuf.bindShaderData(var["gSplats"]);
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
@@ -313,7 +314,7 @@ void MeshGSTrainer<Trait_T>::forward(
         static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint));
         resource.pSplatViewDrawArgBuffer->template setElement<uint>(offsetof(DrawArguments, InstanceCount) / sizeof(uint), 0);
         // Dispatch
-        mpForwardViewPass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+        mpForwardViewPass->execute(pRenderContext, state.splatCount, 1, 1);
     }
     {
         FALCOR_PROFILE(pRenderContext, "sortView");
@@ -420,13 +421,13 @@ void MeshGSTrainer<Trait_T>::optimize(const MeshGSTrainState& state, RenderConte
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::optimize");
 
     auto [prog, var] = getShaderProgVar(mpOptimizePass);
-    var["gSplatCount"] = mDesc.maxSplatCount;
+    var["gSplatCount"] = state.splatCount;
     resource.splatBuf.bindShaderData(var["gSplats"]);
     resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
     resource.splatAdamBuf.bindShaderData(var["gSplatAdams"]);
     var["gAdamBeta1T"] = state.adamBeta1T;
     var["gAdamBeta2T"] = state.adamBeta2T;
-    mpOptimizePass->execute(pRenderContext, mDesc.maxSplatCount, 1, 1);
+    mpOptimizePass->execute(pRenderContext, state.splatCount, 1, 1);
 }
 
 } // namespace GSGI

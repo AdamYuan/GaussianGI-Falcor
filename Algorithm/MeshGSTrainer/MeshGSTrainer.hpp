@@ -78,7 +78,7 @@ concept MeshGSTrainTrait = requires {
 } // namespace Concepts
 struct MeshGSTrainState
 {
-    uint iteration = 0, batch = 0;
+    uint iteration = 0, batch = 0, splatCount = 0;
     float adamBeta1T = 1.0f, adamBeta2T = 1.0f;
 };
 
@@ -183,12 +183,7 @@ public:
         ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
         ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
-        static Resource create(
-            const ref<Device>& pDevice,
-            uint splatCount,
-            uint2 resolution,
-            const SplatBufferData& splatInitData = {}
-        );
+        static Resource create(const ref<Device>& pDevice, uint splatCount, uint2 resolution, const SplatBufferData& splatInitData = {});
         static Resource create(const ref<Device>& pDevice, const Desc& desc, const SplatBufferData& splatInitData = {})
         {
             return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
@@ -213,6 +208,7 @@ private:
 
     void reset(RenderContext* pRenderContext, const Resource& resource) const;
     void forward(
+        const MeshGSTrainState& state,
         RenderContext* pRenderContext,
         const Resource& resource,
         const MeshGSTrainCamera& camera,
@@ -230,6 +226,12 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
+    MeshGSTrainState resetState(uint splatCount) const
+    {
+        FALCOR_CHECK(splatCount <= mDesc.maxSplatCount, "splatCount must not be greater than mDesc.maxSplatCount");
+        return MeshGSTrainState{.splatCount = splatCount};
+    }
+
     void iterate(
         MeshGSTrainState& state,
         RenderContext* pRenderContext,
@@ -240,6 +242,7 @@ public:
     ) const;
 
     void inference(
+        const MeshGSTrainState& state,
         RenderContext* pRenderContext,
         const Resource& resource,
         const MeshGSTrainCamera& camera,
@@ -247,7 +250,7 @@ public:
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const
     {
-        forward(pRenderContext, resource, camera, sorter, sortResource);
+        forward(state, pRenderContext, resource, camera, sorter, sortResource);
     }
 };
 
