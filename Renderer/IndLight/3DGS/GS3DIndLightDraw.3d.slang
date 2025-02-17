@@ -1,6 +1,7 @@
 import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
+import Utils.Math.MathHelpers;
 import GS3DIndLightSplat;
 import GaussianGI.Renderer.GVBuffer;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
@@ -24,7 +25,7 @@ struct PSIn
 {
     nointerpolation float3 splatMean;
     nointerpolation float16_t3 splatInvScale;
-    nointerpolation float16_t4 splatInvRotate;
+    nointerpolation uint2 packedSplatInvRotate;
     nointerpolation float16_t3 indirect;
     linear float4 clipPos : SV_Position;
 }
@@ -49,8 +50,16 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     PSIn o;
     o.splatMean = splat.mean;
     o.splatInvScale = float16_t3(1.0 / splat.scale);
-    o.splatInvRotate = float16_t4(float4(-splat.rotate.xyz, splat.rotate.w) / dot(splat.rotate, splat.rotate));
     o.indirect = splat.indirect;
+
+    float3x3 splatRotMatT = float3x3(
+        rotate_vector(float3(1, 0, 0), splat.rotate),
+        rotate_vector(float3(0, 1, 0), splat.rotate),
+        rotate_vector(float3(0, 0, 1), splat.rotate)
+    );
+    float3x3 splatRotMat = transpose(splatRotMatT);
+
+    o.packedSplatInvRotate = uint2(packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[0])), packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[1])));
 
 #if WRAP_GEOM == WRAP_GEOM_ICOSAHEDRON
     float4 clips[ICOSAHEDRON_VERTEX_COUNT];
@@ -58,8 +67,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     [ForceUnroll]
     for (uint i = 0; i < ICOSAHEDRON_VERTEX_COUNT; ++i)
     {
-        float3 pos =
-            splat.mean + BOUND_FACTOR / ICOSAHEDRON_FACE_DIST * rotate_vector(splat.scale * Icosahedron::kVertices[i], splat.rotate);
+        float3 pos = splat.mean + BOUND_FACTOR / ICOSAHEDRON_FACE_DIST * mul(splatRotMat, splat.scale * Icosahedron::kVertices[i]);
         clips[i] = mul(gGStaticScene.camera.getViewProj(), float4(pos, 1.0));
     }
 
@@ -82,12 +90,6 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
     float3 splatViewDir = splatCamMean / splatCamDist;
 
-    float3x3 splatRotMatT = float3x3(
-        rotate_vector(float3(1, 0, 0), splat.rotate),
-        rotate_vector(float3(0, 1, 0), splat.rotate),
-        rotate_vector(float3(0, 0, 1), splat.rotate)
-    );
-    float3x3 splatRotMat = transpose(splatRotMatT);
     float3x3 splatScaleMat = float3x3(float3(splat.scale.x, 0, 0), float3(0, splat.scale.y, 0), float3(0, 0, splat.scale.z));
 
     float3 splatViewSideDir = select(
@@ -141,21 +143,28 @@ float4 psMain(PSIn pIn)
     if (!hitInfo.isHit)
         discard;
 
+    float3x3 splatRotMatT = float3x3(
+        oct_to_ndir_unorm(unpackUnorm2x16(pIn.packedSplatInvRotate.x)),
+        oct_to_ndir_unorm(unpackUnorm2x16(pIn.packedSplatInvRotate.y)),
+        float3(0, 0, 0)
+    );
+    splatRotMatT[2] = cross(splatRotMatT[0], splatRotMatT[1]);
+
     Ray ray = gGStaticScene.camera.computeRayPinhole(coord, uint2(gResolution), false);
-    float3 o_g = rotate_vector(ray.origin - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float3 d_g = rotate_vector(ray.dir, pIn.splatInvRotate) * pIn.splatInvScale;
+    float3 o_g = mul(splatRotMatT, ray.origin - pIn.splatMean) * pIn.splatInvScale;
+    float3 d_g = mul(splatRotMatT, ray.dir) * pIn.splatInvScale;
     float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
     if (isinf(t_max) || isnan(t_max))
         discard;
     float3 x = ray.eval(t_max);
-    float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
+    float3 x_g = mul(splatRotMatT, x - pIn.splatMean) * pIn.splatInvScale;
     float power = max(dot(x_g, x_g), 0);
     float alpha = exp(-0.5 * power);
 
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    // float maxDist = 16.0, dist = length(rotate_vector(hitPoint.position - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale);
+    float maxDist = 16.0, dist = length(mul(splatRotMatT, hitPoint.position - pIn.splatMean) * pIn.splatInvScale);
     // TODO: Replace with ellipsoid distance
-    float maxDist = 0.1, dist = distance(pIn.splatMean, hitPoint.position);
+    // float maxDist = 0.1, dist = distance(pIn.splatMean, hitPoint.position);
     float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
     if (alpha < 1.0 / 255.0)
