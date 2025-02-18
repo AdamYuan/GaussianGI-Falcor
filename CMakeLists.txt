@@ -15,6 +15,8 @@ target_sources(GaussianGI PRIVATE
         Util/SOABufferDefine.slangh
         Util/BLASUtil.hpp
         Util/BLASUtil.cpp
+        Util/TLASUtil.hpp
+        Util/TLASUtil.cpp
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp

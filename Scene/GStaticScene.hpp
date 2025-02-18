@@ -47,7 +47,6 @@ private:
     ref<Vao> mpVao;
 
     ref<RtAccelerationStructure> mpTLAS;
-    ref<Buffer> mpTLASBuffer;
     std::vector<ref<RtAccelerationStructure>> mpMeshBLASs;
 
     ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
