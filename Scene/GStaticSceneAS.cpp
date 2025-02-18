@@ -32,7 +32,7 @@ void GStaticScene::buildBLAS(RenderContext* pRenderContext)
             );
     }
 
-    mpMeshBLASs = GSGI::buildBLAS(pRenderContext, blasBuildInputs).pBLASs;
+    mpMeshBLASs = BLASBuilder::build(pRenderContext, blasBuildInputs);
 }
 
 void GStaticScene::buildTLAS(RenderContext* pRenderContext)

@@ -17,12 +17,14 @@ struct BLASBuildInput
     std::vector<RtGeometryDesc> geomDescs;
 };
 
-struct BLASBuildResult
+struct BLASBuilder
 {
-    std::vector<ref<RtAccelerationStructure>> pBLASs;
+    static std::vector<ref<RtAccelerationStructure>> build(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs);
+    static ref<RtAccelerationStructure> build(RenderContext* pRenderContext, const BLASBuildInput& buildInput)
+    {
+        return build(pRenderContext, std::span{&buildInput, 1})[0];
+    }
 };
-
-BLASBuildResult buildBLAS(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs);
 
 } // namespace GSGI
 

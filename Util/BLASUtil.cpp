@@ -21,7 +21,7 @@ struct BLASBuildInfo
 };
 } // namespace
 
-BLASBuildResult buildBLAS(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs)
+std::vector<ref<RtAccelerationStructure>> BLASBuilder::build(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs)
 {
     auto pDevice = pRenderContext->getDevice();
 
@@ -103,8 +103,7 @@ BLASBuildResult buildBLAS(RenderContext* pRenderContext, std::span<const BLASBui
     }
 
     // Step 3: Compact
-    BLASBuildResult result;
-    result.pBLASs.resize(count);
+    std::vector<ref<RtAccelerationStructure>> pBLASs(count);
     auto pBLASBuffer = pDevice->createBuffer(totalCompactedBlasDataSize, ResourceBindFlags::AccelerationStructure, MemoryType::DeviceLocal);
 
     for (uint blasID = 0; blasID < count; ++blasID)
@@ -114,15 +113,15 @@ BLASBuildResult buildBLAS(RenderContext* pRenderContext, std::span<const BLASBui
         RtAccelerationStructure::Desc desc{};
         desc.setKind(RtAccelerationStructureKind::BottomLevel);
         desc.setBuffer(pBLASBuffer, buildInfo.compactedBlasDataOffset, buildInfo.compactedBlasDataSize);
-        result.pBLASs[blasID] = RtAccelerationStructure::create(pDevice, desc);
+        pBLASs[blasID] = RtAccelerationStructure::create(pDevice, desc);
 
         pRenderContext->copyAccelerationStructure(
-            result.pBLASs[blasID].get(), buildInfo.uncompactedBlas.get(), RenderContext::RtAccelerationStructureCopyMode::Compact
+            pBLASs[blasID].get(), buildInfo.uncompactedBlas.get(), RenderContext::RtAccelerationStructureCopyMode::Compact
         );
     }
     pRenderContext->submit(true);
 
-    return result;
+    return pBLASs;
 }
 
 } // namespace GSGI
