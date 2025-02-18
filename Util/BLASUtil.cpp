@@ -21,26 +21,26 @@ struct BLASBuildInfo
 };
 } // namespace
 
-std::vector<ref<RtAccelerationStructure>> BLASBuilder::build(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs)
+std::vector<ref<RtAccelerationStructure>> BLASBuilder::build(RenderContext* pRenderContext, std::span<const BLASBuildDesc> buildDescs)
 {
     auto pDevice = pRenderContext->getDevice();
 
-    uint count = buildInputs.size();
+    uint count = buildDescs.size();
     std::vector<BLASBuildInfo> buildInfos(count);
     uint64_t maxScratchDataSize = 0;
 
     // Step 1. Prepare
     for (uint blasID = 0; blasID < count; ++blasID)
     {
-        const auto& buildInput = buildInputs[blasID];
+        const auto& buildDesc = buildDescs[blasID];
         auto& buildInfo = buildInfos[blasID];
 
         // Build Inputs
         buildInfo.buildInputs = {
             .kind = RtAccelerationStructureKind::BottomLevel,
             .flags = RtAccelerationStructureBuildFlags::AllowCompaction | RtAccelerationStructureBuildFlags::PreferFastTrace,
-            .descCount = (uint)buildInput.geomDescs.size(),
-            .geometryDescs = buildInput.geomDescs.data(),
+            .descCount = (uint)buildDesc.geomDescs.size(),
+            .geometryDescs = buildDesc.geomDescs.data(),
         };
 
         // Uncompacted Sizes

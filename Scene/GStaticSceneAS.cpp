@@ -10,29 +10,29 @@ namespace GSGI
 
 void GStaticScene::buildBLAS(RenderContext* pRenderContext)
 {
-    std::vector<BLASBuildInput> blasBuildInputs(getMeshCount());
+    std::vector<BLASBuildDesc> blasBuildDescs(getMeshCount());
 
     for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
         const auto& pMesh = mpMeshes[meshID];
         const auto& meshInfo = mMeshInfos[meshID];
-        auto& blasBuildInput = blasBuildInputs[meshID];
+        auto& blasBuildDesc = blasBuildDescs[meshID];
 
         // Geometry Desc
         DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshInfo.firstIndex * sizeof(GMesh::Index);
 
-        blasBuildInput.geomDescs.reserve(2);
+        blasBuildDesc.geomDescs.reserve(2);
         if (pMesh->hasNonOpaquePrimitive())
-            blasBuildInput.geomDescs.push_back(
+            blasBuildDesc.geomDescs.push_back(
                 pMesh->getRTGeometryDesc<RtGeometryFlags::None>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
         if (pMesh->hasOpaquePrimitive())
-            blasBuildInput.geomDescs.push_back(
+            blasBuildDesc.geomDescs.push_back(
                 pMesh->getRTGeometryDesc<RtGeometryFlags::Opaque>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
     }
 
-    mpMeshBLASs = BLASBuilder::build(pRenderContext, blasBuildInputs);
+    mpMeshBLASs = BLASBuilder::build(pRenderContext, blasBuildDescs);
 }
 
 void GStaticScene::buildTLAS(RenderContext* pRenderContext)

@@ -12,17 +12,17 @@ using namespace Falcor;
 namespace GSGI
 {
 
-struct BLASBuildInput
+struct BLASBuildDesc
 {
     std::vector<RtGeometryDesc> geomDescs;
 };
 
 struct BLASBuilder
 {
-    static std::vector<ref<RtAccelerationStructure>> build(RenderContext* pRenderContext, std::span<const BLASBuildInput> buildInputs);
-    static ref<RtAccelerationStructure> build(RenderContext* pRenderContext, const BLASBuildInput& buildInput)
+    static std::vector<ref<RtAccelerationStructure>> build(RenderContext* pRenderContext, std::span<const BLASBuildDesc> buildDescs);
+    static ref<RtAccelerationStructure> build(RenderContext* pRenderContext, const BLASBuildDesc& buildDesc)
     {
-        return build(pRenderContext, std::span{&buildInput, 1})[0];
+        return build(pRenderContext, std::span{&buildDesc, 1})[0];
     }
 };
 
