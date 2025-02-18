@@ -3,134 +3,36 @@
 //
 #include "GStaticScene.hpp"
 
+#include "../Util/BLASUtil.hpp"
+
 namespace GSGI
 {
 
-namespace
-{
-struct MeshBLASInfo
-{
-    std::vector<RtGeometryDesc> geomDescs;
-    RtAccelerationStructureBuildInputs buildInputs{};
-    uint64_t uncompactedBlasDataSize{};
-    ref<Buffer> uncompactedBlasBuffer;
-    ref<RtAccelerationStructure> uncompactedBlas;
-
-    uint64_t compactedBlasDataSize{};
-    uint64_t compactedBlasDataOffset{};
-};
-} // namespace
-
 void GStaticScene::buildBLAS(RenderContext* pRenderContext)
 {
-    std::vector<MeshBLASInfo> meshBlasInfos(getMeshCount());
-    uint64_t maxScratchDataSize = 0;
+    std::vector<BLASBuildInput> blasBuildInputs(getMeshCount());
 
-    // Step 1. Prepare
     for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
     {
         const auto& pMesh = mpMeshes[meshID];
         const auto& meshInfo = mMeshInfos[meshID];
-        auto& meshBlasInfo = meshBlasInfos[meshID];
+        auto& blasBuildInput = blasBuildInputs[meshID];
 
         // Geometry Desc
         DeviceAddress indexBufferAddr = mpIndexBuffer->getGpuAddress() + meshInfo.firstIndex * sizeof(GMesh::Index);
 
-        meshBlasInfo.geomDescs.reserve(2);
+        blasBuildInput.geomDescs.reserve(2);
         if (pMesh->hasNonOpaquePrimitive())
-            meshBlasInfo.geomDescs.push_back(
+            blasBuildInput.geomDescs.push_back(
                 pMesh->getRTGeometryDesc<RtGeometryFlags::None>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
         if (pMesh->hasOpaquePrimitive())
-            meshBlasInfo.geomDescs.push_back(
+            blasBuildInput.geomDescs.push_back(
                 pMesh->getRTGeometryDesc<RtGeometryFlags::Opaque>(0, indexBufferAddr, mpVertexBuffer->getGpuAddress())
             );
-
-        // Build Inputs
-        meshBlasInfo.buildInputs = {
-            .kind = RtAccelerationStructureKind::BottomLevel,
-            .flags = RtAccelerationStructureBuildFlags::AllowCompaction | RtAccelerationStructureBuildFlags::PreferFastTrace,
-            .descCount = (uint)meshBlasInfo.geomDescs.size(),
-            .geometryDescs = meshBlasInfo.geomDescs.data(),
-        };
-
-        // Uncompacted Sizes
-        {
-            RtAccelerationStructurePrebuildInfo preBuildInfo =
-                RtAccelerationStructure::getPrebuildInfo(getDevice().get(), meshBlasInfo.buildInputs);
-            FALCOR_ASSERT(preBuildInfo.resultDataMaxSize > 0);
-            meshBlasInfo.uncompactedBlasDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.resultDataMaxSize);
-            auto scratchDataSize = align_to(kAccelerationStructureByteAlignment, preBuildInfo.scratchDataSize);
-            maxScratchDataSize = math::max(maxScratchDataSize, scratchDataSize);
-        }
-
-        // Uncompacted BLAS (not built yet)
-        {
-            meshBlasInfo.uncompactedBlasBuffer = getDevice()->createBuffer(
-                meshBlasInfo.uncompactedBlasDataSize, ResourceBindFlags::AccelerationStructure, MemoryType::DeviceLocal
-            );
-
-            RtAccelerationStructure::Desc desc{};
-            desc.setKind(RtAccelerationStructureKind::BottomLevel);
-            desc.setBuffer(meshBlasInfo.uncompactedBlasBuffer, 0, meshBlasInfo.uncompactedBlasDataSize);
-            meshBlasInfo.uncompactedBlas = RtAccelerationStructure::create(getDevice(), desc);
-        }
     }
 
-    ref<RtAccelerationStructurePostBuildInfoPool> compactedSizeInfoPool = RtAccelerationStructurePostBuildInfoPool::create(
-        getDevice().get(),
-        {
-            .queryType = RtAccelerationStructurePostBuildInfoQueryType::CompactedSize,
-            .elementCount = getMeshCount(),
-        }
-    );
-    compactedSizeInfoPool->reset(pRenderContext);
-
-    // Step 2. Build
-    uint64_t totalCompactedBlasDataSize = 0;
-    auto scratchBuffer = getDevice()->createBuffer(maxScratchDataSize, ResourceBindFlags::UnorderedAccess, MemoryType::DeviceLocal);
-    for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
-    {
-        auto& meshBlasInfo = meshBlasInfos[meshID];
-
-        RtAccelerationStructure::BuildDesc buildDesc = {
-            .inputs = meshBlasInfo.buildInputs,
-            .source = nullptr,
-            .dest = meshBlasInfo.uncompactedBlas.get(),
-            .scratchData = scratchBuffer->getGpuAddress(),
-        };
-        RtAccelerationStructurePostBuildInfoDesc postBuildInfoDesc = {
-            .type = RtAccelerationStructurePostBuildInfoQueryType::CompactedSize,
-            .pool = compactedSizeInfoPool.get(),
-            .index = meshID,
-        };
-
-        pRenderContext->buildAccelerationStructure(buildDesc, 1, &postBuildInfoDesc);
-        pRenderContext->submit(true);
-
-        meshBlasInfo.compactedBlasDataSize = compactedSizeInfoPool->getElement(pRenderContext, meshID);
-        meshBlasInfo.compactedBlasDataSize = align_to(kAccelerationStructureByteAlignment, meshBlasInfo.compactedBlasDataSize);
-        meshBlasInfo.compactedBlasDataOffset = totalCompactedBlasDataSize;
-        totalCompactedBlasDataSize += meshBlasInfo.compactedBlasDataSize;
-    }
-
-    // Step 3: Compact
-    mpBLASBuffer = getDevice()->createBuffer(totalCompactedBlasDataSize, ResourceBindFlags::AccelerationStructure, MemoryType::DeviceLocal);
-    mpMeshBLASs.resize(getMeshCount());
-    for (uint meshID = 0; meshID < getMeshCount(); ++meshID)
-    {
-        auto& meshBlasInfo = meshBlasInfos[meshID];
-
-        RtAccelerationStructure::Desc desc{};
-        desc.setKind(RtAccelerationStructureKind::BottomLevel);
-        desc.setBuffer(mpBLASBuffer, meshBlasInfo.compactedBlasDataOffset, meshBlasInfo.compactedBlasDataSize);
-        mpMeshBLASs[meshID] = RtAccelerationStructure::create(getDevice(), desc);
-
-        pRenderContext->copyAccelerationStructure(
-            mpMeshBLASs[meshID].get(), meshBlasInfo.uncompactedBlas.get(), RenderContext::RtAccelerationStructureCopyMode::Compact
-        );
-    }
-    pRenderContext->submit(true);
+    mpMeshBLASs = GSGI::buildBLAS(pRenderContext, blasBuildInputs).pBLASs;
 }
 
 void GStaticScene::buildTLAS(RenderContext* pRenderContext)

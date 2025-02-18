@@ -13,6 +13,8 @@ target_sources(GaussianGI PRIVATE
         Util/SerializeUtil.hpp
         Util/SOABufferUtil.hpp
         Util/SOABufferDefine.slangh
+        Util/BLASUtil.hpp
+        Util/BLASUtil.cpp
 
         Algorithm/AliasTable.hpp
         Algorithm/AliasTable.cpp
