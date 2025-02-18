@@ -30,6 +30,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/ThreadGroupTilingX.slang
         Algorithm/ShaderMisc.slang
         Algorithm/GS3D.slang
+        Algorithm/GS3DBound.hpp
+        Algorithm/GS3DBound.slangh
         Algorithm/Icosahedron.hpp
         Algorithm/Icosahedron.slangh
 
@@ -182,6 +184,8 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/ThreadGroupTilingX.slang
         Algorithm/ShaderMisc.slang
         Algorithm/GS3D.slang
+        Algorithm/GS3DBound.hpp
+        Algorithm/GS3DBound.slangh
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp

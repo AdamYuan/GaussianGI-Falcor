@@ -4,6 +4,7 @@
 
 #include "GS3DIndLightAlgo.hpp"
 
+#include "../../../Algorithm/GS3DBound.hpp"
 #include "../../../Scene/GMeshView.hpp"
 #include "../../../Algorithm/MeshSample.hpp"
 #include "../../../Algorithm/MeshGSOptimize.hpp"
@@ -18,7 +19,7 @@ namespace GSGI
 
 namespace
 {
-constexpr float kSplatBoundFactor = 2.3539888583335364f; // sqrt(log(255))
+constexpr float kSplatBoundFactor = GS3DBound::kSqrt2Log255;
 }
 
 GS3DIndLightAlgo::SplatTransformData GS3DIndLightAlgo::SplatTransformData::fromSplat(const GS3DIndLightSplat& splat)

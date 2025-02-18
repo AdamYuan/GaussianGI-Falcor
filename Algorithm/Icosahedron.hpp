@@ -31,6 +31,9 @@ struct Icosahedron
 #undef ICOSAHEDRON_X
 #undef ICOSAHEDRON_Z
 
+    static constexpr float kFaceDist = .794654472291766;
+    // python (ICOSAHEDRON_Z**2) / ((ICOSAHEDRON_Z**2) + (ICOSAHEDRON_Z - ICOSAHEDRON_X)**2)**0.5
+
     static constexpr uint kTriangleCount = 20;
     static constexpr std::array<uint3, kTriangleCount> kTriangles = {
         uint3(0, 4, 1), uint3(0, 9, 4),  uint3(9, 5, 4),  uint3(4, 5, 8),  uint3(4, 8, 1),  uint3(8, 10, 1), uint3(8, 3, 10),

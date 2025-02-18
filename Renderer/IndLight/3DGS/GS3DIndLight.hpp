@@ -22,6 +22,8 @@ private:
     ref<GStaticScene> mpStaticScene;
     ref<GS3DMiscRenderer> mpMiscRenderer;
     ref<Buffer> mpSplatBuffer, mpSplatDescBuffer;
+    std::vector<ref<RtAccelerationStructure>> mpSplatBLASs;
+    ref<RtAccelerationStructure> mpSplatTLAS;
     uint32_t mSplatCount{};
 
     struct
@@ -42,6 +44,7 @@ private:
     } mConfig = {};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
+    void onSceneChanged();
 
 public:
     explicit GS3DIndLight(ref<Device> pDevice);

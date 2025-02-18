@@ -5,6 +5,7 @@ import Utils.Math.MathHelpers;
 import GS3DIndLightSplat;
 import GaussianGI.Renderer.GVBuffer;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
+#include "GaussianGI/Algorithm/GS3DBound.slangh"
 
 using namespace GS3DIndLight;
 
@@ -13,7 +14,7 @@ RWStructuredBuffer<uint> gSplatIDs;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
 
-#define BOUND_FACTOR 3.3290429691304455 // \sqrt{2.0 * \ln(255)}
+#define BOUND_FACTOR GS3D_BOUND_SQRT_2LOG_255
 
 #define WRAP_GEOM_ICOSAHEDRON 0 // Must enable culling
 #define WRAP_GEOM_BOX 1

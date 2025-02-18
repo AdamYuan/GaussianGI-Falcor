@@ -6,9 +6,13 @@
 
 #include "GS3DIndLightSplat.hpp"
 #include "GS3DIndLightAlgo.hpp"
+#include "../../../Algorithm/GS3DBound.hpp"
 #include "../../../Algorithm/MeshVHBVH.hpp"
+#include "../../../Algorithm/Icosahedron.hpp"
+#include "../../../Util/BLASUtil.hpp"
 #include "../../../Util/ShaderUtil.hpp"
 #include "../../../Util/TextureUtil.hpp"
+#include "../../../Util/TLASUtil.hpp"
 
 namespace GSGI
 {
@@ -95,23 +99,21 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     );
 }
 
-GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+void GS3DIndLight::onSceneChanged()
 {
-    mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
-}
+    std::vector<GS3DIndLightSplat> splats;
+    std::vector<std::array<float3, Icosahedron::kVertexCount>> splatIcosahedronVertices;
+    std::vector<std::array<uint3, Icosahedron::kTriangleCount>> splatIcosahedronIndices;
 
-void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
-{
-    mpStaticScene = pDefaultStaticScene;
-    if (isSceneChanged)
+    std::vector<uint32_t> meshFirstSplatIdx;
+    meshFirstSplatIdx.reserve(mpStaticScene->getMeshCount());
+
+    for (const auto& pMesh : mpStaticScene->getMeshes())
     {
-        std::vector<GS3DIndLightSplat> splats;
-        std::vector<uint32_t> meshFirstSplatIdx;
-        meshFirstSplatIdx.reserve(mpStaticScene->getMeshCount());
-        for (const auto& pMesh : mpStaticScene->getMeshes())
+        auto meshView = GMeshView{pMesh};
+        MeshBVH<AABB> meshBVH;
+        auto meshSplats = [&pMesh, &meshBVH, &meshView]
         {
-            auto meshView = GMeshView{pMesh};
-            MeshBVH<AABB> meshBVH;
             auto meshSplats = GS3DIndLightSplat::loadMesh(pMesh);
             if (meshSplats.empty())
             {
@@ -120,30 +122,46 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
                 meshSplats = GS3DIndLightAlgo::getSplatsFromMeshFallback(meshView, meshBVH, kDefaultSplatsPerMesh);
                 GS3DIndLightSplat::persistMesh(pMesh, meshSplats);
             }
-            meshFirstSplatIdx.push_back(splats.size());
-            splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
+            return meshSplats;
+        }();
 
-            /* {
-                if (meshBVH.isEmpty())
-                    meshBVH = MeshBVH<AABB>::build<MeshVHBVHBuilder>(meshView);
+        meshFirstSplatIdx.push_back(splats.size());
 
-                std::vector<std::vector<uint32_t>> primSplatIDs =
-                    GS3DIndLightAlgo::getPrimitiveIntersectedSplatIDs(meshView, meshBVH, meshSplats);
+        // For splat buffer
+        splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
 
-                uint32_t greater16Cnt = 0, greater8Cnt = 0, equal0Cnt = 0;
-                for (uint i = 0; i < pMesh->getPrimitiveCount(); ++i)
-                {
-                    if (primSplatIDs[i].size() > 16)
-                        ++greater16Cnt;
-                    if (primSplatIDs[i].size() > 8)
-                        ++greater8Cnt;
-                    if (primSplatIDs[i].empty())
-                        ++equal0Cnt;
-                }
-                fmt::println(">16: {}, >8: {}, =0: {}", greater16Cnt, greater8Cnt, equal0Cnt);
-            } */
+        // For splat BLAS & TLAS
+        for (std::size_t meshSplatID = 0; meshSplatID < meshSplats.size(); ++meshSplatID)
+        {
+            const auto& splat = meshSplats[meshSplatID];
+
+            float3x3 splatRotMat = math::matrixFromQuat(quatf(splat.rotate.x, splat.rotate.y, splat.rotate.z, splat.rotate.w));
+
+            std::array<float3, Icosahedron::kVertexCount> vertices = Icosahedron::kVertices;
+            for (auto& vertex : vertices)
+            {
+                vertex /= Icosahedron::kFaceDist;
+                vertex *= float3(splat.scale) * GS3DBound::kSqrt2Log100;
+                vertex = math::mul(splatRotMat, vertex);
+                vertex += splat.mean;
+            }
+            std::array<uint3, Icosahedron::kTriangleCount> indices = Icosahedron::kTriangles;
+            for (uint32_t indexOffset = meshSplatID * Icosahedron::kVertexCount; auto& index : indices)
+            {
+                index.x += indexOffset;
+                index.y += indexOffset;
+                index.z += indexOffset;
+            }
+
+            splatIcosahedronVertices.push_back(vertices);
+            splatIcosahedronIndices.push_back(indices);
         }
+    }
 
+    const auto getMeshSplatCount = [&](uint32_t meshID)
+    { return (meshID == mpStaticScene->getMeshCount() - 1 ? splats.size() : meshFirstSplatIdx[meshID + 1]) - meshFirstSplatIdx[meshID]; };
+
+    { // Splat buffers
         std::vector<uint32_t> splatDescs;
 
         for (uint32_t instanceID = 0; instanceID < mpStaticScene->getInstanceCount(); ++instanceID)
@@ -151,8 +169,7 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
             const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
             uint32_t meshID = instanceInfo.meshID;
             uint32_t firstSplatIdx = meshFirstSplatIdx[meshID];
-            uint32_t splatCount =
-                (meshID == mpStaticScene->getMeshCount() - 1 ? splats.size() : meshFirstSplatIdx[instanceInfo.meshID + 1]) - firstSplatIdx;
+            uint32_t splatCount = getMeshSplatCount(meshID);
 
             for (uint32_t splatOfst = 0; splatOfst < splatCount; ++splatOfst)
                 splatDescs.push_back((firstSplatIdx + splatOfst) | (instanceID << 24u));
@@ -176,6 +193,99 @@ void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isS
         );
         mSplatCount = splatDescs.size();
     }
+
+    { // Splat BLAS & TLAS
+        auto pSplatIcosahedronVertexBuffer = getDevice()->createStructuredBuffer(
+            sizeof(float3) * Icosahedron::kVertexCount,
+            splatIcosahedronVertices.size(),
+            ResourceBindFlags::ShaderResource,
+            MemoryType::DeviceLocal,
+            splatIcosahedronVertices.data()
+        );
+        auto pSplatIcosahedronIndexBuffer = getDevice()->createStructuredBuffer(
+            sizeof(uint3) * Icosahedron::kTriangleCount,
+            splatIcosahedronIndices.size(),
+            ResourceBindFlags::ShaderResource,
+            MemoryType::DeviceLocal,
+            splatIcosahedronIndices.data()
+        );
+
+        mpSplatBLASs = BLASBuilder::build(
+            getDevice()->getRenderContext(),
+            [&]
+            {
+                auto splatIcosahedronVertexBufferAddr = pSplatIcosahedronVertexBuffer->getGpuAddress();
+                auto splatIcosahedronIndexBufferAddr = pSplatIcosahedronIndexBuffer->getGpuAddress();
+
+                std::vector<BLASBuildDesc> blasBuildDescs(mpStaticScene->getMeshCount());
+                for (uint32_t meshID = 0; meshID < mpStaticScene->getMeshCount(); ++meshID)
+                {
+                    auto& blasBuildDesc = blasBuildDescs[meshID];
+
+                    uint32_t meshSplatCount = getMeshSplatCount(meshID);
+
+                    blasBuildDesc.geomDescs.push_back(
+                        RtGeometryDesc{
+                            .type = RtGeometryType::Triangles,
+                            .flags = RtGeometryFlags::None, // Opaque?
+                            .content =
+                                {.triangles =
+                                     {
+                                         .transform3x4 = 0,
+                                         .indexFormat = ResourceFormat::R32Uint,
+                                         .vertexFormat = ResourceFormat::RGB32Float,
+                                         .indexCount = meshSplatCount * Icosahedron::kTriangleCount * 3,
+                                         .vertexCount = 0, // Seems to work (at least on Vulkan)
+                                         .indexData = splatIcosahedronIndexBufferAddr,
+                                         .vertexData = splatIcosahedronVertexBufferAddr,
+                                         .vertexStride = sizeof(float3),
+                                     }}
+                        }
+                    );
+                    splatIcosahedronIndexBufferAddr += meshSplatCount * Icosahedron::kTriangleCount * sizeof(uint3);
+                    splatIcosahedronVertexBufferAddr += meshSplatCount * Icosahedron::kVertexCount * sizeof(float3);
+                }
+                return blasBuildDescs;
+            }()
+        );
+
+        mpSplatTLAS = TLASBuilder::build(
+            getDevice()->getRenderContext(),
+            [&]
+            {
+                TLASBuildDesc buildDesc;
+                buildDesc.instanceDescs.resize(mpStaticScene->getInstanceCount());
+                for (uint instanceID = 0; instanceID < mpStaticScene->getInstanceCount(); ++instanceID)
+                {
+                    const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
+                    auto instanceDesc = RtInstanceDesc{
+                        .instanceID = instanceInfo.meshID, // Custom InstanceID
+                        .instanceMask = 0xFF,
+                        .instanceContributionToHitGroupIndex = 0,
+                        .flags = RtGeometryInstanceFlags::None,
+                        .accelerationStructure = mpSplatBLASs[instanceInfo.meshID]->getGpuAddress(),
+                    };
+                    auto transform3x4 = instanceInfo.transform.getMatrix3x4();
+                    std::memcpy(instanceDesc.transform, &transform3x4, sizeof(instanceDesc.transform));
+                    static_assert(sizeof(instanceDesc.transform) == sizeof(transform3x4));
+                    buildDesc.instanceDescs[instanceID] = instanceDesc;
+                }
+                return buildDesc;
+            }()
+        );
+    }
+}
+
+GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+{
+    mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
+}
+
+void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
+{
+    mpStaticScene = pDefaultStaticScene;
+    if (isSceneChanged)
+        onSceneChanged();
 }
 
 void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
