@@ -7,7 +7,7 @@
 #include <Utils/Math/QuaternionMath.h>
 #include <random>
 
-#include "../Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp"
+#include "../Renderer/IndLight/GS3D/GS3DIndLightAlgo.hpp"
 
 using namespace Falcor;
 

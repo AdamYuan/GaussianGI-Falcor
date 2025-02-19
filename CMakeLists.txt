@@ -99,23 +99,23 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/PathTraced/PTIndLight.cpp
         Renderer/IndLight/PathTraced/PTIndLight.cs.slang
 
-        Renderer/IndLight/3DGS/GS3DIndLight.hpp
-        Renderer/IndLight/3DGS/GS3DIndLight.cpp
-        Renderer/IndLight/3DGS/GS3DIndLight.cs.slang
-        Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp
-        Renderer/IndLight/3DGS/GS3DIndLightAlgo.cpp
-        Renderer/IndLight/3DGS/GS3DIndLightSplat.slang
-        Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
-        Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
-        Renderer/IndLight/3DGS/GS3DIndLightSplatPersist.cpp
-        Renderer/IndLight/3DGS/GS3DIndLightCull.cs.slang
-        Renderer/IndLight/3DGS/GS3DIndLightDraw.3d.slang
-        Renderer/IndLight/3DGS/GS3DIndLightBlend.cs.slang
-        Renderer/IndLight/3DGS/GS3DMiscRenderer.hpp
-        Renderer/IndLight/3DGS/GS3DMiscRenderer.cpp
-        Renderer/IndLight/3DGS/GS3DMiscPoint.3d.slang
-        Renderer/IndLight/3DGS/GS3DMiscSplatView.cs.slang
-        Renderer/IndLight/3DGS/GS3DMiscSplatDraw.3d.slang
+        Renderer/IndLight/GS3D/GS3DIndLight.hpp
+        Renderer/IndLight/GS3D/GS3DIndLight.cpp
+        Renderer/IndLight/GS3D/GS3DIndLight.cs.slang
+        Renderer/IndLight/GS3D/GS3DIndLightAlgo.hpp
+        Renderer/IndLight/GS3D/GS3DIndLightAlgo.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightSplat.slang
+        Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp
+        Renderer/IndLight/GS3D/GS3DIndLightSplat.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightSplatPersist.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang
+        Renderer/IndLight/GS3D/GS3DIndLightDraw.3d.slang
+        Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang
+        Renderer/IndLight/GS3D/Misc/GS3DMiscRenderer.hpp
+        Renderer/IndLight/GS3D/Misc/GS3DMiscRenderer.cpp
+        Renderer/IndLight/GS3D/Misc/GS3DMiscPoint.3d.slang
+        Renderer/IndLight/GS3D/Misc/GS3DMiscSplatView.cs.slang
+        Renderer/IndLight/GS3D/Misc/GS3DMiscSplatDraw.3d.slang
 )
 target_link_libraries(GaussianGI PRIVATE assimp tbb)
 target_copy_shaders(GaussianGI GaussianGI)
@@ -143,8 +143,8 @@ target_sources(GaussianGITest PRIVATE
 
         Test/GS3DIndLightAlgoTest.cpp
         Algorithm/AliasTable.cpp
-        Renderer/IndLight/3DGS/GS3DIndLightAlgo.hpp
-        Renderer/IndLight/3DGS/GS3DIndLightAlgo.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightAlgo.hpp
+        Renderer/IndLight/GS3D/GS3DIndLightAlgo.cpp
 )
 target_link_libraries(GaussianGITest PRIVATE args tbb)
 target_copy_shaders(GaussianGITest GaussianGI)
@@ -216,8 +216,8 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.cpp
 
-        Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
-        Renderer/IndLight/3DGS/GS3DIndLightSplatPersist.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp
+        Renderer/IndLight/GS3D/GS3DIndLightSplatPersist.cpp
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)

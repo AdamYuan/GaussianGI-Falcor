@@ -9,7 +9,7 @@
 #include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../GIndLightArgs.hpp"
-#include "GS3DMiscRenderer.hpp"
+#include "Misc/GS3DMiscRenderer.hpp"
 #include "GS3DIndLightAlgo.hpp"
 
 using namespace Falcor;

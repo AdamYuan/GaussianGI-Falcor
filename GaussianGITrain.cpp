@@ -8,7 +8,7 @@
 #include "Scene/GMeshGSTrainSplatInit.hpp"
 #include "Scene/GMeshLoader.hpp"
 #include "Scene/GMeshView.hpp"
-#include "Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp"
+#include "Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp"
 
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 

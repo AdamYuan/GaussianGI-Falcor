@@ -6,11 +6,11 @@
 #define GSGI_GS3DMISCRENDERER_HPP
 
 #include <Falcor.h>
-#include "../../../Util/EnumUtil.hpp"
-#include "../../../GDeviceObject.hpp"
-#include "../../../Scene/GStaticScene.hpp"
-#include "../../../Algorithm/DeviceSort/DeviceSorter.hpp"
-#include "GS3DIndLightSplat.hpp"
+#include "../../../../Util/EnumUtil.hpp"
+#include "../../../../GDeviceObject.hpp"
+#include "../../../../Scene/GStaticScene.hpp"
+#include "../../../../Algorithm/DeviceSort/DeviceSorter.hpp"
+#include "../GS3DIndLightSplat.hpp"
 
 using namespace Falcor;
 
@@ -28,6 +28,13 @@ GSGI_ENUM_REGISTER(GS3DMiscType::kSplat, void, "Splat", int);
 
 class GS3DMiscRenderer final : public GDeviceObject<GS3DMiscRenderer>
 {
+public:
+    struct DrawArgs
+    {
+        const ref<GStaticScene>& pStaticScene;
+        const GS3DIndLightInstancedSplatBuffer& instancedSplatBuffer;
+    };
+
 private:
     // Point
     ref<RasterPass> mpPointPass;
@@ -38,7 +45,6 @@ private:
     ref<Buffer> mpSplatViewDrawArgBuffer;
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSplatViewSorter;
     DeviceSortResource<DeviceSortDispatchType::kIndirect> mSplatViewSortResource;
-    uint mSplatViewCount{};
 
     struct
     {
@@ -46,15 +52,10 @@ private:
         float splatOpacity = 1.0f;
     } mConfig = {};
 
-    void initialize();
-    bool mIsInitialized = false;
+    void drawPoints(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
+    void drawSplats(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
 
 public:
-    struct DrawArgs
-    {
-        const ref<GStaticScene>& pStaticScene;
-        const GS3DIndLightInstancedSplatBuffer& instancedSplatBuffer;
-    };
     explicit GS3DMiscRenderer(const ref<Device>& pDevice);
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
     void renderUIImpl(Gui::Widgets& widget);

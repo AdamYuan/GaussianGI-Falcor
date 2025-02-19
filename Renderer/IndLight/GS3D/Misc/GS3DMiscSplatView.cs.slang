@@ -1,7 +1,7 @@
 import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
-import GS3DIndLightSplat;
+import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 
 using namespace GS3DIndLight;
 

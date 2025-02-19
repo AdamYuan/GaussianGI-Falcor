@@ -9,7 +9,7 @@
 #include "../../Util/EnumUtil.hpp"
 #include "NoIndLight.hpp"
 #include "PathTraced/PTIndLight.hpp"
-#include "3DGS/GS3DIndLight.hpp"
+#include "GS3D/GS3DIndLight.hpp"
 
 using namespace Falcor;
 

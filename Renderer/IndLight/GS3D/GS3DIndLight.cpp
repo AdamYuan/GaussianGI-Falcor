@@ -25,12 +25,12 @@ constexpr uint32_t kDefaultSplatsPerMesh = 65536;
 void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
 {
     if (!mDrawResource.pCullPass)
-        mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightCull.cs.slang", "csMain");
+        mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang", "csMain");
 
     if (!mDrawResource.pDrawPass)
     {
         ProgramDesc splatDrawDesc;
-        splatDrawDesc.addShaderLibrary("GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightDraw.3d.slang")
+        splatDrawDesc.addShaderLibrary("GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightDraw.3d.slang")
             .vsEntry("vsMain")
             .gsEntry("gsMain")
             .psEntry("psMain");
@@ -59,7 +59,7 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
 
     if (!mDrawResource.pBlendPass)
         mDrawResource.pBlendPass =
-            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightBlend.cs.slang", "csMain");
+            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang", "csMain");
 
     if (!mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mInstancedSplatBuffer.splatCount)
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(
