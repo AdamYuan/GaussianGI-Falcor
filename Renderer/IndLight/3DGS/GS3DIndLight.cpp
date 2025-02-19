@@ -276,7 +276,7 @@ void GS3DIndLight::onSceneChanged()
                 {
                     const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
                     auto instanceDesc = RtInstanceDesc{
-                        .instanceID = instanceInfo.meshID, // Custom InstanceID
+                        .instanceID = meshFirstSplatIdx[instanceInfo.meshID], // Custom InstanceID
                         .instanceMask = 0xFF,
                         .instanceContributionToHitGroupIndex = 0,
                         .flags = RtGeometryInstanceFlags::None,
