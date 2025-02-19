@@ -10,6 +10,7 @@
 #include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 #include "../../../Algorithm/DeviceSort/DeviceSorter.hpp"
+#include "GS3DIndLightSplat.hpp"
 
 using namespace Falcor;
 
@@ -52,8 +53,7 @@ public:
     struct DrawArgs
     {
         const ref<GStaticScene>& pStaticScene;
-        const ref<Buffer>&pSplatBuffer, pSplatDescBuffer;
-        uint splatCount;
+        const GS3DIndLightInstancedSplatBuffer& instancedSplatBuffer;
     };
     explicit GS3DMiscRenderer(const ref<Device>& pDevice);
     void draw(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);

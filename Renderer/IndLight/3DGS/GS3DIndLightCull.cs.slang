@@ -18,9 +18,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (splatID >= gSplats.splatCount)
         return;
 
-    var splat = gSplats.load(splatID);
+    var splatGeom = gSplats.load(splatID).geom;
 
-    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(splat.mean, 1)).xyz;
+    float3 viewPos = mul(gGStaticScene.camera.data.viewMat, float4(splatGeom.mean, 1)).xyz;
     float4 clipPos = mul(gGStaticScene.camera.data.projMat, float4(viewPos, 1));
     if (clipPos.w <= 0) // Behind Camera
         return;
@@ -28,7 +28,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (any(abs(clipPos.xy) > 1.3) || clipPos.z > 1 || clipPos.z < 0) // Frustum Culled
         return;
 
-    float2x3 cov3d = GS3D::getCovariance3D(splat.rotate, float3(splat.scale));
+    float2x3 cov3d = GS3D::getCovariance3D(splatGeom.rotate, splatGeom.scale);
     float3 cov2d = GS3D::getCovariance2D(
         cov3d, viewPos, float3x3(gGStaticScene.camera.data.viewMat), gGStaticScene.camera.data.projMat[0][0], gResolution
     );

@@ -16,7 +16,7 @@ struct PSIn
     nointerpolation float3 splatMean;
     nointerpolation float16_t3 splatInvScale;
     nointerpolation float16_t4 splatInvRotate;
-    nointerpolation float16_t3 indirect;
+    nointerpolation float16_t3 albedo;
     linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 }
@@ -39,10 +39,10 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     // deltaClip * 2 to scale from [0, 1] to [-1, 1]
 
     PSIn o;
-    o.splatMean = splat.mean;
-    o.splatInvScale = float16_t3(1.0 / splat.scale);
-    o.splatInvRotate = float16_t4(float4(-splat.rotate.xyz, splat.rotate.w) / dot(splat.rotate, splat.rotate));
-    o.indirect = splat.indirect;
+    o.splatMean = splat.geom.mean;
+    o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
+    o.splatInvRotate = float16_t4(float4(-splat.geom.rotate.xyz, splat.geom.rotate.w) / dot(splat.geom.rotate, splat.geom.rotate));
+    o.albedo = float16_t3(splat.attrib.albedo);
 
     o.quadPos = float2(-gD, -gD);
     o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
@@ -75,6 +75,6 @@ float4 psMain(PSIn pIn)
     float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;
-    return float4(float3(pIn.indirect), alpha);
+    return float4(float3(pIn.albedo), alpha);
 }
 

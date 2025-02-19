@@ -31,7 +31,8 @@ public:
     static constexpr uint32_t kMaxTextureCount = uint32_t(kMaxTextureID) + 1;
     using Index = uint32_t;
 
-    inline static const AABB kNormalizeBound = AABB(float3{-1.0f}, float3{1.0f});
+    static constexpr float3 kNormalizedBoundMin = float3{-1.0f}, kNormalizedBoundMax = float3{1.0f};
+    inline static const AABB kNormalizeBound = AABB(kNormalizedBoundMin, kNormalizedBoundMax);
 
     struct TextureData
     {
@@ -68,7 +69,7 @@ private:
 
     static void dataReorderOpaque(Data& data);
     static void dataUpdateBound(Data& data);
-    static void dataNormalizeBound(Data &data);
+    static void dataNormalizeBound(Data& data);
     void prepareDraw();
     void prepareBuffer();
 

@@ -107,6 +107,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/3DGS/GS3DIndLightSplat.slang
         Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
         Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
+        Renderer/IndLight/3DGS/GS3DIndLightSplatPersist.cpp
         Renderer/IndLight/3DGS/GS3DIndLightCull.cs.slang
         Renderer/IndLight/3DGS/GS3DIndLightDraw.3d.slang
         Renderer/IndLight/3DGS/GS3DIndLightBlend.cs.slang
@@ -216,7 +217,7 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.cpp
 
         Renderer/IndLight/3DGS/GS3DIndLightSplat.hpp
-        Renderer/IndLight/3DGS/GS3DIndLightSplat.cpp
+        Renderer/IndLight/3DGS/GS3DIndLightSplatPersist.cpp
 )
 target_link_libraries(GaussianGITrain PRIVATE assimp tbb)
 target_copy_shaders(GaussianGITrain GaussianGI)

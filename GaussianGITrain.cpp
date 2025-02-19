@@ -119,9 +119,9 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
                 const auto& splat = splats[i];
                 indLightSplats[i] = GS3DIndLightSplat{
                     .mean = splat.geom.mean,
-                    .rotate = float16_t4{splat.geom.rotate},
-                    .scale = float16_t3{splat.geom.scale},
-                    .irradiance = float16_t3{splat.attrib.albedo},
+                    .rotate = quatf{splat.geom.rotate.xyz(), splat.geom.rotate.w},
+                    .scale = splat.geom.scale,
+                    .albedo = splat.attrib.albedo,
                 };
             }
 

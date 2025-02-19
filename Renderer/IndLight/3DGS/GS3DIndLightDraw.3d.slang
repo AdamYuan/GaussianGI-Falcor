@@ -27,7 +27,7 @@ struct PSIn
     nointerpolation float3 splatMean;
     nointerpolation float16_t3 splatInvScale;
     nointerpolation uint2 packedSplatInvRotate;
-    nointerpolation float16_t3 indirect;
+    nointerpolation float16_t3 albedo;
     linear float4 clipPos : SV_Position;
 }
 
@@ -49,14 +49,14 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     var splat = gSplats.load(splatID);
 
     PSIn o;
-    o.splatMean = splat.mean;
-    o.splatInvScale = 1.0h / splat.scale;
-    o.indirect = splat.indirect;
+    o.splatMean = splat.geom.mean;
+    o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
+    o.albedo = float16_t3(splat.attrib.albedo);
 
     float3x3 splatRotMatT = float3x3(
-        rotate_vector(float3(1, 0, 0), splat.rotate),
-        rotate_vector(float3(0, 1, 0), splat.rotate),
-        rotate_vector(float3(0, 0, 1), splat.rotate)
+        rotate_vector(float3(1, 0, 0), splat.geom.rotate),
+        rotate_vector(float3(0, 1, 0), splat.geom.rotate),
+        rotate_vector(float3(0, 0, 1), splat.geom.rotate)
     );
     float3x3 splatRotMat = transpose(splatRotMatT);
 
@@ -68,7 +68,8 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     [ForceUnroll]
     for (uint i = 0; i < ICOSAHEDRON_VERTEX_COUNT; ++i)
     {
-        float3 pos = splat.mean + BOUND_FACTOR / ICOSAHEDRON_FACE_DIST * mul(splatRotMat, splat.scale * Icosahedron::kVertices[i]);
+        float3 pos =
+            splat.geom.mean + BOUND_FACTOR / ICOSAHEDRON_FACE_DIST * mul(splatRotMat, splat.geom.scale * Icosahedron::kVertices[i]);
         clips[i] = mul(gGStaticScene.camera.getViewProj(), float4(pos, 1.0));
     }
 
@@ -86,17 +87,17 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     }
 #elif WRAP_GEOM == WRAP_GEOM_QUAD
 
-    float3 splatCamMean = splat.mean - gGStaticScene.camera.getPosition();
+    float3 splatCamMean = splat.geom.mean - gGStaticScene.camera.getPosition();
     float splatCamDist = length(splatCamMean);
 
     float3 splatViewDir = splatCamMean / splatCamDist;
 
-    float3x3 splatScaleMat = float3x3(float3(splat.scale.x, 0, 0), float3(0, splat.scale.y, 0), float3(0, 0, splat.scale.z));
+    float3x3 splatScaleMat = float3x3(float3(splat.geom.scale.x, 0, 0), float3(0, splat.geom.scale.y, 0), float3(0, 0, splat.geom.scale.z));
 
     float3 splatViewSideDir = select(
-        all(splat.scale.x > splat.scale.yz), //
+        all(splat.geom.scale.x > splat.geom.scale.yz), //
         splatRotMatT[0],
-        select(splat.scale.y > splat.scale.z, splatRotMatT[1], splatRotMatT[2])
+        select(splat.geom.scale.y > splat.geom.scale.z, splatRotMatT[1], splatRotMatT[2])
     );
     splatViewSideDir = normalize(cross(splatViewDir, splatViewSideDir));
 
@@ -111,7 +112,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     float3x3 splatExtent = float3x3(splatVDMatT[0] * splatVDExtent.x, splatVDMatT[1] * splatVDExtent.y, splatVDMatT[2] * splatVDExtent.z);
     splatExtent *= BOUND_FACTOR;
 
-    float3 splatQuadCenter = splat.mean - splatExtent[2];
+    float3 splatQuadCenter = splat.geom.mean - splatExtent[2];
     float4 splatClipQuadCenter = mul(gGStaticScene.camera.getViewProj(), float4(splatQuadCenter, 1));
     float2x4 splatClipExtentXY = float2x4(
         mul(gGStaticScene.camera.getViewProj(), float4(splatExtent[0], 0)),
@@ -182,6 +183,6 @@ float4 psMain(PSIn pIn)
 
     if (alpha < 1.0 / 255.0)
         discard;
-    return float4(float3(pIn.indirect) * alpha, alpha) * weight;
+    return float4(float3(pIn.albedo) * alpha, alpha) * weight;
 }
 

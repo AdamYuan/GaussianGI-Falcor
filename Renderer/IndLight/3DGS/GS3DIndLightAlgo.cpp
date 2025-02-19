@@ -130,9 +130,9 @@ std::vector<GS3DIndLightSplat> GS3DIndLightAlgo::getSplatsFromMeshFallback(
                 );
                 return GS3DIndLightSplat{
                     .mean = meshPoint.getPosition(meshView),
-                    .rotate = float16_t4(result.rotate.x, result.rotate.y, result.rotate.z, result.rotate.w),
-                    .scale = float16_t3(result.scaleXY, 0.1f * math::min(result.scaleXY.x, result.scaleXY.y)),
-                    .irradiance = float16_t3{1.0f},
+                    .rotate = result.rotate,
+                    .scale = float3(result.scaleXY, 0.1f * math::min(result.scaleXY.x, result.scaleXY.y)),
+                    .albedo = float3{1.0f},
                 };
             }();
         }

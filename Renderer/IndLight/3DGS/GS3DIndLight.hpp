@@ -10,6 +10,7 @@
 #include "../../../Scene/GStaticScene.hpp"
 #include "../GIndLightArgs.hpp"
 #include "GS3DMiscRenderer.hpp"
+#include "GS3DIndLightAlgo.hpp"
 
 using namespace Falcor;
 
@@ -21,10 +22,9 @@ class GS3DIndLight final : public GDeviceObject<GS3DIndLight>
 private:
     ref<GStaticScene> mpStaticScene;
     ref<GS3DMiscRenderer> mpMiscRenderer;
-    ref<Buffer> mpSplatBuffer, mpSplatDescBuffer;
+    GS3DIndLightInstancedSplatBuffer mInstancedSplatBuffer;
     std::vector<ref<RtAccelerationStructure>> mpSplatBLASs;
     ref<RtAccelerationStructure> mpSplatTLAS;
-    uint32_t mSplatCount{};
 
     struct
     {

@@ -61,9 +61,9 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pBlendPass =
             ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/3DGS/GS3DIndLightBlend.cs.slang", "csMain");
 
-    if (!mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mSplatCount)
+    if (!mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mInstancedSplatBuffer.splatCount)
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(
-            sizeof(uint32_t), mSplatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+            sizeof(uint32_t), mInstancedSplatBuffer.splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
         );
 
     if (!mDrawResource.pSplatDrawArgBuffer)
@@ -101,7 +101,8 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
 
 void GS3DIndLight::onSceneChanged()
 {
-    std::vector<GS3DIndLightSplat> splats;
+    std::vector<GS3DIndLightPackedSplatGeom> splatGeoms;
+    std::vector<GS3DIndLightPackedSplatAttrib> splatAttribs;
     std::vector<std::array<float3, Icosahedron::kVertexCount>> splatIcosahedronVertices;
     std::vector<std::array<uint3, Icosahedron::kTriangleCount>> splatIcosahedronIndices;
 
@@ -125,10 +126,14 @@ void GS3DIndLight::onSceneChanged()
             return meshSplats;
         }();
 
-        meshFirstSplatIdx.push_back(splats.size());
+        meshFirstSplatIdx.push_back(splatGeoms.size());
 
         // For splat buffer
-        splats.insert(splats.end(), meshSplats.begin(), meshSplats.end());
+        for (const auto& splat : meshSplats)
+        {
+            splatGeoms.push_back(GS3DIndLightPackedSplatGeom::fromSplat(splat));
+            splatAttribs.push_back(GS3DIndLightPackedSplatAttrib::fromSplat(splat));
+        }
 
         // For splat BLAS & TLAS
         for (std::size_t meshSplatID = 0; meshSplatID < meshSplats.size(); ++meshSplatID)
@@ -159,7 +164,10 @@ void GS3DIndLight::onSceneChanged()
     }
 
     const auto getMeshSplatCount = [&](uint32_t meshID)
-    { return (meshID == mpStaticScene->getMeshCount() - 1 ? splats.size() : meshFirstSplatIdx[meshID + 1]) - meshFirstSplatIdx[meshID]; };
+    {
+        return (meshID == mpStaticScene->getMeshCount() - 1 ? splatGeoms.size() : meshFirstSplatIdx[meshID + 1]) -
+               meshFirstSplatIdx[meshID];
+    };
 
     { // Splat buffers
         std::vector<uint32_t> splatDescs;
@@ -177,21 +185,30 @@ void GS3DIndLight::onSceneChanged()
             static_assert(GStaticScene::kMaxInstanceCount <= 256);
         }
 
-        mpSplatBuffer = getDevice()->createStructuredBuffer(
-            sizeof(GS3DIndLightSplat), //
-            splats.size(),
-            ResourceBindFlags::ShaderResource,
-            MemoryType::DeviceLocal,
-            splats.data()
-        );
-        mpSplatDescBuffer = getDevice()->createStructuredBuffer(
-            sizeof(uint32_t), //
-            splatDescs.size(),
-            ResourceBindFlags::ShaderResource,
-            MemoryType::DeviceLocal,
-            splatDescs.data()
-        );
-        mSplatCount = splatDescs.size();
+        mInstancedSplatBuffer = {
+            .pSplatGeomBuffer = getDevice()->createStructuredBuffer(
+                sizeof(GS3DIndLightPackedSplatGeom), //
+                splatGeoms.size(),
+                ResourceBindFlags::ShaderResource,
+                MemoryType::DeviceLocal,
+                splatGeoms.data()
+            ),
+            .pSplatAttribBuffer = getDevice()->createStructuredBuffer(
+                sizeof(GS3DIndLightPackedSplatAttrib), //
+                splatAttribs.size(),
+                ResourceBindFlags::ShaderResource,
+                MemoryType::DeviceLocal,
+                splatAttribs.data()
+            ),
+            .pSplatDescBuffer = getDevice()->createStructuredBuffer(
+                sizeof(uint32_t), //
+                splatDescs.size(),
+                ResourceBindFlags::ShaderResource,
+                MemoryType::DeviceLocal,
+                splatDescs.data()
+            ),
+            .splatCount = (uint32_t)splatDescs.size(),
+        };
     }
 
     { // Splat BLAS & TLAS
@@ -295,12 +312,6 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
     uint2 resolution = getTextureResolution2(pIndirectTexture);
     auto resolutionFloat = float2(resolution);
 
-    GS3DIndLightInstancedSplatBuffer instancedSplatBuffer = {
-        .pSplatBuffer = mpSplatBuffer,
-        .pSplatDescBuffer = mpSplatDescBuffer,
-        .splatCount = mSplatCount,
-    };
-
     // Reset
     static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint32_t));
     mDrawResource.pSplatDrawArgBuffer->setElement<uint32_t>(offsetof(DrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
@@ -310,13 +321,13 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
         FALCOR_PROFILE(pRenderContext, "cull");
         auto [prog, var] = getShaderProgVar(mDrawResource.pCullPass);
         mpStaticScene->bindRootShaderData(var);
-        instancedSplatBuffer.bindShaderData(var["gSplats"]);
+        mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gResolution"] = resolutionFloat;
 
         var["gSplatDrawArgs"] = mDrawResource.pSplatDrawArgBuffer;
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
 
-        mDrawResource.pCullPass->execute(pRenderContext, mSplatCount, 1, 1);
+        mDrawResource.pCullPass->execute(pRenderContext, mInstancedSplatBuffer.splatCount, 1, 1);
     }
 
     // Sort
@@ -337,7 +348,7 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
         pRenderContext->clearRtv(pIndirectTexture->getRTV().get(), float4{});
         auto [prog, var] = getShaderProgVar(mDrawResource.pDrawPass);
         mpStaticScene->bindRootShaderData(var);
-        instancedSplatBuffer.bindShaderData(var["gSplats"]);
+        mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         var["gResolution"] = resolutionFloat;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
@@ -372,9 +383,7 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         pTargetFbo,
         {
             .pStaticScene = mpStaticScene,
-            .pSplatBuffer = mpSplatBuffer,
-            .pSplatDescBuffer = mpSplatDescBuffer,
-            .splatCount = mSplatCount,
+            .instancedSplatBuffer = mInstancedSplatBuffer,
         }
     );
 }

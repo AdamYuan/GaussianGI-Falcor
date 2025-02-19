@@ -1,37 +1,56 @@
 //
-// Created by adamyuan on 2/7/25.
+// Created by adamyuan on 2/19/25.
 //
 
 #include "GS3DIndLightSplat.hpp"
 
-#include "../../../Util/SerializeUtil.hpp"
-#include <fstream>
+#include <Utils/Math/FormatConversion.h>
 
 namespace GSGI
 {
 
 namespace
 {
-constexpr const char* kPersistKey = "GS3D";
-constexpr const char* kVersion = ""; // __TIMESTAMP__; // Ignore version
+uint32_t packUnorm3x10(const float3& v)
+{
+    auto x = (uint32_t)math::clamp(v.x * 1023.f + 0.5f, 0.0f, 1023.f);
+    auto y = (uint32_t)math::clamp(v.y * 1023.f + 0.5f, 0.0f, 1023.f);
+    auto z = (uint32_t)math::clamp(v.z * 1023.f + 0.5f, 0.0f, 1023.f);
+    return x | y << 10u | z << 20u;
+}
 } // namespace
 
-using IndLightSplatPersist = SerializePersist<std::string, std::vector<GS3DIndLightSplat>>;
-GSGI_SERIALIZER_REGISTER_POD(GS3DIndLightSplat);
-
-void GS3DIndLightSplat::persistMesh(const ref<GMesh>& pMesh, std::span<const GS3DIndLightSplat> splats)
+GS3DIndLightPackedSplatGeom GS3DIndLightPackedSplatGeom::fromSplat(const GS3DIndLightSplat& splat)
 {
-    auto meshSplatPersistPath = pMesh->getPersistPath(kPersistKey);
-    IndLightSplatPersist::store(std::ofstream{meshSplatPersistPath}, kVersion, splats);
+    static_assert(math::all(GMesh::kNormalizedBoundMin == float3{-1.0f}));
+    static_assert(math::all(GMesh::kNormalizedBoundMax == float3{1.0f}));
+
+    float4 splatRot = float4{splat.rotate.x, splat.rotate.y, splat.rotate.z, splat.rotate.w};
+    splatRot = math::normalize(splatRot);
+    if (splatRot.w < 0)
+        splatRot = -splatRot;
+
+    GS3DIndLightPackedSplatGeom geom{};
+    geom.rotate = packUnorm3x10(splatRot.xyz() * 0.5f + 0.5f);
+    geom.meanXY = packSnorm2x16(splat.mean.xy());
+    geom.meanZ = packSnorm16(splat.mean.z);
+    geom.scale = splat.scale;
+    return geom;
 }
 
-std::vector<GS3DIndLightSplat> GS3DIndLightSplat::loadMesh(const ref<GMesh>& pMesh)
+GS3DIndLightPackedSplatAttrib GS3DIndLightPackedSplatAttrib::fromSplat(const GS3DIndLightSplat& splat)
 {
-    std::vector<GS3DIndLightSplat> meshSplats;
-    auto meshSplatPersistPath = pMesh->getPersistPath(kPersistKey);
-    if (IndLightSplatPersist::load(std::ifstream{meshSplatPersistPath}, kVersion, meshSplats))
-        return meshSplats;
-    return {};
+    return GS3DIndLightPackedSplatAttrib{
+        .albedo = packUnorm3x10(splat.albedo),
+    };
+}
+
+void GS3DIndLightInstancedSplatBuffer::bindShaderData(const ShaderVar& var) const
+{
+    var["splatGeoms"] = pSplatGeomBuffer;
+    var["splatAttribs"] = pSplatAttribBuffer;
+    var["splatDescs"] = pSplatDescBuffer;
+    var["splatCount"] = splatCount;
 }
 
 } // namespace GSGI
