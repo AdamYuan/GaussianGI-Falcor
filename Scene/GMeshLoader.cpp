@@ -205,7 +205,7 @@ ref<GMesh> GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
     timeReport.measure("Creating mesh");
 
     // Normalize mesh through Y direction
-    {
+    /* {
         float3 center = ctx.meshData.bound.center();
         float3 halfExtent = ctx.meshData.bound.extent() * 0.5f;
         float invHalfExtentY = 1.0f / halfExtent.y;
@@ -215,7 +215,7 @@ ref<GMesh> GMeshLoader::load(const ref<Device>& pDevice, const std::filesystem::
         normalizeFloat3(ctx.meshData.bound.minPoint);
         normalizeFloat3(ctx.meshData.bound.maxPoint);
         timeReport.measure("Normalizing mesh");
-    }
+    } */
 
     timeReport.printToLog();
 

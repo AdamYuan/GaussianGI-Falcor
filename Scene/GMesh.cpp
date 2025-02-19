@@ -34,6 +34,9 @@ GMesh::GMesh(ref<Device> pDevice, Data data) : GDeviceObject(std::move(pDevice))
         dataReorderOpaque(data);
     if (!data.bound.valid())
         dataUpdateBound(data);
+    // Force restrict bound to [-1, 1] range
+    if ((kNormalizeBound | data.bound) != kNormalizeBound)
+        dataNormalizeBound(data);
     mData = std::move(data);
 }
 
@@ -72,6 +75,18 @@ void GMesh::dataUpdateBound(Data& data)
     data.bound = {};
     for (const auto& vertex : data.vertices)
         data.bound.include(vertex.position);
+}
+
+void GMesh::dataNormalizeBound(Data& data)
+{
+    float3 center = data.bound.center();
+    float3 halfExtent = data.bound.extent() * 0.5f;
+    float invHalfExtent = 1.0f / math::max(halfExtent.x, math::max(halfExtent.y, halfExtent.z));
+    const auto normalizeFloat3 = [&](float3& p) { p = (p - center) * invHalfExtent; };
+    for (auto& vertex : data.vertices)
+        normalizeFloat3(vertex.position);
+    normalizeFloat3(data.bound.minPoint);
+    normalizeFloat3(data.bound.maxPoint);
 }
 
 void GMesh::prepareBuffer()
