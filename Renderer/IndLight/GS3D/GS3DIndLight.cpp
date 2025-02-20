@@ -384,6 +384,7 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTarg
         {
             .pStaticScene = mpStaticScene,
             .instancedSplatBuffer = mInstancedSplatBuffer,
+            .pSplatTLAS = mpSplatTLAS,
         }
     );
 }

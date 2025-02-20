@@ -19,6 +19,7 @@ void GS3DMiscRenderer::drawPoints(RenderContext* pRenderContext, const ref<Fbo>&
         mpPointPass = RasterPass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/Misc/GS3DMiscPoint.3d.slang", "vsMain", "psMain");
         mpPointPass->getState()->setVao(Vao::create(Vao::Topology::PointList));
     }
+    pRenderContext->clearRtv(pTargetFbo->getColorTexture(0)->getRTV().get(), float4{});
     pRenderContext->clearDsv(pTargetFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
 
     uint splatCount = args.instancedSplatBuffer.splatCount;
@@ -108,6 +109,8 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
 
     float2 resolutionFloat = float2(getTextureResolution2(pTargetFbo));
 
+    pRenderContext->clearRtv(pTargetFbo->getColorTexture(0)->getRTV().get(), float4{});
+
     // Splat View Pass
     {
         FALCOR_PROFILE(pRenderContext, "splatView");
@@ -157,14 +160,68 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
     }
 }
 
+void GS3DMiscRenderer::drawTracedSplats(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args)
+{
+    uint2 resolution = getTextureResolution2(pTargetFbo);
+
+    updateTextureSize(
+        mpSplatTraceColorTexture,
+        resolution,
+        [this](uint width, uint height)
+        {
+            return getDevice()->createTexture2D(
+                width,
+                height,
+                ResourceFormat::RGBA8Unorm,
+                1,
+                1,
+                nullptr,
+                ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+            );
+        }
+    );
+
+    if (!mSplatTracePass.pProgram)
+    {
+        ProgramDesc desc;
+        desc.addShaderLibrary("GaussianGI/Renderer/IndLight/GS3D/Misc/GS3DMiscTraceSplat.rt.slang");
+        desc.setMaxPayloadSize(sizeof(uint32_t)); // TinyUniformSampleGenerator
+        desc.setMaxAttributeSize(sizeof(float2)); // BuiltInTriangleIntersectionAttributes
+        desc.setMaxTraceRecursionDepth(1);        // TraceRay is only called in rayGen()
+
+        mSplatTracePass.pBindingTable = RtBindingTable::create(1, 1, 1);
+        mSplatTracePass.pBindingTable->setRayGen(desc.addRayGen("rayGen"));
+        mSplatTracePass.pBindingTable->setMiss(0, desc.addMiss("miss"));
+        mSplatTracePass.pBindingTable->setHitGroup(0, 0, desc.addHitGroup("closestHit", "anyHit"));
+
+        mSplatTracePass.pProgram = Program::create(getDevice(), desc);
+
+        mSplatTracePass.pVars = RtProgramVars::create(getDevice(), mSplatTracePass.pProgram, mSplatTracePass.pBindingTable);
+    }
+
+    {
+        FALCOR_PROFILE(pRenderContext, "traceSplat");
+
+        auto var = mSplatTracePass.pVars->getRootVar();
+        args.pStaticScene->bindRootShaderData(var);
+        args.instancedSplatBuffer.bindShaderData(var["gSplats"]);
+        var["gSplatAccel"].setAccelerationStructure(args.pSplatTLAS);
+        var["gColor"] = mpSplatTraceColorTexture;
+
+        pRenderContext->raytrace(mSplatTracePass.pProgram.get(), mSplatTracePass.pVars.get(), resolution.x, resolution.y, 1u);
+    }
+
+    pRenderContext->blit(mpSplatTraceColorTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+}
+
 void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args)
 {
-    pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
-
     if (mConfig.type == GS3DMiscType::kPoint)
         drawPoints(pRenderContext, pTargetFbo, args);
-    else
+    else if (mConfig.type == GS3DMiscType::kSplat)
         drawSplats(pRenderContext, pTargetFbo, args);
+    else if (mConfig.type == GS3DMiscType::kTracedSplat)
+        drawTracedSplats(pRenderContext, pTargetFbo, args);
 }
 
 void GS3DMiscRenderer::renderUIImpl(Gui::Widgets& widget)

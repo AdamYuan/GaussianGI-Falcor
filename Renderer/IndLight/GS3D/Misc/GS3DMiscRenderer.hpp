@@ -21,10 +21,12 @@ enum class GS3DMiscType
 {
     kPoint,
     kSplat,
+    kTracedSplat,
     GSGI_ENUM_COUNT
 };
 GSGI_ENUM_REGISTER(GS3DMiscType::kPoint, void, "Point", int);
 GSGI_ENUM_REGISTER(GS3DMiscType::kSplat, void, "Splat", int);
+GSGI_ENUM_REGISTER(GS3DMiscType::kTracedSplat, void, "Traced-Splat", int);
 
 class GS3DMiscRenderer final : public GDeviceObject<GS3DMiscRenderer>
 {
@@ -33,6 +35,7 @@ public:
     {
         const ref<GStaticScene>& pStaticScene;
         const GS3DIndLightInstancedSplatBuffer& instancedSplatBuffer;
+        const ref<RtAccelerationStructure>& pSplatTLAS;
     };
 
 private:
@@ -45,6 +48,14 @@ private:
     ref<Buffer> mpSplatViewDrawArgBuffer;
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSplatViewSorter;
     DeviceSortResource<DeviceSortDispatchType::kIndirect> mSplatViewSortResource;
+    // Splat-RT
+    struct
+    {
+        ref<Program> pProgram;
+        ref<RtBindingTable> pBindingTable;
+        ref<RtProgramVars> pVars;
+    } mSplatTracePass;
+    ref<Texture> mpSplatTraceColorTexture;
 
     struct
     {
@@ -54,6 +65,7 @@ private:
 
     void drawPoints(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
     void drawSplats(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
+    void drawTracedSplats(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);
 
 public:
     explicit GS3DMiscRenderer(const ref<Device>& pDevice);

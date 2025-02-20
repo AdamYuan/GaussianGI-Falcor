@@ -35,7 +35,7 @@ public namespace GS3DIndLight
         public uint16_t meanZ;
         public float16_t3 scale;
 
-        SplatGeom unpack()
+        public SplatGeom unpack()
         {
             SplatGeom geom;
             geom.rotate.xyz = unpackUnorm3x10(rotate) * 2.0 - 1.0;
@@ -51,7 +51,7 @@ public namespace GS3DIndLight
     {
         public uint albedo;
 
-        SplatAttrib unpack()
+        public SplatAttrib unpack()
         {
             SplatAttrib attrib;
             attrib.albedo = unpackUnorm3x10(albedo);
@@ -75,9 +75,9 @@ public namespace GS3DIndLight
 
     public struct InstancedSplatBuffer
     {
-        StructuredBuffer<PackedSplatGeom> splatGeoms;
-        StructuredBuffer<PackedSplatAttrib> splatAttribs;
-        StructuredBuffer<uint> splatDescs;
+        public StructuredBuffer<PackedSplatGeom> splatGeoms;
+        public StructuredBuffer<PackedSplatAttrib> splatAttribs;
+        public StructuredBuffer<uint> splatDescs;
         public uint splatCount;
 
         public Splat load(uint realSplatIdx, uint instanceID)
