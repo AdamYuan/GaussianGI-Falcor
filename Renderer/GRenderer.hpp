@@ -22,7 +22,7 @@ namespace GSGI
 class GRenderer final : public GSceneObject<GRenderer>
 {
 private:
-    ref<GStaticScene> mpDefaultStaticScene;
+    ref<GStaticScene> mpStaticScene;
     ref<GShadow> mpShadow;
     ref<GIndLight> mpIndirectLight;
 

@@ -16,10 +16,10 @@ namespace GSGI
 class StatelessShadow final : Object
 {
 public:
-    explicit StatelessShadow(const ref<Device>&) {}
+    explicit StatelessShadow(const ref<GScene>&) {}
     ~StatelessShadow() override = default;
 
-    void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
+    void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, bool isLightChanged) {}
     void bindShaderData(const ShaderVar& var) const {}
     static void renderUI(Gui::Widgets&) {}
 };

@@ -8,6 +8,7 @@
 #include <Falcor.h>
 #include "../../../GDeviceObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
+#include "../../../Scene/GSceneObject.hpp"
 #include "../GIndLightArgs.hpp"
 
 using namespace Falcor;
@@ -15,11 +16,10 @@ using namespace Falcor;
 namespace GSGI
 {
 
-class PTIndLight final : public GDeviceObject<PTIndLight>
+class PTIndLight final : public GSceneObject<PTIndLight>
 {
 private:
     ref<ComputePass> mpPass;
-    ref<GStaticScene> mpStaticScene;
 
     uint32_t mSPP = 0;
 
@@ -34,11 +34,15 @@ private:
     uint2 mResolution{};
 
 public:
-    explicit PTIndLight(ref<Device> pDevice);
-    void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);
-    const auto& getStaticScene() const { return mpStaticScene; }
-    void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
-    static void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
+    explicit PTIndLight(const ref<GScene>& pScene);
+    void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
+    void draw(
+        RenderContext* pRenderContext,
+        const ref<GStaticScene>& pStaticScene,
+        const GIndLightDrawArgs& args,
+        const ref<Texture>& pIndirectTexture
+    );
+    static void drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo)
     {
         pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
     }

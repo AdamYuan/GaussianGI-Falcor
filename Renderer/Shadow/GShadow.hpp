@@ -19,11 +19,10 @@ class GShadow final : public GDeviceObject<GShadow>
 {
 private:
     EnumRefTuple<GShadowType> mpShadowTuple;
-    ref<GStaticScene> mpStaticScene;
     float3 mLightDirection{};
 
 public:
-    explicit GShadow(ref<Device> pDevice);
+    explicit GShadow(const ref<GScene>& pScene);
     ~GShadow() override = default;
 
     void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);

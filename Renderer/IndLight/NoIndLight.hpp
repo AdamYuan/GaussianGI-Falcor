@@ -16,22 +16,19 @@ namespace GSGI
 
 class NoIndLight final : public Object
 {
-private:
-    ref<GStaticScene> mpStaticScene;
-
 public:
-    explicit NoIndLight(const ref<Device>&) {}
-    void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
-    {
-        if (isActive)
-            mpStaticScene = pDefaultStaticScene;
-    }
-    const auto& getStaticScene() const { return mpStaticScene; }
-    static void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
+    explicit NoIndLight(const ref<GScene>&) {}
+    void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene) {}
+    static void draw(
+        RenderContext* pRenderContext,
+        const ref<GStaticScene>& pStaticScene,
+        const GIndLightDrawArgs& args,
+        const ref<Texture>& pIndirectTexture
+    )
     {
         pRenderContext->clearTexture(pIndirectTexture.get(), float4{0});
     }
-    static void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
+    static void drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo)
     {
         pRenderContext->clearTexture(pTargetFbo->getColorTexture(0).get(), float4{});
     }

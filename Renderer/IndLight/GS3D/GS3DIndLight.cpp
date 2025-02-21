@@ -99,7 +99,7 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     );
 }
 
-void GS3DIndLight::onSceneChanged()
+void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
     std::vector<GS3DIndLightPackedSplatGeom> splatGeoms;
     std::vector<GS3DIndLightPackedSplatAttrib> splatAttribs;
@@ -107,9 +107,9 @@ void GS3DIndLight::onSceneChanged()
     std::vector<std::array<uint3, Icosahedron::kTriangleCount>> splatIcosahedronIndices;
 
     std::vector<uint32_t> meshFirstSplatIdx;
-    meshFirstSplatIdx.reserve(mpStaticScene->getMeshCount());
+    meshFirstSplatIdx.reserve(pStaticScene->getMeshCount());
 
-    for (const auto& pMesh : mpStaticScene->getMeshes())
+    for (const auto& pMesh : pStaticScene->getMeshes())
     {
         auto meshView = GMeshView{pMesh};
         MeshBVH<AABB> meshBVH;
@@ -165,16 +165,15 @@ void GS3DIndLight::onSceneChanged()
 
     const auto getMeshSplatCount = [&](uint32_t meshID)
     {
-        return (meshID == mpStaticScene->getMeshCount() - 1 ? splatGeoms.size() : meshFirstSplatIdx[meshID + 1]) -
-               meshFirstSplatIdx[meshID];
+        return (meshID == pStaticScene->getMeshCount() - 1 ? splatGeoms.size() : meshFirstSplatIdx[meshID + 1]) - meshFirstSplatIdx[meshID];
     };
 
     { // Splat buffers
         std::vector<uint32_t> splatDescs;
 
-        for (uint32_t instanceID = 0; instanceID < mpStaticScene->getInstanceCount(); ++instanceID)
+        for (uint32_t instanceID = 0; instanceID < pStaticScene->getInstanceCount(); ++instanceID)
         {
-            const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
+            const auto& instanceInfo = pStaticScene->getInstanceInfos()[instanceID];
             uint32_t meshID = instanceInfo.meshID;
             uint32_t firstSplatIdx = meshFirstSplatIdx[meshID];
             uint32_t splatCount = getMeshSplatCount(meshID);
@@ -228,14 +227,14 @@ void GS3DIndLight::onSceneChanged()
         );
 
         mpSplatBLASs = BLASBuilder::build(
-            getDevice()->getRenderContext(),
+            pRenderContext,
             [&]
             {
                 auto splatIcosahedronVertexBufferAddr = pSplatIcosahedronVertexBuffer->getGpuAddress();
                 auto splatIcosahedronIndexBufferAddr = pSplatIcosahedronIndexBuffer->getGpuAddress();
 
-                std::vector<BLASBuildDesc> blasBuildDescs(mpStaticScene->getMeshCount());
-                for (uint32_t meshID = 0; meshID < mpStaticScene->getMeshCount(); ++meshID)
+                std::vector<BLASBuildDesc> blasBuildDescs(pStaticScene->getMeshCount());
+                for (uint32_t meshID = 0; meshID < pStaticScene->getMeshCount(); ++meshID)
                 {
                     auto& blasBuildDesc = blasBuildDescs[meshID];
 
@@ -267,14 +266,14 @@ void GS3DIndLight::onSceneChanged()
         );
 
         mpSplatTLAS = TLASBuilder::build(
-            getDevice()->getRenderContext(),
+            pRenderContext,
             [&]
             {
                 TLASBuildDesc buildDesc;
-                buildDesc.instanceDescs.resize(mpStaticScene->getInstanceCount());
-                for (uint instanceID = 0; instanceID < mpStaticScene->getInstanceCount(); ++instanceID)
+                buildDesc.instanceDescs.resize(pStaticScene->getInstanceCount());
+                for (uint instanceID = 0; instanceID < pStaticScene->getInstanceCount(); ++instanceID)
                 {
-                    const auto& instanceInfo = mpStaticScene->getInstanceInfos()[instanceID];
+                    const auto& instanceInfo = pStaticScene->getInstanceInfos()[instanceID];
                     auto instanceDesc = RtInstanceDesc{
                         .instanceID = meshFirstSplatIdx[instanceInfo.meshID], // Custom InstanceID
                         .instanceMask = 0xFF,
@@ -293,19 +292,23 @@ void GS3DIndLight::onSceneChanged()
     }
 }
 
-GS3DIndLight::GS3DIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+GS3DIndLight::GS3DIndLight(const ref<GScene>& pScene) : GSceneObject(pScene)
 {
     mpMiscRenderer = make_ref<GS3DMiscRenderer>(getDevice());
 }
 
-void GS3DIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
+void GS3DIndLight::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
-    mpStaticScene = pDefaultStaticScene;
     if (isSceneChanged)
-        onSceneChanged();
+        onSceneChanged(pRenderContext, pStaticScene);
 }
 
-void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
+void GS3DIndLight::draw(
+    RenderContext* pRenderContext,
+    const ref<GStaticScene>& pStaticScene,
+    const GIndLightDrawArgs& args,
+    const ref<Texture>& pIndirectTexture
+)
 {
     updateDrawResource(args, pIndirectTexture);
 
@@ -320,7 +323,7 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
     {
         FALCOR_PROFILE(pRenderContext, "cull");
         auto [prog, var] = getShaderProgVar(mDrawResource.pCullPass);
-        mpStaticScene->bindRootShaderData(var);
+        pStaticScene->bindRootShaderData(var);
         mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gResolution"] = resolutionFloat;
 
@@ -347,7 +350,7 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
         FALCOR_PROFILE(pRenderContext, "draw");
         pRenderContext->clearRtv(pIndirectTexture->getRTV().get(), float4{});
         auto [prog, var] = getShaderProgVar(mDrawResource.pDrawPass);
-        mpStaticScene->bindRootShaderData(var);
+        pStaticScene->bindRootShaderData(var);
         mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         var["gResolution"] = resolutionFloat;
@@ -376,13 +379,13 @@ void GS3DIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& 
     }
 }
 
-void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
+void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo)
 {
     mpMiscRenderer->draw(
         pRenderContext,
         pTargetFbo,
         {
-            .pStaticScene = mpStaticScene,
+            .pStaticScene = pStaticScene,
             .instancedSplatBuffer = mInstancedSplatBuffer,
             .pSplatTLAS = mpSplatTLAS,
         }
@@ -395,7 +398,7 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
         mpMiscRenderer->renderUI(g);
 
     /* auto result = MeshClosestPoint::query(
-        GMeshView{mpStaticScene->getMeshes()[0]}, meshBvh, mpStaticScene->getScene()->getCamera()->getPosition(), 1.0f
+        GMeshView{pStaticScene->getMeshes()[0]}, meshBvh, pStaticScene->getScene()->getCamera()->getPosition(), 1.0f
     );
     widget.text(fmt::format("dist = {}, id = {}", math::sqrt(result.dist2), result.optPrimitiveID)); */
 }

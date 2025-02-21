@@ -9,28 +9,31 @@
 namespace GSGI
 {
 
-PTIndLight::PTIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
+PTIndLight::PTIndLight(const ref<GScene>& pScene) : GSceneObject(pScene) {}
 
-void PTIndLight::update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene)
+void PTIndLight::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
     if (isSceneChanged)
-    {
-        mpStaticScene = pDefaultStaticScene;
         mSPP = 0;
-    }
-    if (!isActive)
-        mSPP = 0;
+
+    // if (!isActive)
+    //     mSPP = 0;
 }
 
-void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
+void PTIndLight::draw(
+    RenderContext* pRenderContext,
+    const ref<GStaticScene>& pStaticScene,
+    const GIndLightDrawArgs& args,
+    const ref<Texture>& pIndirectTexture
+)
 {
-    if (bool isCameraChanged = mpStaticScene->getScene()->getCamera()->getData().viewProjMat != mViewProjMat,
-        isLightingChanged = mpStaticScene->getScene()->getLighting()->getData() != mLightingData,
+    if (bool isCameraChanged = pStaticScene->getScene()->getCamera()->getData().viewProjMat != mViewProjMat,
+        isLightingChanged = pStaticScene->getScene()->getLighting()->getData() != mLightingData,
         isResolutionChanged = math::any(args.pVBuffer->getResolution() != mResolution);
         isCameraChanged || isLightingChanged || isResolutionChanged)
     {
-        mViewProjMat = mpStaticScene->getScene()->getCamera()->getData().viewProjMat;
-        mLightingData = mpStaticScene->getScene()->getLighting()->getData();
+        mViewProjMat = pStaticScene->getScene()->getCamera()->getData().viewProjMat;
+        mLightingData = pStaticScene->getScene()->getLighting()->getData();
         mResolution = args.pVBuffer->getResolution();
         mSPP = 0;
     }
@@ -41,7 +44,7 @@ void PTIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& ar
     var["gIndLight"] = pIndirectTexture;
     var["gSPP"] = mSPP;
     var["gMaxBounce"] = mConfig.maxBounce;
-    mpStaticScene->bindRootShaderData(var);
+    pStaticScene->bindRootShaderData(var);
     args.pVBuffer->bindShaderData(var["gGVBuffer"]);
     args.pShadow->prepareProgram(prog, var["gGShadow"], args.shadowType);
     mpPass->execute(pRenderContext, mResolution.x, mResolution.y, 1);

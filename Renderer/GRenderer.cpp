@@ -13,8 +13,8 @@ namespace GSGI
 GRenderer::GRenderer(const ref<GScene>& pScene) : GSceneObject(pScene)
 {
     mpVBuffer = make_ref<GVBuffer>(getDevice());
-    mpShadow = make_ref<GShadow>(getDevice());
-    mpIndirectLight = make_ref<GIndLight>(getDevice());
+    mpShadow = make_ref<GShadow>(getScene());
+    mpIndirectLight = make_ref<GIndLight>(getScene());
 }
 
 void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo)
@@ -65,21 +65,19 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
 
     if (isSceneChanged)
     {
-        mpDefaultStaticScene = make_ref<GStaticScene>(getScene(), pRenderContext);
+        mpStaticScene = make_ref<GStaticScene>(getScene(), pRenderContext);
         // logInfo("updateHasInstance {}", getScene()->getVersion());
     }
 
-    mpIndirectLight->update(pRenderContext, isSceneChanged, mpDefaultStaticScene, enumBitsetMake(mConfig.indirectLightType));
+    mpIndirectLight->update(pRenderContext, mpStaticScene, mConfig.indirectLightType);
 
-    // mpIndirectLight might alter meshes (or sth.) in mpDefaultStaticScene, and we need to use the altered GStaticScene
-    ref<GStaticScene> pStaticScene = mpIndirectLight->getStaticScene(mConfig.indirectLightType);
+    mpShadow->update(pRenderContext, mpStaticScene);
 
-    mpShadow->update(pRenderContext, pStaticScene);
-
-    mpVBuffer->draw(pRenderContext, pTargetFbo, pStaticScene);
+    mpVBuffer->draw(pRenderContext, pTargetFbo, mpStaticScene);
 
     mpIndirectLight->draw(
         pRenderContext,
+        mpStaticScene,
         {
             .pVBuffer = mpVBuffer,
             .pShadow = mpShadow,
@@ -91,14 +89,14 @@ void GRenderer::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
 
     if (mConfig.drawMisc)
     {
-        mpIndirectLight->drawMisc(pRenderContext, pTargetFbo, mConfig.indirectLightType);
+        mpIndirectLight->drawMisc(pRenderContext, mpStaticScene, pTargetFbo, mConfig.indirectLightType);
     }
     else
     {
         auto [prog, var] = getShaderProgVar(mpPass);
         mpVBuffer->bindShaderData(var["gGVBuffer"]);
         mpShadow->prepareProgram(prog, var["gGShadow"], mConfig.directShadowType);
-        pStaticScene->bindRootShaderData(var);
+        mpStaticScene->bindRootShaderData(var);
         var["gTarget"] = mpTargetTexture;
         var["gIndLight"] = mpIndLightTexture;
         enumVisit(

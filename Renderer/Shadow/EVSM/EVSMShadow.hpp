@@ -6,7 +6,7 @@
 #define GSGI_EVSMSHADOW_HPP
 
 #include <Falcor.h>
-#include "../../../GDeviceObject.hpp"
+#include "../../../Scene/GSceneObject.hpp"
 #include "../../../Scene/GStaticScene.hpp"
 
 using namespace Falcor;
@@ -14,13 +14,13 @@ using namespace Falcor;
 namespace GSGI
 {
 
-class EVSMShadow final : public GDeviceObject<EVSMShadow>
+class EVSMShadow final : public GSceneObject<EVSMShadow>
 {
 public:
-    explicit EVSMShadow(ref<Device> pDevice) : GDeviceObject(std::move(pDevice)) {}
+    explicit EVSMShadow(const ref<GScene>& pScene) : GSceneObject(pScene) {}
     ~EVSMShadow() override = default;
 
-    void update(RenderContext* pRenderContext, bool isStaticSceneChanged, bool isLightChanged, const ref<GStaticScene>& pStaticScene) {}
+    void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, bool isLightChanged) {}
     void bindShaderData(const ShaderVar& var) const {}
     void renderUIImpl(Gui::Widgets& widget) {}
 };

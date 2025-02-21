@@ -17,10 +17,9 @@ using namespace Falcor;
 namespace GSGI
 {
 
-class GS3DIndLight final : public GDeviceObject<GS3DIndLight>
+class GS3DIndLight final : public GSceneObject<GS3DIndLight>
 {
 private:
-    ref<GStaticScene> mpStaticScene;
     ref<GS3DMiscRenderer> mpMiscRenderer;
     GS3DIndLightInstancedSplatBuffer mInstancedSplatBuffer;
     std::vector<ref<RtAccelerationStructure>> mpSplatBLASs;
@@ -44,14 +43,20 @@ private:
     } mConfig = {};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
-    void onSceneChanged();
+    void onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
 
 public:
-    explicit GS3DIndLight(ref<Device> pDevice);
-    void update(RenderContext* pRenderContext, bool isActive, bool isSceneChanged, const ref<GStaticScene>& pDefaultStaticScene);
-    const auto& getStaticScene() const { return mpStaticScene; }
-    void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
-    void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo);
+    explicit GS3DIndLight(const ref<GScene>& pScene);
+    ~GS3DIndLight() override = default;
+
+    void updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
+    void draw(
+        RenderContext* pRenderContext,
+        const ref<GStaticScene>& pStaticScene,
+        const GIndLightDrawArgs& args,
+        const ref<Texture>& pIndirectTexture
+    );
+    void drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo);
     void renderUIImpl(Gui::Widgets& widget);
 };
 

@@ -7,28 +7,24 @@
 namespace GSGI
 {
 
-GShadow::GShadow(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+GShadow::GShadow(const ref<GScene>& pScene) : GDeviceObject(pScene->getDevice())
 {
     enumForEach<GShadowType>([&]<typename EnumInfo_T>(EnumInfo_T)
-                             { enumTupleGet<EnumInfo_T::kValue>(mpShadowTuple) = make_ref<typename EnumInfo_T::Type>(getDevice()); });
+                             { enumTupleGet<EnumInfo_T::kValue>(mpShadowTuple) = make_ref<typename EnumInfo_T::Type>(pScene); });
 }
 
 void GShadow::update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
-    bool isStaticSceneChanged, isLightChanged;
+    bool isLightChanged;
 
     {
         float3 lightDir = pStaticScene->getScene()->getLighting()->getData().direction;
         isLightChanged = math::any(lightDir != mLightDirection);
-        isStaticSceneChanged = pStaticScene != mpStaticScene;
-        mpStaticScene = pStaticScene;
         mLightDirection = lightDir;
     }
 
-    enumForEach<GShadowType>(
-        [&]<typename EnumInfo_T>(EnumInfo_T)
-        { enumTupleGet<EnumInfo_T::kValue>(mpShadowTuple)->update(pRenderContext, isStaticSceneChanged, isLightChanged, mpStaticScene); }
-    );
+    enumForEach<GShadowType>([&]<typename EnumInfo_T>(EnumInfo_T)
+                             { enumTupleGet<EnumInfo_T::kValue>(mpShadowTuple)->update(pRenderContext, pStaticScene, isLightChanged); });
 }
 
 void GShadow::prepareProgram(const ref<Program>& pProgram, const ShaderVar& var, GShadowType type) const

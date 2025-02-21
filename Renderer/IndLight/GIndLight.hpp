@@ -22,16 +22,18 @@ private:
     EnumRefTuple<GIndLightType> mpIndirectTuple;
 
 public:
-    explicit GIndLight(ref<Device> pDevice);
-    void update(
+    explicit GIndLight(const ref<GScene>& pScene);
+    ~GIndLight() override = default;
+
+    void update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, GIndLightType type);
+    void draw(
         RenderContext* pRenderContext,
-        bool isSceneChanged,
-        const ref<GStaticScene>& pDefaultStaticScene,
-        const EnumBitset<GIndLightType>& activeTypes
+        const ref<GStaticScene>& pStaticScene,
+        const GIndLightDrawArgs& args,
+        const ref<Texture>& pIndirectTexture,
+        GIndLightType type
     );
-    ref<GStaticScene> getStaticScene(GIndLightType type) const;
-    void draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type);
-    void drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, GIndLightType type);
+    void drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo, GIndLightType type);
     void renderUIImpl(Gui::Widgets& widget, const EnumBitset<GIndLightType>& activeTypes);
 };
 

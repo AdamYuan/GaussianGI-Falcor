@@ -7,51 +7,48 @@
 namespace GSGI
 {
 
-GIndLight::GIndLight(ref<Device> pDevice) : GDeviceObject(std::move(pDevice))
+GIndLight::GIndLight(const ref<GScene>& pScene) : GDeviceObject(pScene->getDevice())
 {
     enumForEach<GIndLightType>([&]<typename EnumInfo_T>(EnumInfo_T)
-                               { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple) = make_ref<typename EnumInfo_T::Type>(getDevice()); });
+                               { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple) = make_ref<typename EnumInfo_T::Type>(pScene); });
 }
 
-void GIndLight::update(
+void GIndLight::update(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, GIndLightType type)
+{
+    enumVisit(
+        type,
+        [&]<typename EnumInfo_T>(EnumInfo_T) { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->update(pRenderContext, pStaticScene); }
+    );
+}
+
+void GIndLight::draw(
     RenderContext* pRenderContext,
-    bool isSceneChanged,
-    const ref<GStaticScene>& pDefaultStaticScene,
-    const EnumBitset<GIndLightType>& activeTypes
+    const ref<GStaticScene>& pStaticScene,
+    const GIndLightDrawArgs& args,
+    const ref<Texture>& pIndirectTexture,
+    GIndLightType type
 )
-{
-    enumForEach<GIndLightType>(
-        [&]<typename EnumInfo_T>(EnumInfo_T)
-        {
-            bool isActive = enumBitsetTest(activeTypes, EnumInfo_T::kValue);
-            enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->update(pRenderContext, isActive, isSceneChanged, pDefaultStaticScene);
-        }
-    );
-}
-
-ref<GStaticScene> GIndLight::getStaticScene(GIndLightType type) const
-{
-    return enumVisit(
-        type, [&]<typename EnumInfo_T>(EnumInfo_T) { return enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->getStaticScene(); }
-    );
-}
-
-void GIndLight::draw(RenderContext* pRenderContext, const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture, GIndLightType type)
 {
     FALCOR_PROFILE(pRenderContext, "GIndLight::draw");
     enumVisit(
         type,
         [&]<typename EnumInfo_T>(EnumInfo_T)
-        { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->draw(pRenderContext, args, pIndirectTexture); }
+        { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->draw(pRenderContext, pStaticScene, args, pIndirectTexture); }
     );
 }
 
-void GIndLight::drawMisc(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, GIndLightType type)
+void GIndLight::drawMisc(
+    RenderContext* pRenderContext,
+    const ref<GStaticScene>& pStaticScene,
+    const ref<Fbo>& pTargetFbo,
+    GIndLightType type
+)
 {
     FALCOR_PROFILE(pRenderContext, "GIndLight::drawMisc");
     enumVisit(
         type,
-        [&]<typename EnumInfo_T>(EnumInfo_T) { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->drawMisc(pRenderContext, pTargetFbo); }
+        [&]<typename EnumInfo_T>(EnumInfo_T)
+        { enumTupleGet<EnumInfo_T::kValue>(mpIndirectTuple)->drawMisc(pRenderContext, pStaticScene, pTargetFbo); }
     );
 }
 
