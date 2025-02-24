@@ -50,23 +50,22 @@ private:
     std::vector<ref<RtAccelerationStructure>> mpMeshBLASs;
 
     ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
+    AABB mBound;
 
     static std::vector<ref<GMesh>> getSceneMeshes(const ref<GScene>& pScene);
 
 public:
-    GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext, std::vector<ref<GMesh>>&& pAlternateMeshes)
-        : GDeviceObject(pScene->getDevice()), mpScene{pScene}
+    explicit GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext)
+        : GDeviceObject(pScene->getDevice()), mpScene{pScene}, mBound{pScene->getBound()}
     {
-        import(std::move(pAlternateMeshes));
+        import(getSceneMeshes(pScene));
         buildBLAS(pRenderContext);
         buildTLAS(pRenderContext);
     }
-    explicit GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext)
-        : GStaticScene(pScene, pRenderContext, getSceneMeshes(pScene))
-    {}
     ~GStaticScene() override = default;
 
     const auto& getScene() const { return mpScene; }
+    const AABB& getBound() const { return mBound; }
 
     uint getMeshCount() const { return mpMeshes.size(); }
     const auto& getMeshes() const { return mpMeshes; }

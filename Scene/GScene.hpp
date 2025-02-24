@@ -42,12 +42,14 @@ private:
     std::vector<MeshEntry> mMeshEntries;
     Version mVersion{};
     std::size_t mInstanceCount{};
+    AABB mBound{};
 
     ref<Camera> mpCamera;
     ref<GLighting> mpLighting;
 
     void update_countInstance();
     void update_makeUnique();
+    void update_bound();
 
     void renderUI_entry(Gui::Widgets& widget, bool& modified);
 
@@ -60,6 +62,8 @@ public:
 
     std::size_t getInstanceCount() const { return mInstanceCount; }
     bool hasInstance() const { return mInstanceCount > 0; }
+
+    const AABB& getBound() const { return mBound; }
 
     void setCamera(ref<Camera> pCamera) { mpCamera = std::move(pCamera); }
     const auto& getCamera() const { return mpCamera; }

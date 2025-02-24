@@ -71,6 +71,15 @@ void GScene::update_makeUnique()
     removeVectorIndices(mMeshEntries, removeIndexSet);
 }
 
+void GScene::update_bound()
+{
+    mBound = {};
+
+    for (const auto& entry : mMeshEntries)
+        for (const auto& instance : entry.instances)
+            mBound.include(instance.transform.apply(entry.pMesh->getBound()));
+}
+
 void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 {
     bool canAddInstance = mInstanceCount < kMaxInstanceCount;
@@ -89,6 +98,7 @@ void GScene::renderUI_entry(Gui::Widgets& widget, bool& modified)
 
     widget.text(fmt::format("Version: {}", mVersion));
     widget.text(fmt::format("Instance Count: {}", mInstanceCount));
+    widget.text(fmt::format("AABB: ({}, {})", mBound.minPoint, mBound.maxPoint));
 
     if (!canAddInstance)
         ImGui::BeginDisabled();
@@ -189,6 +199,7 @@ void GScene::update()
 {
     update_countInstance();
     update_makeUnique();
+    update_bound();
 }
 
 void GScene::draw(RenderContext* pRenderContext, const ref<Fbo>& pFbo, const ref<RasterPass>& pRasterPass) const
