@@ -9,11 +9,9 @@
 namespace GSGI
 {
 
-void GStaticScene::import(std::vector<ref<GMesh>>&& pMeshes)
+void GStaticScene::import(const ref<GScene>& pScene)
 {
-    FALCOR_CHECK(mpScene->getMeshEntries().size() == pMeshes.size(), "pMeshes should be of same size as pScene->getMeshEntries()");
-
-    mpMeshes = std::move(pMeshes);
+    mpMeshes = getSceneMeshes(pScene);
 
     std::vector<GMesh::Vertex> vertices;
     std::vector<GMesh::Index> indices;
@@ -25,10 +23,10 @@ void GStaticScene::import(std::vector<ref<GMesh>>&& pMeshes)
     mMeshInfos.clear();
     mMeshInfos.reserve(mpMeshes.size());
     mInstanceInfos.clear();
-    mInstanceInfos.reserve(mpScene->getInstanceCount());
+    mInstanceInfos.reserve(pScene->getInstanceCount());
     for (std::size_t meshID = 0; meshID < mpMeshes.size(); ++meshID)
     {
-        const auto& entry = mpScene->getMeshEntries()[meshID];
+        const auto& entry = pScene->getMeshEntries()[meshID];
         const auto& pMesh = mpMeshes[meshID];
 
         MeshInfo meshInfo = {
@@ -154,8 +152,8 @@ void GStaticScene::bindRootShaderData(const ShaderVar& rootVar) const
     var["sampler"] = getDevice()->getDefaultSampler();
     var["meshCount"] = (uint)getMeshCount();
     var["instanceCount"] = (uint)getInstanceCount();
-    mpScene->getCamera()->bindShaderData(var["camera"]);
-    mpScene->getLighting()->bindShaderData(var["lighting"]);
+    mpCamera->bindShaderData(var["camera"]);
+    mpLighting->bindShaderData(var["lighting"]);
     for (int textureID = 0; textureID < (int)mpTextures.size(); ++textureID)
         var["textures"][textureID] = mpTextures[textureID];
 }

@@ -35,7 +35,7 @@ public:
     static constexpr uint32_t kMaxInstanceCount = GScene::kMaxInstanceCount;
 
 private:
-    void import(std::vector<ref<GMesh>>&& pMeshes);
+    void import(const ref<GScene>& pScene);
     void buildBLAS(RenderContext* pRenderContext);
     void buildTLAS(RenderContext* pRenderContext);
 
@@ -49,22 +49,24 @@ private:
     ref<RtAccelerationStructure> mpTLAS;
     std::vector<ref<RtAccelerationStructure>> mpMeshBLASs;
 
-    ref<GScene> mpScene; // for getCamera() and getLighting() in bindRootShaderData()
+    ref<Camera> mpCamera;
+    ref<GLighting> mpLighting;
     AABB mBound;
 
     static std::vector<ref<GMesh>> getSceneMeshes(const ref<GScene>& pScene);
 
 public:
     explicit GStaticScene(const ref<GScene>& pScene, RenderContext* pRenderContext)
-        : GDeviceObject(pScene->getDevice()), mpScene{pScene}, mBound{pScene->getBound()}
+        : GDeviceObject(pScene->getDevice()), mpCamera{pScene->getCamera()}, mpLighting{pScene->getLighting()}, mBound{pScene->getBound()}
     {
-        import(getSceneMeshes(pScene));
+        import(pScene);
         buildBLAS(pRenderContext);
         buildTLAS(pRenderContext);
     }
     ~GStaticScene() override = default;
 
-    const auto& getScene() const { return mpScene; }
+    const auto& getCamera() const { return mpCamera; }
+    const auto& getLighting() const { return mpLighting; }
     const AABB& getBound() const { return mBound; }
 
     uint getMeshCount() const { return mpMeshes.size(); }
