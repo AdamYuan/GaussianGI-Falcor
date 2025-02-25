@@ -34,6 +34,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/GS3DBound.slangh
         Algorithm/Icosahedron.hpp
         Algorithm/Icosahedron.slangh
+        Algorithm/ShadowMapTransform.hpp
+        Algorithm/ShadowMapTransform.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
