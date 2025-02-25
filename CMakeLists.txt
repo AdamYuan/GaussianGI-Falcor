@@ -90,6 +90,7 @@ target_sources(GaussianGI PRIVATE
 
         Renderer/Shadow/EVSM/EVSMShadow.hpp
         Renderer/Shadow/EVSM/EVSMShadow.cpp
+        Renderer/Shadow/EVSM/EVSMDraw.3d.slang
 
         Renderer/IndLight/GIndLight.hpp
         Renderer/IndLight/GIndLight.cpp
