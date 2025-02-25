@@ -18,7 +18,6 @@ struct GSIn
 struct PSIn
 {
     linear float2 texcoord;
-    linear float3 worldPos;
     linear float4 clipPos : SV_Position;
     nointerpolation uint textureID;
     nointerpolation uint meshPrimitiveID;
@@ -53,7 +52,6 @@ void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout Triang
     for (int i = 0; i < 3; ++i)
     {
         o.texcoord = gIn[i].texcoord;
-        o.worldPos = gIn[i].worldPos;
         o.clipPos = gIn[i].clipPos;
         output.Append(o);
     }
