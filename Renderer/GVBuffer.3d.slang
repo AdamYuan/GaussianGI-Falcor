@@ -9,7 +9,6 @@ import GVBuffer;
 struct GSIn
 {
     float2 texcoord;
-    float3 worldPos;
     float4 clipPos;
     uint instanceID;
     uint meshFirstPrimitive;
@@ -29,10 +28,11 @@ GSIn vsMain(GMesh::VSIn vIn, uint instanceID: SV_InstanceID)
     var instanceInfo = gGStaticScene.getInstanceInfo(instanceID);
     var meshInfo = gGStaticScene.getMeshInfo(instanceInfo.meshID);
 
+    float3 worldPos = instanceInfo.transform.apply(vIn.position);
+
     GSIn o;
     o.texcoord = vIn.texcoord;
-    o.worldPos = instanceInfo.transform.apply(vIn.position);
-    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(o.worldPos, 1));
+    o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(worldPos, 1));
     o.instanceID = instanceID;
     o.meshFirstPrimitive = meshInfo.firstIndex / 3;
 
