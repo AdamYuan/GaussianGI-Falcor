@@ -1,6 +1,5 @@
 #include "GaussianGI/Scene/GMesh.slangh"
 #include "Utils/Math/MathConstants.slangh"
-#include "EVSM.slangh"
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Scene.GMesh;
@@ -53,12 +52,11 @@ void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout Triang
     }
 }
 
-float4 psMain(PSIn pIn, float3 barycentrics: SV_Barycentrics)
+float2 psMain(PSIn pIn)
 {
     float4 texColor = gGStaticScene.textures[pIn.textureID].Sample(gGStaticScene.sampler, pIn.texcoord);
     if (alphaShouldDiscard(texColor.a))
         discard;
     float depth = pIn.clipPos.z;
-    float2 warpedDepth = warpDepth(depth);
-    return float4(warpedDepth, warpedDepth * warpedDepth);
+    return float2(depth, depth * depth);
 }

@@ -9,7 +9,7 @@
 #include "../../Util/EnumUtil.hpp"
 #include "StatelessShadow.hpp"
 #include "PCF/PCFShadow.hpp"
-#include "EVSM/EVSMShadow.hpp"
+#include "VSM/VSMShadow.hpp"
 
 using namespace Falcor;
 
@@ -21,7 +21,7 @@ enum class GShadowType
     kNone,
     kRayTraced,
     kPCF,
-    kEVSM,
+    kVSM,
     GSGI_ENUM_COUNT
 };
 struct GShadowTypeProperty
@@ -31,7 +31,7 @@ struct GShadowTypeProperty
 GSGI_ENUM_REGISTER(GShadowType::kNone, StatelessShadow, "None", GShadowTypeProperty, .shaderName = "noShadow");
 GSGI_ENUM_REGISTER(GShadowType::kRayTraced, StatelessShadow, "Ray-traced", GShadowTypeProperty, .shaderName = "rtShadow");
 GSGI_ENUM_REGISTER(GShadowType::kPCF, PCFShadow, "PCF", GShadowTypeProperty, .shaderName = "pcfShadow");
-GSGI_ENUM_REGISTER(GShadowType::kEVSM, EVSMShadow, "EVSM", GShadowTypeProperty, .shaderName = "evsmShadow");
+GSGI_ENUM_REGISTER(GShadowType::kVSM, VSMShadow, "VSM", GShadowTypeProperty, .shaderName = "vsmShadow");
 
 } // namespace GSGI
 

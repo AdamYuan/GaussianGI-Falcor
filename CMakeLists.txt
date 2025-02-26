@@ -36,6 +36,8 @@ target_sources(GaussianGI PRIVATE
         Algorithm/Icosahedron.slangh
         Algorithm/ShadowMapTransform.hpp
         Algorithm/ShadowMapTransform.slang
+        Algorithm/GaussianBlurKernel.hpp
+        Algorithm/GaussianBlurKernel.slangh
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
@@ -88,11 +90,12 @@ target_sources(GaussianGI PRIVATE
         Renderer/Shadow/PCF/PCFShadow.hpp
         Renderer/Shadow/PCF/PCFShadow.cpp
 
-        Renderer/Shadow/EVSM/EVSMShadow.hpp
-        Renderer/Shadow/EVSM/EVSMShadow.cpp
-        Renderer/Shadow/EVSM/EVSMShadow.slang
-        Renderer/Shadow/EVSM/EVSMDraw.3d.slang
-        Renderer/Shadow/EVSM/EVSM.slangh
+        Renderer/Shadow/VSM/VSMShadow.hpp
+        Renderer/Shadow/VSM/VSMShadow.cpp
+        Renderer/Shadow/VSM/VSMShadow.slang
+        Renderer/Shadow/VSM/VSMDraw.3d.slang
+        Renderer/Shadow/VSM/VSMBlur.cs.slang
+        Renderer/Shadow/VSM/VSM.slangh
 
         Renderer/IndLight/GIndLight.hpp
         Renderer/IndLight/GIndLight.cpp

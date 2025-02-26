@@ -1,14 +1,5 @@
 #pragma once
 
-#define EVSM_C 42.0
-
-// depth \in [0, 1]
-float2 warpDepth(float depth)
-{
-    depth = depth * 2.0 - 1.0;
-    return float2(exp(EVSM_C * depth), -exp(-EVSM_C * depth));
-}
-
 // https://github.com/TheRealMJP/Shadows
 float chebyshevUpperBound(float2 moments, float mean, float minVariance /* , float lightBleedingReduction */)
 {
