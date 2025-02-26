@@ -243,7 +243,7 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                     blasBuildDesc.geomDescs.push_back(
                         RtGeometryDesc{
                             .type = RtGeometryType::Triangles,
-                            .flags = RtGeometryFlags::None, // Opaque?
+                            .flags = RtGeometryFlags::Opaque,
                             .content =
                                 {.triangles =
                                      {
