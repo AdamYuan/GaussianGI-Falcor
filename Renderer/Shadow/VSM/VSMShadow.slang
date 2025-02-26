@@ -10,15 +10,16 @@ public struct VSMShadow
     SamplerState smSampler;
     ShadowMapTransform smTransform;
     float vsmBias;
+    float bleedReduction;
 
     public float evaluate(in const GStaticScene staticScene, in const GStaticScene::HitPoint hitPoint)
     {
-        /* float3 lightDir = staticScene.lighting.direction;
-        if (dot(lightDir, hitPoint.geomNormal) <= 0)
-            return 0.0; */
+        float3 lightDir = staticScene.lighting.direction;
+        if (dot(lightDir, hitPoint.normal) <= 0)
+            return 0.0;
 
         float3 uvDepth = smTransform.getUVDepth(hitPoint.position);
         float2 moment = shadowMap.SampleLevel(smSampler, uvDepth.xy, 0).xy;
-        return chebyshevUpperBound(moment, uvDepth.z, vsmBias * 0.01);
+        return chebyshevUpperBound(moment, uvDepth.z, vsmBias * 0.01, bleedReduction);
     }
 }

@@ -111,14 +111,16 @@ void VSMShadow::bindShaderData(const ShaderVar& var) const
     var["shadowMap"] = mpTextures[0];
     var["smSampler"] = getDevice()->getDefaultSampler();
     var["vsmBias"] = mSampleConfig.vsmBias;
+    var["bleedReduction"] = mSampleConfig.bleedReduction;
     mTransform.bindShaderData(var["smTransform"]);
 }
 
 void VSMShadow::renderUIImpl(Gui::Widgets& widget)
 {
     widget.var("Dim", mConfig.resolution, Config::kMinResolution, Config::kMaxResolution);
-    widget.var("Blur-Radius", mConfig.blurRadius, 0u, Config::kMaxBlurRadius);
+    widget.var("Blur Radius", mConfig.blurRadius, 0u, Config::kMaxBlurRadius);
     widget.var("VSM-Bias", mSampleConfig.vsmBias, 0.0f);
+    widget.var("Bleed Reduc.", mSampleConfig.bleedReduction, 0.0f, 1.0f);
 }
 
 } // namespace GSGI

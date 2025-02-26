@@ -28,13 +28,14 @@ private:
     struct Config
     {
         static constexpr uint32_t kMinResolution = 128u, kMaxResolution = 4096u, kMaxBlurRadius = 16u;
-        uint32_t resolution = 1024u, blurRadius = 5u;
+        uint32_t resolution = 1024u, blurRadius = 2u;
         bool operator==(const Config&) const = default;
     } mConfig = {}, mPrevConfig = {};
 
     struct
     {
         float vsmBias = 0.01f;
+        float bleedReduction = 0.3f;
     } mSampleConfig;
 
 public:

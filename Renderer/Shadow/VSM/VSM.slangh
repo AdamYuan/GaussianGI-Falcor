@@ -1,7 +1,7 @@
 #pragma once
 
 // https://github.com/TheRealMJP/Shadows
-float chebyshevUpperBound(float2 moments, float mean, float minVariance /* , float lightBleedingReduction */)
+float chebyshevUpperBound(float2 moments, float mean, float minVariance, float lightBleedingReduction)
 {
     // Compute variance
     float variance = moments.y - (moments.x * moments.x);
@@ -11,7 +11,8 @@ float chebyshevUpperBound(float2 moments, float mean, float minVariance /* , flo
     float d = mean - moments.x;
     float pMax = variance / (variance + (d * d));
 
-    // pMax = ReduceLightBleeding(pMax, lightBleedingReduction);
+    // Reduce Light-Bleeding
+    pMax = max(pMax - lightBleedingReduction, 0.0) / (1.0 - lightBleedingReduction);
 
     // One-tailed Chebyshev
     return select(mean <= moments.x, 1.0, pMax);
