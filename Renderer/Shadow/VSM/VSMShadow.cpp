@@ -84,7 +84,7 @@ void VSMShadow::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, c
         mTransform.bindShaderData(var["gSMTransform"]);
 
         pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
-        pRenderContext->clearRtv(mpFbo->getRenderTargetView(0).get(), float4{});
+        pRenderContext->clearRtv(mpFbo->getRenderTargetView(0).get(), float4{1.0f});
         pStaticScene->draw(pRenderContext, mpFbo, mpDrawPass);
     }
 
