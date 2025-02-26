@@ -26,6 +26,7 @@ public struct ShadowMapTransform
     {
         float3 uvDepth = mul(rotMat, worldPos + negCenter);
         uvDepth = uvDepth * 0.5 + 0.5;
+        uvDepth.y = 1.0 - uvDepth.y;
         return uvDepth;
     }
 }

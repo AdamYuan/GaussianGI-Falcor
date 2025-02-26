@@ -1,4 +1,5 @@
 import RT.RTShadow;
+import EVSM.EVSMShadow;
 import GaussianGI.Scene.GStaticScene;
 
 #ifndef GSHADOW_IDENTIFIER
@@ -15,7 +16,7 @@ public struct GShadow
     NoShadow noShadow;
     RTShadow rtShadow;
     NoShadow pcfShadow;
-    NoShadow evsmShadow;
+    EVSMShadow evsmShadow;
 
     public float evaluate(in const GStaticScene staticScene, in const GStaticScene::HitPoint hitPoint)
     {

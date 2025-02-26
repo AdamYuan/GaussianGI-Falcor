@@ -45,23 +45,34 @@ void EVSMShadow::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, 
         }
     );
 
-    updateTextureSize(mpFbo, resolution, [this](uint width, uint height) { return Fbo::create(getDevice(), {}, mpDepthBuffer); });
+    const auto createTexture = [this](uint width, uint height)
+    {
+        return getDevice()->createTexture2D(
+            width, height, ResourceFormat::RGBA32Float, 1, 1, nullptr, ResourceBindFlags::RenderTarget | ResourceBindFlags::ShaderResource
+        );
+    };
+    updateTextureSize(mpTextures[0], resolution, createTexture);
+    updateTextureSize(mpTextures[1], resolution, createTexture);
+
+    updateTextureSize(
+        mpFbo, resolution, [this](uint width, uint height) { return Fbo::create(getDevice(), {mpTextures[0]}, mpDepthBuffer); }
+    );
 
     auto [prog, var] = getShaderProgVar(mpDrawPass);
     mTransform.bindShaderData(var["gSMTransform"]);
 
-    // pRenderContext->clearRtv(mpAlbedoTexture->getRTV().get(), float4{0.0f});
-    // pRenderContext->clearRtv(mpHitTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});
     pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
+    pRenderContext->clearRtv(mpFbo->getRenderTargetView(0).get(), float4{0.0f});
     pStaticScene->draw(pRenderContext, mpFbo, mpDrawPass);
 }
 
-void EVSMShadow::bindShaderData(const ShaderVar& var) const {}
-
-void EVSMShadow::renderUIImpl(Gui::Widgets& widget)
+void EVSMShadow::bindShaderData(const ShaderVar& var) const
 {
-    if (mpDepthBuffer)
-        widget.image("Depth", mpDepthBuffer.get());
+    var["shadowMap"] = mpTextures[0];
+    var["smSampler"] = getDevice()->getDefaultSampler();
+    mTransform.bindShaderData(var["smTransform"]);
 }
+
+void EVSMShadow::renderUIImpl(Gui::Widgets& widget) {}
 
 } // namespace GSGI

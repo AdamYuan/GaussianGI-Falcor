@@ -90,7 +90,9 @@ target_sources(GaussianGI PRIVATE
 
         Renderer/Shadow/EVSM/EVSMShadow.hpp
         Renderer/Shadow/EVSM/EVSMShadow.cpp
+        Renderer/Shadow/EVSM/EVSMShadow.slang
         Renderer/Shadow/EVSM/EVSMDraw.3d.slang
+        Renderer/Shadow/EVSM/EVSM.slangh
 
         Renderer/IndLight/GIndLight.hpp
         Renderer/IndLight/GIndLight.cpp

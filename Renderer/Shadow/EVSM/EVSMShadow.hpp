@@ -21,6 +21,7 @@ private:
     ShadowMapTransform mTransform;
     ref<RasterPass> mpDrawPass;
     ref<Texture> mpDepthBuffer;
+    std::array<ref<Texture>, 2> mpTextures;
     ref<Fbo> mpFbo;
 
     struct
