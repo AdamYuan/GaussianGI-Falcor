@@ -11,6 +11,7 @@ public struct GShadow
     struct NoShadow
     {
         static float evaluate(in const GStaticScene staticScene, in const GStaticScene::HitPoint hitPoint) { return 1.0; }
+        static float evaluate(in const GStaticScene staticScene, float3 worldPos) { return 1.0; }
     }
 
     NoShadow noShadow;
@@ -22,4 +23,5 @@ public struct GShadow
     {
         return GSHADOW_IDENTIFIER.evaluate(staticScene, hitPoint);
     }
+    public float evaluate(in const GStaticScene staticScene, float3 worldPos) { return GSHADOW_IDENTIFIER.evaluate(staticScene, worldPos); }
 }

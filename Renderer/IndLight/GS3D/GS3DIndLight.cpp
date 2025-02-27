@@ -24,6 +24,10 @@ constexpr uint32_t kDefaultSplatsPerMesh = 65536;
 
 void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
 {
+    if (!mDrawResource.pShadowPass)
+        mDrawResource.pShadowPass =
+            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang", "csMain");
+
     if (!mDrawResource.pCullPass)
         mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang", "csMain");
 
@@ -62,9 +66,10 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
             ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang", "csMain");
 
     if (!mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mInstancedSplatBuffer.splatCount)
-        mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(
-            sizeof(uint32_t), mInstancedSplatBuffer.splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-        );
+    {
+        mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mInstancedSplatBuffer.splatCount);
+        mDrawResource.pSplatShadowBuffer = getDevice()->createTypedBuffer(ResourceFormat::R8Unorm, mInstancedSplatBuffer.splatCount);
+    }
 
     if (!mDrawResource.pSplatDrawArgBuffer)
     {
@@ -315,6 +320,18 @@ void GS3DIndLight::draw(
     uint2 resolution = getTextureResolution2(pIndirectTexture);
     auto resolutionFloat = float2(resolution);
 
+    // Splat Shadow Pass
+    {
+        FALCOR_PROFILE(pRenderContext, "shadow");
+        auto [prog, var] = getShaderProgVar(mDrawResource.pShadowPass);
+        pStaticScene->bindRootShaderData(var);
+        mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
+        args.pShadow->prepareProgram(prog, var["gGShadow"], args.shadowType);
+        var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
+
+        mDrawResource.pShadowPass->execute(pRenderContext, mInstancedSplatBuffer.splatCount, 1, 1);
+    }
+
     // Reset
     static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint32_t));
     mDrawResource.pSplatDrawArgBuffer->setElement<uint32_t>(offsetof(DrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
@@ -354,6 +371,7 @@ void GS3DIndLight::draw(
         mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         var["gResolution"] = resolutionFloat;
+        var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);

@@ -11,6 +11,7 @@ using namespace GS3DIndLight;
 
 uniform InstancedSplatBuffer gSplats;
 RWStructuredBuffer<uint> gSplatIDs;
+RWBuffer<float> gSplatShadows;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
 
@@ -28,6 +29,7 @@ struct PSIn
     nointerpolation float16_t3 splatInvScale;
     nointerpolation uint2 packedSplatInvRotate;
     nointerpolation float16_t3 albedo;
+    nointerpolation float shadow;
     linear float4 clipPos : SV_Position;
 }
 
@@ -47,11 +49,13 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatID = gSplatIDs[gIn[0]];
     var splat = gSplats.load(splatID);
+    float splatShadow = gSplatShadows[splatID];
 
     PSIn o;
     o.splatMean = splat.geom.mean;
     o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
     o.albedo = float16_t3(splat.attrib.albedo);
+    o.shadow = splatShadow;
 
     float3x3 splatRotMatT = float3x3(
         rotate_vector(float3(1, 0, 0), splat.geom.rotate),
@@ -183,6 +187,9 @@ float4 psMain(PSIn pIn)
 
     if (alpha < 1.0 / 255.0)
         discard;
-    return float4(float3(pIn.albedo) * alpha, alpha) * weight;
+
+    float3 color = float3(pIn.albedo) * pIn.shadow;
+
+    return float4(color * alpha, alpha) * weight;
 }
 

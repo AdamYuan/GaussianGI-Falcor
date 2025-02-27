@@ -116,6 +116,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp
         Renderer/IndLight/GS3D/GS3DIndLightSplat.cpp
         Renderer/IndLight/GS3D/GS3DIndLightSplatPersist.cpp
+        Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightDraw.3d.slang
         Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang
