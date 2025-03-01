@@ -1,9 +1,11 @@
-import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
 import Utils.Math.MathHelpers;
+import Utils.Sampling.TinyUniformSampleGenerator;
 import GS3DIndLightSplat;
+import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.GVBuffer;
+import GaussianGI.Algorithm.SGGX;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 #include "GaussianGI/Algorithm/GS3DBound.slangh"
 
@@ -29,7 +31,8 @@ struct PSIn
     nointerpolation float16_t3 splatInvScale;
     nointerpolation uint2 packedSplatInvRotate;
     nointerpolation float16_t3 albedo;
-    nointerpolation float shadow;
+    nointerpolation float16_t shadow;
+    nointerpolation float16_t2x3 sggxM;
     linear float4 clipPos : SV_Position;
 }
 
@@ -55,7 +58,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     o.splatMean = splat.geom.mean;
     o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
     o.albedo = float16_t3(splat.attrib.albedo);
-    o.shadow = splatShadow;
+    o.shadow = float16_t(splatShadow);
 
     float3x3 splatRotMatT = float3x3(
         rotate_vector(float3(1, 0, 0), splat.geom.rotate),
@@ -63,6 +66,10 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
         rotate_vector(float3(0, 0, 1), splat.geom.rotate)
     );
     float3x3 splatRotMat = transpose(splatRotMatT);
+
+    SGGX::VNDFSampler vndfSampler =
+        SGGX::VNDFSampler::create(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
+    o.sggxM = float16_t2x3(vndfSampler.M_kji);
 
     o.packedSplatInvRotate = uint2(packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[0])), packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[1])));
 
@@ -188,7 +195,16 @@ float4 psMain(PSIn pIn)
     if (alpha < 1.0 / 255.0)
         discard;
 
-    float3 color = float3(pIn.albedo) * pIn.shadow;
+    SGGX::VNDFSampler vndfSampler;
+    vndfSampler.M_kji = float2x3(pIn.sggxM);
+    vndfSampler.w_i = normalize(gGStaticScene.camera.getPosition() - pIn.splatMean);
+
+    TinyUniformSampleGenerator randGen = TinyUniformSampleGenerator(uint2(pIn.clipPos.xy), 0);
+    float3 normal = vndfSampler.sample(sampleNext2D(randGen));
+
+    float3 color = normal * 0.5 + 0.5; // float3(pIn.albedo * pIn.shadow);
+    if (any(isnan(color)) || any(isinf(color)))
+        discard;
 
     return float4(color * alpha, alpha) * weight;
 }

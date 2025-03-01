@@ -38,6 +38,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/ShadowMapTransform.slang
         Algorithm/GaussianBlurKernel.hpp
         Algorithm/GaussianBlurKernel.slangh
+        Algorithm/SGGX.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
