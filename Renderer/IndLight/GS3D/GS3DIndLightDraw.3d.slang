@@ -32,7 +32,8 @@ struct PSIn
     nointerpolation uint2 packedSplatInvRotate;
     nointerpolation float16_t3 albedo;
     nointerpolation float16_t shadow;
-    nointerpolation float16_t2x3 sggxM;
+    // nointerpolation float16_t2x3 sggxM;
+    nointerpolation float16_t3 normal;
     linear float4 clipPos : SV_Position;
 }
 
@@ -67,9 +68,11 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     );
     float3x3 splatRotMat = transpose(splatRotMatT);
 
-    SGGX::VNDFSampler vndfSampler =
-        SGGX::VNDFSampler::create(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
-    o.sggxM = float16_t2x3(vndfSampler.M_kji);
+    /* SGGX::VNDFSampler vndfSampler =
+        SGGX::VNDFSampler::fromSplat(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
+    o.sggxM = float16_t2x3(vndfSampler.M_kji); */
+    o.normal =
+        (float16_t3)SGGX::getSplatNormal(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
 
     o.packedSplatInvRotate = uint2(packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[0])), packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[1])));
 
@@ -195,16 +198,17 @@ float4 psMain(PSIn pIn)
     if (alpha < 1.0 / 255.0)
         discard;
 
-    SGGX::VNDFSampler vndfSampler;
-    vndfSampler.M_kji = float2x3(pIn.sggxM);
-    vndfSampler.w_i = normalize(gGStaticScene.camera.getPosition() - pIn.splatMean);
+    /* SGGX::VNDFSampler vndfSampler =
+        SGGX::VNDFSampler::create(float2x3(pIn.sggxM), normalize(gGStaticScene.camera.getPosition() - pIn.splatMean));
 
     TinyUniformSampleGenerator randGen = TinyUniformSampleGenerator(uint2(pIn.clipPos.xy), 0);
-    float3 normal = vndfSampler.sample(sampleNext2D(randGen));
+    float3 normal = vndfSampler.sample(sampleNext2D(randGen)); */
+
+    float3 normal = float3(pIn.normal);
 
     float3 color = normal * 0.5 + 0.5; // float3(pIn.albedo * pIn.shadow);
-    if (any(isnan(color)) || any(isinf(color)))
-        discard;
+    // if (any(isnan(color)) || any(isinf(color)))
+    //     discard;
 
     return float4(color * alpha, alpha) * weight;
 }
