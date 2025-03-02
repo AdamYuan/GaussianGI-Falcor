@@ -39,6 +39,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/GaussianBlurKernel.hpp
         Algorithm/GaussianBlurKernel.slangh
         Algorithm/SGGX.slang
+        Algorithm/SphericalHarmonics.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
