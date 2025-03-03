@@ -7,6 +7,12 @@ public struct SH<T : IFloat, let L_V : uint>
     public Array<T, SH_SIZE(L_V)> data;
 }
 
+public typealias SH1<T : IFloat> = SH<T, 0>;
+public typealias SH4<T : IFloat> = SH<T, 1>;
+public typealias SH9<T : IFloat> = SH<T, 2>;
+public typealias SH16<T : IFloat> = SH<T, 3>;
+public typealias SH25<T : IFloat> = SH<T, 4>;
+
 public T shDot<T : IFloat, let L_V : uint>(SH<T, L_V> lSh, SH<float, L_V> rSh)
 {
     T r = (T)0;
@@ -24,7 +30,7 @@ public SH<T, L_V> shConvolve<T : IFloat, let L_V : uint>(SH<T, L_V> lSh, SH<floa
     return lSh;
 }
 
-public SH<float, L_V> shGetBasis<let L_V : uint>(float3 p)
+public SH<float, L_V> shBasis<let L_V : uint>(float3 p)
 {
     // Evaluate SH basis
     // From Peter-Pike Sloan's Stupid SH Tricks
@@ -121,7 +127,7 @@ public SH<float, L_V> shGetBasis<let L_V : uint>(float3 p)
     return r;
 }
 
-public SH<float, L_V> shGetDiffuseLobe<let L_V : uint>()
+public SH<float, L_V> shDiffuseLobe<let L_V : uint>()
 {
     // https://cseweb.ucsd.edu/~ravir/papers/envmap/envmap.pdf equation 8
 
@@ -145,7 +151,7 @@ public SH<float, L_V> shGetDiffuseLobe<let L_V : uint>()
 
 public T shDiffuse<T : IFloat, let L_V : uint>(SH<T, L_V> sh, SH<float, L_V> dirSh)
 {
-    SH<float, L_V> diffuseSh = shGetDiffuseLobe<L_V>();
+    SH<float, L_V> diffuseSh = shDiffuseLobe<L_V>();
 
     T r = (T)0;
     [ForceUnroll]

@@ -28,6 +28,10 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pShadowPass =
             ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang", "csMain");
 
+    if (!mDrawResource.pProbePass)
+        mDrawResource.pProbePass =
+            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightProbe.cs.slang", "csMain");
+
     if (!mDrawResource.pCullPass)
         mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang", "csMain");
 
@@ -71,8 +75,10 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     {
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mInstancedSplatBuffer.splatCount);
         mDrawResource.pSplatShadowBuffer = getDevice()->createTypedBuffer(ResourceFormat::R8Unorm, mInstancedSplatBuffer.splatCount);
-        static constexpr std::size_t kProbeSize = 9 * sizeof(float16_t3);
-        mDrawResource.pSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
+        static constexpr std::size_t kProbeSize = 9 * sizeof(float3);
+        mDrawResource.pSplatProbeBuffers[0] = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
+        mDrawResource.pSplatProbeBuffers[1] = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
+        mDrawResource.probeTick = 0;
     }
 
     if (!mDrawResource.pSplatDrawArgBuffer)
@@ -108,6 +114,24 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     );
 }
 
+void GS3DIndLight::preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats)
+{
+    // TODO: Morton-order sorting
+    for (auto& splat : meshSplats)
+    {
+        splat.scale = math::abs(splat.scale);
+        if (splat.rotate.w < 0)
+            splat.rotate = -splat.rotate;
+    }
+
+    meshSplats.erase(
+        std::remove_if(
+            meshSplats.begin(), meshSplats.end(), [](const GS3DIndLightSplat& splat) { return math::any(splat.scale <= HLF_MIN); }
+        ),
+        meshSplats.end()
+    );
+}
+
 void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
     std::vector<GS3DIndLightPackedSplatGeom> splatGeoms;
@@ -132,6 +156,9 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                 meshSplats = GS3DIndLightAlgo::getSplatsFromMeshFallback(meshView, meshBVH, kDefaultSplatsPerMesh);
                 GS3DIndLightSplat::persistMesh(pMesh, meshSplats);
             }
+
+            preprocessMeshSplats(meshSplats);
+
             return meshSplats;
         }();
 
@@ -149,7 +176,13 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
         {
             const auto& splat = meshSplats[meshSplatID];
 
-            float3x3 splatRotMat = math::matrixFromQuat(quatf(splat.rotate.x, splat.rotate.y, splat.rotate.z, splat.rotate.w));
+            float3x3 splatRotMat = math::matrixFromQuat(splat.rotate);
+            /* if (math::determinant(splatRotMat) < 0)
+            {
+                splatRotMat[0] = -splatRotMat[0];
+                splatRotMat[1] = -splatRotMat[1];
+                splatRotMat[2] = -splatRotMat[2];
+            } */
 
             std::array<float3, Icosahedron::kVertexCount> vertices = Icosahedron::kVertices;
             for (auto& vertex : vertices)
@@ -300,7 +333,7 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                         .instanceID = firstMeshSplatIdxs[instanceInfo.meshID], // Custom InstanceID
                         .instanceMask = 0xFF,
                         .instanceContributionToHitGroupIndex = 0,
-                        .flags = RtGeometryInstanceFlags::None,
+                        .flags = RtGeometryInstanceFlags::TriangleFrontCounterClockwise,
                         .accelerationStructure = mpSplatBLASs[instanceInfo.meshID]->getGpuAddress(),
                     };
                     auto transform3x4 = instanceInfo.transform.getMatrix3x4();
@@ -333,6 +366,7 @@ void GS3DIndLight::draw(
 )
 {
     updateDrawResource(args, pIndirectTexture);
+    bool probeFlip = mDrawResource.probeTick & 1u;
 
     uint2 resolution = getTextureResolution2(pIndirectTexture);
     auto resolutionFloat = float2(resolution);
@@ -347,6 +381,22 @@ void GS3DIndLight::draw(
         var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
 
         mDrawResource.pShadowPass->execute(pRenderContext, mInstancedSplatBuffer.splatCount, 1, 1);
+    }
+
+    // Splat Probe Pass
+    {
+        FALCOR_PROFILE(pRenderContext, "probe");
+        auto [prog, var] = getShaderProgVar(mDrawResource.pProbePass);
+        static constexpr uint32_t kRaysPerProbe = 32;
+        pStaticScene->bindRootShaderData(var);
+        mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
+        var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
+        var["gPrevSplatProbes"] = mDrawResource.pSplatProbeBuffers[!probeFlip];
+        var["gSplatProbes"] = mDrawResource.pSplatProbeBuffers[probeFlip];
+        var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
+        var["gTick"] = mDrawResource.probeTick;
+
+        mDrawResource.pProbePass->execute(pRenderContext, mInstancedSplatBuffer.splatCount * kRaysPerProbe, 1, 1);
     }
 
     // Reset
@@ -389,6 +439,7 @@ void GS3DIndLight::draw(
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         var["gResolution"] = resolutionFloat;
         var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
+        var["gSplatProbes"] = mDrawResource.pSplatProbeBuffers[probeFlip];
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
@@ -412,6 +463,8 @@ void GS3DIndLight::draw(
 
         mDrawResource.pBlendPass->execute(pRenderContext, resolution.x, resolution.y, 1);
     }
+
+    ++mDrawResource.probeTick;
 }
 
 void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo)
@@ -429,6 +482,9 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScen
 
 void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 {
+    if (widget.button("Reset Probe Tick"))
+        mDrawResource.probeTick = 0u;
+
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);
 

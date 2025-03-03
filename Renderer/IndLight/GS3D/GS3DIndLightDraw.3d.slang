@@ -6,6 +6,8 @@ import GS3DIndLightSplat;
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.GVBuffer;
 import GaussianGI.Algorithm.SGGX;
+import GaussianGI.Algorithm.SphericalHarmonics;
+#include "Utils/Math/MathConstants.slangh"
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 #include "GaussianGI/Algorithm/GS3DBound.slangh"
 
@@ -16,6 +18,8 @@ RWStructuredBuffer<uint> gSplatIDs;
 RWBuffer<float> gSplatShadows;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
+
+StructuredBuffer<SH9<float3>> gSplatProbes;
 
 #define BOUND_FACTOR GS3D_BOUND_SQRT_2LOG_255
 
@@ -34,6 +38,7 @@ struct PSIn
     nointerpolation float16_t shadow;
     // nointerpolation float16_t2x3 sggxM;
     nointerpolation float16_t3 normal;
+    nointerpolation SH9<float3> probe;
     linear float4 clipPos : SV_Position;
 }
 
@@ -53,13 +58,16 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatID = gSplatIDs[gIn[0]];
     var splat = gSplats.load(splatID);
-    float splatShadow = gSplatShadows[splatID];
 
     PSIn o;
     o.splatMean = splat.geom.mean;
     o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
     o.albedo = float16_t3(splat.attrib.albedo);
-    o.shadow = float16_t(splatShadow);
+    o.shadow = float16_t(gSplatShadows[splatID]);
+    o.probe = gSplatProbes[splatID];
+    /* [ForceUnroll]
+    for (uint i = 0; i < o.probe.data.getCount(); ++i)
+        o.probe.data[i] = float16_t3(1.0); */
 
     float3x3 splatRotMatT = float3x3(
         rotate_vector(float3(1, 0, 0), splat.geom.rotate),
@@ -204,11 +212,13 @@ float4 psMain(PSIn pIn)
     TinyUniformSampleGenerator randGen = TinyUniformSampleGenerator(uint2(pIn.clipPos.xy), 0);
     float3 normal = vndfSampler.sample(sampleNext2D(randGen)); */
 
-    float3 normal = float3(pIn.normal);
+    // float3 splatNormal = float3(pIn.normal);
 
-    float3 color = normal * 0.5 + 0.5; // float3(pIn.albedo * pIn.shadow);
+    // float3 color = splatNormal * 0.5 + 0.5; // float3(pIn.albedo * pIn.shadow);
     // if (any(isnan(color)) || any(isinf(color)))
     //     discard;
+
+    float3 color = M_1_PI * max(shDiffuse(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
 
     return float4(color * alpha, alpha) * weight;
 }

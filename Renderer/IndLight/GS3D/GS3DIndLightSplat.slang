@@ -75,7 +75,7 @@ public namespace GS3DIndLight
 
     public struct InstanceDesc
     {
-        uint firstSplatIdx;
+        public uint firstSplatIdx;
     }
 
     public struct InstancedSplatBuffer

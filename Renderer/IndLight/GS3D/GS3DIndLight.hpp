@@ -27,14 +27,16 @@ private:
 
     struct
     {
-        ref<ComputePass> pCullPass, pBlendPass, pShadowPass;
+        ref<ComputePass> pCullPass, pBlendPass, pShadowPass, pProbePass;
         ref<RasterPass> pDrawPass;
         // DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
         // DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
         // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
-        ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer, pSplatProbeBuffer;
+        ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer;
+        std::array<ref<Buffer>, 2> pSplatProbeBuffers;
         ref<Buffer> pSplatDrawArgBuffer;
         ref<Fbo> pSplatFbo;
+        uint32_t probeTick{};
     } mDrawResource{};
 
     struct Config
@@ -43,6 +45,7 @@ private:
     } mConfig = {};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
+    static void preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats);
     void onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
 
 public:
