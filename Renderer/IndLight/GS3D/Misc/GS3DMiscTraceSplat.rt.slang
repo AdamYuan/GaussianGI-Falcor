@@ -55,9 +55,9 @@ void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs
 [shader("closesthit")]
 void closestHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint meshSplatID = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
-    uint meshFirstSplatID = InstanceID();
-    SplatAttrib splatAttrib = gSplats.splatAttribs[meshFirstSplatID + meshSplatID].unpack();
+    uint meshSplatOfst = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
+    uint firstMeshSplatID = InstanceID();
+    SplatAttrib splatAttrib = gSplats.splatAttribs[firstMeshSplatID + meshSplatOfst].unpack();
     uint2 coord = DispatchRaysIndex().xy;
     gColor[coord] = float4(splatAttrib.albedo, 1);
 }
