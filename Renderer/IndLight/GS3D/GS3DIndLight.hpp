@@ -32,7 +32,7 @@ private:
         // DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
         // DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
         // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
-        ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer;
+        ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer, pSplatProbeBuffer;
         ref<Buffer> pSplatDrawArgBuffer;
         ref<Fbo> pSplatFbo;
     } mDrawResource{};

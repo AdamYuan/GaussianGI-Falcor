@@ -65,10 +65,14 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pBlendPass =
             ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang", "csMain");
 
-    if (!mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mInstancedSplatBuffer.splatCount)
+    if (bool updateBuffer =
+            !mDrawResource.pSplatIDBuffer || mDrawResource.pSplatIDBuffer->getElementCount() != mInstancedSplatBuffer.splatCount;
+        updateBuffer)
     {
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mInstancedSplatBuffer.splatCount);
         mDrawResource.pSplatShadowBuffer = getDevice()->createTypedBuffer(ResourceFormat::R8Unorm, mInstancedSplatBuffer.splatCount);
+        static constexpr std::size_t kProbeSize = 9 * sizeof(float16_t3);
+        mDrawResource.pSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
     }
 
     if (!mDrawResource.pSplatDrawArgBuffer)
@@ -111,8 +115,8 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
     std::vector<std::array<float3, Icosahedron::kVertexCount>> splatIcosahedronVertices;
     std::vector<std::array<uint3, Icosahedron::kTriangleCount>> splatIcosahedronIndices;
 
-    std::vector<uint32_t> meshFirstSplatIdx;
-    meshFirstSplatIdx.reserve(pStaticScene->getMeshCount());
+    std::vector<uint32_t> firstMeshSplatIdxs;
+    firstMeshSplatIdxs.reserve(pStaticScene->getMeshCount());
 
     for (const auto& pMesh : pStaticScene->getMeshes())
     {
@@ -131,7 +135,7 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
             return meshSplats;
         }();
 
-        meshFirstSplatIdx.push_back(splatGeoms.size());
+        firstMeshSplatIdxs.push_back(splatGeoms.size());
 
         // For splat buffer
         for (const auto& splat : meshSplats)
@@ -170,21 +174,27 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
 
     const auto getMeshSplatCount = [&](uint32_t meshID)
     {
-        return (meshID == pStaticScene->getMeshCount() - 1 ? splatGeoms.size() : meshFirstSplatIdx[meshID + 1]) - meshFirstSplatIdx[meshID];
+        return (meshID == pStaticScene->getMeshCount() - 1 ? splatGeoms.size() : firstMeshSplatIdxs[meshID + 1]) -
+               firstMeshSplatIdxs[meshID];
     };
 
     { // Splat buffers
         std::vector<uint32_t> splatDescs;
+        std::vector<GS3DIndLightInstanceDesc> instanceDescs;
 
         for (uint32_t instanceID = 0; instanceID < pStaticScene->getInstanceCount(); ++instanceID)
         {
             const auto& instanceInfo = pStaticScene->getInstanceInfos()[instanceID];
             uint32_t meshID = instanceInfo.meshID;
-            uint32_t firstSplatIdx = meshFirstSplatIdx[meshID];
+            uint32_t firstMeshSplatIdx = firstMeshSplatIdxs[meshID];
             uint32_t splatCount = getMeshSplatCount(meshID);
 
+            instanceDescs.push_back({
+                .firstSplatIdx = (uint32_t)splatDescs.size(),
+            });
+
             for (uint32_t splatOfst = 0; splatOfst < splatCount; ++splatOfst)
-                splatDescs.push_back((firstSplatIdx + splatOfst) | (instanceID << 24u));
+                splatDescs.push_back((firstMeshSplatIdx + splatOfst) | (instanceID << 24u));
 
             static_assert(GStaticScene::kMaxInstanceCount <= 256);
         }
@@ -210,6 +220,13 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                 ResourceBindFlags::ShaderResource,
                 MemoryType::DeviceLocal,
                 splatDescs.data()
+            ),
+            .pInstanceDescBuffer = getDevice()->createStructuredBuffer(
+                sizeof(GS3DIndLightInstanceDesc), //
+                instanceDescs.size(),
+                ResourceBindFlags::ShaderResource,
+                MemoryType::DeviceLocal,
+                instanceDescs.data()
             ),
             .splatCount = (uint32_t)splatDescs.size(),
         };
@@ -280,7 +297,7 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                 {
                     const auto& instanceInfo = pStaticScene->getInstanceInfos()[instanceID];
                     auto instanceDesc = RtInstanceDesc{
-                        .instanceID = meshFirstSplatIdx[instanceInfo.meshID], // Custom InstanceID
+                        .instanceID = firstMeshSplatIdxs[instanceInfo.meshID], // Custom InstanceID
                         .instanceMask = 0xFF,
                         .instanceContributionToHitGroupIndex = 0,
                         .flags = RtGeometryInstanceFlags::None,

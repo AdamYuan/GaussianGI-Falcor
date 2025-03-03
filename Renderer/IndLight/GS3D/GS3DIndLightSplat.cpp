@@ -50,6 +50,7 @@ void GS3DIndLightInstancedSplatBuffer::bindShaderData(const ShaderVar& var) cons
     var["splatGeoms"] = pSplatGeomBuffer;
     var["splatAttribs"] = pSplatAttribBuffer;
     var["splatDescs"] = pSplatDescBuffer;
+    var["instanceDescs"] = pInstanceDescBuffer;
     var["splatCount"] = splatCount;
 }
 

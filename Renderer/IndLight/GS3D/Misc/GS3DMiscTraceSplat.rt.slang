@@ -18,11 +18,11 @@ struct RayData
 [shader("anyhit")]
 void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint meshSplatID = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
-    uint meshFirstSplatID = InstanceID();
+    uint meshSplatOfst = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
+    uint firstMeshSplatID = InstanceID();
     uint instanceID = InstanceIndex();
 
-    var splatGeom = gSplats.load(meshFirstSplatID + meshSplatID, instanceID).geom;
+    var splatGeom = gSplats.load(firstMeshSplatID + meshSplatOfst, instanceID).geom;
 
     float3 splatInvScale = 1.0 / splatGeom.scale;
 

@@ -73,30 +73,38 @@ public namespace GS3DIndLight
         uint padding;
     }
 
+    public struct InstanceDesc
+    {
+        uint firstSplatIdx;
+    }
+
     public struct InstancedSplatBuffer
     {
         public StructuredBuffer<PackedSplatGeom> splatGeoms;
         public StructuredBuffer<PackedSplatAttrib> splatAttribs;
         public StructuredBuffer<uint> splatDescs;
+        public StructuredBuffer<InstanceDesc> instanceDescs;
         public uint splatCount;
 
-        public Splat load(uint realSplatIdx, uint instanceID)
+        public Splat load(uint meshSplatIdx, uint instanceID)
         {
             var transform = gGStaticScene.getInstanceInfo(instanceID).transform;
             Splat splat;
-            splat.geom = splatGeoms[realSplatIdx].unpack();
+            splat.geom = splatGeoms[meshSplatIdx].unpack();
             splat.geom.mean = transform.apply(splat.geom.mean);
             splat.geom.scale *= transform.scale;
             splat.geom.rotate = float4(qmul(transform.getRotateQuat(), float4(splat.geom.rotate)));
-            splat.attrib = splatAttribs[realSplatIdx].unpack();
+            splat.attrib = splatAttribs[meshSplatIdx].unpack();
             return splat;
         }
         public Splat load(uint splatIdx)
         {
             uint splatDesc = splatDescs[splatIdx];
-            uint realSplatIdx = splatDesc & 0xFFFFFFu;
+            uint meshSplatIdx = splatDesc & 0xFFFFFFu;
             uint instanceID = splatDesc >> 24u;
-            return load(realSplatIdx, instanceID);
+            return load(meshSplatIdx, instanceID);
         }
+
+        public InstanceDesc loadInstanceDesc(uint instanceID) { return instanceDescs[instanceID]; }
     }
 }

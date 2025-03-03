@@ -62,9 +62,14 @@ struct GS3DIndLightMiscSplatView
 
 static_assert(sizeof(GS3DIndLightMiscSplatView) == 4 * sizeof(uint32_t));
 
+struct GS3DIndLightInstanceDesc
+{
+    uint firstSplatIdx;
+};
+
 struct GS3DIndLightInstancedSplatBuffer
 {
-    ref<Buffer> pSplatGeomBuffer, pSplatAttribBuffer, pSplatDescBuffer;
+    ref<Buffer> pSplatGeomBuffer, pSplatAttribBuffer, pSplatDescBuffer, pInstanceDescBuffer;
     uint32_t splatCount;
 
     void bindShaderData(const ShaderVar& var) const;
