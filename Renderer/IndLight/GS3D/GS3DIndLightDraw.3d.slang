@@ -220,8 +220,8 @@ float4 psMain(PSIn pIn)
 
     float3 color = M_1_PI * max(shDiffuse(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
     // color = float3(pIn.albedo * pIn.shadow);
-    color = gGStaticScene.lighting.evaluateSunIrradiance(pIn.normal, pIn.shadow) * M_1_PI * float3(pIn.albedo);
-    color = float3(pIn.normal) * 0.5 + 0.5;
+    // color = gGStaticScene.lighting.evaluateSunIrradiance(pIn.normal, pIn.shadow) * M_1_PI * float3(pIn.albedo);
+    // color = float3(pIn.normal) * 0.5 + 0.5;
 
     return float4(color * alpha, alpha) * weight;
 }

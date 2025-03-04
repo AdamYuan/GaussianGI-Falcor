@@ -28,6 +28,11 @@ void GS3DMiscRenderer::drawPoints(RenderContext* pRenderContext, const ref<Fbo>&
     auto [prog, var] = getShaderProgVar(mpPointPass);
     args.pStaticScene->bindRootShaderData(var);
     args.instancedSplatBuffer.bindShaderData(var["gSplats"]);
+    var["gSplatShadows"] = args.pSplatShadowBuffer;
+    var["gSplatProbes"] = args.pSplatProbeBuffer;
+    enumVisit(
+        mConfig.colorType, [&]<typename EnumInfo_T>(EnumInfo_T) { prog->addDefine("COLOR_VAR_NAME", EnumInfo_T::kProperty.varName); }
+    );
 
     mpPointPass->getState()->setFbo(pTargetFbo);
     pRenderContext->draw(mpPointPass->getState().get(), mpPointPass->getVars().get(), splatCount, 0);
@@ -152,6 +157,11 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
         float d = math::sqrt(math::log(math::max(255.0f * alpha, 1.0f)));
         var["gAlpha"] = alpha;
         var["gD"] = d;
+        var["gSplatShadows"] = args.pSplatShadowBuffer;
+        var["gSplatProbes"] = args.pSplatProbeBuffer;
+        enumVisit(
+            mConfig.colorType, [&]<typename EnumInfo_T>(EnumInfo_T) { prog->addDefine("COLOR_VAR_NAME", EnumInfo_T::kProperty.varName); }
+        );
 
         mpSplatDrawPass->getState()->setFbo(pTargetFbo);
         pRenderContext->drawIndirect(
@@ -207,6 +217,12 @@ void GS3DMiscRenderer::drawTracedSplats(RenderContext* pRenderContext, const ref
         args.instancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gSplatAccel"].setAccelerationStructure(args.pSplatTLAS);
         var["gColor"] = mpSplatTraceColorTexture;
+        var["gSplatShadows"] = args.pSplatShadowBuffer;
+        var["gSplatProbes"] = args.pSplatProbeBuffer;
+        enumVisit(
+            mConfig.colorType,
+            [&]<typename EnumInfo_T>(EnumInfo_T) { mSplatTracePass.pProgram->addDefine("COLOR_VAR_NAME", EnumInfo_T::kProperty.varName); }
+        );
 
         pRenderContext->raytrace(mSplatTracePass.pProgram.get(), mSplatTracePass.pVars.get(), resolution.x, resolution.y, 1u);
     }
@@ -227,6 +243,7 @@ void GS3DMiscRenderer::draw(RenderContext* pRenderContext, const ref<Fbo>& pTarg
 void GS3DMiscRenderer::renderUIImpl(Gui::Widgets& widget)
 {
     enumDropdown(widget, "Type", mConfig.type);
+    enumDropdown(widget, "Color Type", mConfig.colorType);
     if (mConfig.type == GS3DMiscType::kSplat)
     {
         widget.var("Splat Opacity", mConfig.splatOpacity, 0.0f, 1.0f);

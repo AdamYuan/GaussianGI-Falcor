@@ -476,6 +476,8 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScen
             .pStaticScene = pStaticScene,
             .instancedSplatBuffer = mInstancedSplatBuffer,
             .pSplatTLAS = mpSplatTLAS,
+            .pSplatShadowBuffer = mDrawResource.pSplatShadowBuffer,
+            .pSplatProbeBuffer = mDrawResource.pDstSplatProbeBuffer,
         }
     );
 }

@@ -28,6 +28,29 @@ GSGI_ENUM_REGISTER(GS3DMiscType::kPoint, void, "Point", int);
 GSGI_ENUM_REGISTER(GS3DMiscType::kSplat, void, "Splat", int);
 GSGI_ENUM_REGISTER(GS3DMiscType::kTracedSplat, void, "Traced-Splat", int);
 
+enum class GS3DMiscColorType
+{
+    kRadiance,
+    kDirectRadiance,
+    kDirectLight,
+    kIndirectLight,
+    kAlbedo,
+    kNormal,
+    kShadow,
+    GSGI_ENUM_COUNT
+};
+struct GS3DMiscColorTypeProperty
+{
+    const char* varName;
+};
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kRadiance, void, "Radiance", GS3DMiscColorTypeProperty, .varName = "radiance");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kDirectRadiance, void, "Direct Radiance", GS3DMiscColorTypeProperty, .varName = "directRadiance");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kDirectLight, void, "Direct Light", GS3DMiscColorTypeProperty, .varName = "directLight");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kIndirectLight, void, "Indirect Light", GS3DMiscColorTypeProperty, .varName = "indirectLight");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kAlbedo, void, "Albedo", GS3DMiscColorTypeProperty, .varName = "albedo");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kNormal, void, "Normal", GS3DMiscColorTypeProperty, .varName = "normal");
+GSGI_ENUM_REGISTER(GS3DMiscColorType::kShadow, void, "Shadow", GS3DMiscColorTypeProperty, .varName = "shadow");
+
 class GS3DMiscRenderer final : public GDeviceObject<GS3DMiscRenderer>
 {
 public:
@@ -36,6 +59,8 @@ public:
         const ref<GStaticScene>& pStaticScene;
         const GS3DIndLightInstancedSplatBuffer& instancedSplatBuffer;
         const ref<RtAccelerationStructure>& pSplatTLAS;
+        const ref<Buffer>& pSplatShadowBuffer;
+        const ref<Buffer>& pSplatProbeBuffer;
     };
 
 private:
@@ -60,6 +85,7 @@ private:
     struct
     {
         GS3DMiscType type = GS3DMiscType::kSplat;
+        GS3DMiscColorType colorType = GS3DMiscColorType::kRadiance;
         float splatOpacity = 1.0f;
     } mConfig = {};
 

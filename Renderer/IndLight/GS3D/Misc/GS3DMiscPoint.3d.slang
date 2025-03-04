@@ -3,7 +3,9 @@
 
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.ShaderMisc;
+import GaussianGI.Algorithm.SphericalHarmonics;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
+import GS3DMiscColor;
 
 using namespace GS3DIndLight;
 
@@ -11,10 +13,13 @@ StructuredBuffer<uint> gSplatDescs;
 uniform InstancedSplatBuffer gSplats;
 uniform uint gSplatCount;
 
+Buffer<float> gSplatShadows;
+StructuredBuffer<SH<float3, 2>> gSplatProbes;
+
 struct PSIn
 {
     linear float4 clipPos : SV_Position;
-    nointerpolation float16_t3 albedo;
+    nointerpolation float3 color;
 }
 
 PSIn vsMain(uint vertexID: SV_VertexID)
@@ -25,11 +30,11 @@ PSIn vsMain(uint vertexID: SV_VertexID)
 
     PSIn o;
     o.clipPos = mul(gGStaticScene.camera.getViewProj(), float4(splat.geom.mean, 1));
-    o.albedo = float16_t3(splat.attrib.albedo);
+    o.color = getGS3DMiscColor(splat, gSplatShadows[vertexID], gSplatProbes[vertexID]);
     return o;
 }
 
 float4 psMain(PSIn pIn)
 {
-    return float4(float3(pIn.albedo), 1);
+    return float4(pIn.color, 1);
 }

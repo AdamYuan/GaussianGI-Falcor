@@ -94,7 +94,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         SH<float3, SH_LEVEL> hitProbe = gPrevSplatProbes[hitSplatIdx];
 
         float3 hitRadiance = float3(0);
-        // hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
+        hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
         hitRadiance += gGStaticScene.lighting.evaluateSunIrradiance(hitNormal, gSplatShadows[hitSplatIdx]);
         hitRadiance = M_1_PI * hitSplat.attrib.albedo * hitRadiance;
         // float3 hitRadiance = hitSplat.attrib.albedo;

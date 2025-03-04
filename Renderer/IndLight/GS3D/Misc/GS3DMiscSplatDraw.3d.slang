@@ -2,21 +2,23 @@ import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import Utils.Math.Quaternion;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
+import GaussianGI.Algorithm.SphericalHarmonics;
+import GS3DMiscColor;
 
 using namespace GS3DIndLight;
 
 uniform InstancedSplatBuffer gSplats;
-RWStructuredBuffer<MiscSplatView> gSplatViews;
-RWStructuredBuffer<uint> gSplatViewSortPayloads;
+StructuredBuffer<MiscSplatView> gSplatViews;
+StructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 uniform float gAlpha, gD; // \alpha * \exp{-d^2} = \frac{1}{255} \Rightarrow d = \sqrt{\ln{255 \alpha}}
 
+Buffer<float> gSplatShadows;
+StructuredBuffer<SH<float3, 2>> gSplatProbes;
+
 struct PSIn
 {
-    nointerpolation float3 splatMean;
-    nointerpolation float16_t3 splatInvScale;
-    nointerpolation float16_t4 splatInvRotate;
-    nointerpolation float16_t3 albedo;
+    nointerpolation float3 color;
     linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 }
@@ -39,10 +41,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     // deltaClip * 2 to scale from [0, 1] to [-1, 1]
 
     PSIn o;
-    o.splatMean = splat.geom.mean;
-    o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
-    o.splatInvRotate = float16_t4(float4(-splat.geom.rotate.xyz, splat.geom.rotate.w) / dot(splat.geom.rotate, splat.geom.rotate));
-    o.albedo = float16_t3(splat.attrib.albedo);
+    o.color = getGS3DMiscColor(splat, gSplatShadows[splatID], gSplatProbes[splatID]);
 
     o.quadPos = float2(-gD, -gD);
     o.clipPos = float4(clip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1, 0, 1);
@@ -63,18 +62,9 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
 float4 psMain(PSIn pIn)
 {
-    /* Ray ray = gGStaticScene.camera.computeRayPinhole(uint2(pIn.clipPos.xy), uint2(gResolution), false);
-    float3 o_g = rotate_vector(ray.origin - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float3 d_g = rotate_vector(ray.dir, pIn.splatInvRotate) * pIn.splatInvScale;
-    float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
-    float3 x = ray.eval(t_max);
-
-    float3 x_g = rotate_vector(x - pIn.splatMean, pIn.splatInvRotate) * pIn.splatInvScale;
-    float alpha = gAlpha * exp(-0.5 * dot(x_g, x_g)); */
-
     float alpha = gAlpha * exp(-dot(pIn.quadPos, pIn.quadPos));
     if (alpha < 1.0 / 255.0)
         discard;
-    return float4(float3(pIn.albedo), alpha);
+    return float4(pIn.color, alpha);
 }
 

@@ -2,6 +2,8 @@ import GaussianGI.Scene.GStaticScene;
 import Utils.Sampling.TinyUniformSampleGenerator;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 import Utils.Math.Quaternion;
+import GaussianGI.Algorithm.SphericalHarmonics;
+import GS3DMiscColor;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 
 using namespace GS3DIndLight;
@@ -9,6 +11,9 @@ using namespace GS3DIndLight;
 uniform InstancedSplatBuffer gSplats;
 RaytracingAccelerationStructure gSplatAccel;
 RWTexture2D<unorm float4> gColor;
+
+Buffer<float> gSplatShadows;
+StructuredBuffer<SH<float3, 2>> gSplatProbes;
 
 struct RayData
 {
@@ -57,9 +62,11 @@ void closestHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes att
 {
     uint meshSplatOfst = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
     uint firstMeshSplatID = InstanceID();
-    SplatAttrib splatAttrib = gSplats.splatAttribs[firstMeshSplatID + meshSplatOfst].unpack();
+    uint instanceID = InstanceIndex();
+    var splat = gSplats.load(firstMeshSplatID + meshSplatOfst, instanceID);
+    uint splatID = gSplats.loadInstanceDesc(instanceID).firstSplatIdx + meshSplatOfst;
     uint2 coord = DispatchRaysIndex().xy;
-    gColor[coord] = float4(splatAttrib.albedo, 1);
+    gColor[coord] = float4(getGS3DMiscColor(splat, gSplatShadows[splatID], gSplatProbes[splatID]), 1);
 }
 
 [shader("miss")]
