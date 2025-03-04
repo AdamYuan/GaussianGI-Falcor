@@ -93,7 +93,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         float3 hitNormal = SGGX::getSplatNormal(transpose(hitSplatRotMatT), hitSplat.geom.scale, -ray.dir);
         SH<float3, SH_LEVEL> hitProbe = gPrevSplatProbes[hitSplatIdx];
 
-        float3 hitRadiance = max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
+        float3 hitRadiance = float3(0);
+        // hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
         hitRadiance += gGStaticScene.lighting.evaluateSunIrradiance(hitNormal, gSplatShadows[hitSplatIdx]);
         hitRadiance = M_1_PI * hitSplat.attrib.albedo * hitRadiance;
         // float3 hitRadiance = hitSplat.attrib.albedo;
@@ -159,12 +160,12 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
                 sh.data[i] = lerp(sh.data[i], (float3)prevSh.data[i], 0.98);
         }
 
-        if (error)
+        /* if (error)
         {
             [ForceUnroll]
             for (uint i = 0; i < SH_SIZE(SH_LEVEL); ++i)
                 sh.data[i] = float3(0, 1, 1);
-        }
+        } */
 
         gSplatProbes[splatIdx] = sh;
     }
