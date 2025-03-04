@@ -1,6 +1,5 @@
 #include "Utils/Math/MathConstants.slangh"
-
-#define SH_SIZE(L) (((L) + 1) * ((L) + 1))
+#include "SphericalHarmonics.slangh"
 
 public struct SH<T : IFloat, let L_V : uint>
 {

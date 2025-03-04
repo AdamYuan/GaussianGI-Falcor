@@ -76,8 +76,8 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mInstancedSplatBuffer.splatCount);
         mDrawResource.pSplatShadowBuffer = getDevice()->createTypedBuffer(ResourceFormat::R8Unorm, mInstancedSplatBuffer.splatCount);
         static constexpr std::size_t kProbeSize = 9 * sizeof(float3);
-        mDrawResource.pSplatProbeBuffers[0] = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
-        mDrawResource.pSplatProbeBuffers[1] = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
+        mDrawResource.pSrcSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
+        mDrawResource.pDstSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
         mDrawResource.probeTick = 0;
     }
 
@@ -366,7 +366,7 @@ void GS3DIndLight::draw(
 )
 {
     updateDrawResource(args, pIndirectTexture);
-    bool probeFlip = mDrawResource.probeTick & 1u;
+    std::swap(mDrawResource.pSrcSplatProbeBuffer, mDrawResource.pDstSplatProbeBuffer);
 
     uint2 resolution = getTextureResolution2(pIndirectTexture);
     auto resolutionFloat = float2(resolution);
@@ -391,8 +391,8 @@ void GS3DIndLight::draw(
         pStaticScene->bindRootShaderData(var);
         mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
-        var["gPrevSplatProbes"] = mDrawResource.pSplatProbeBuffers[!probeFlip];
-        var["gSplatProbes"] = mDrawResource.pSplatProbeBuffers[probeFlip];
+        var["gPrevSplatProbes"] = mDrawResource.pSrcSplatProbeBuffer;
+        var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
         var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
         var["gTick"] = mDrawResource.probeTick;
 
@@ -439,7 +439,7 @@ void GS3DIndLight::draw(
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         var["gResolution"] = resolutionFloat;
         var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
-        var["gSplatProbes"] = mDrawResource.pSplatProbeBuffers[probeFlip];
+        var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);

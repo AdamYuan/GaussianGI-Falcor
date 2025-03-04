@@ -66,7 +66,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     o.shadow = float16_t(gSplatShadows[splatID]);
     o.probe = gSplatProbes[splatID];
     /* [ForceUnroll]
-    for (uint i = 0; i < o.probe.data.getCount(); ++i)
+    for (uint i = 0; i < 9; ++i)
         o.probe.data[i] = float16_t3(1.0); */
 
     float3x3 splatRotMatT = float3x3(

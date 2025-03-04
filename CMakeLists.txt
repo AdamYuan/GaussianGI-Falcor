@@ -40,6 +40,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/GaussianBlurKernel.slangh
         Algorithm/SGGX.slang
         Algorithm/SphericalHarmonics.slang
+        Algorithm/SphericalHarmonics.slangh
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
@@ -119,6 +120,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GS3D/GS3DIndLightSplat.cpp
         Renderer/IndLight/GS3D/GS3DIndLightSplatPersist.cpp
         Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang
+        Renderer/IndLight/GS3D/GS3DIndLightProbe.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightDraw.3d.slang
         Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang

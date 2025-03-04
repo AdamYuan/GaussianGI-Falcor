@@ -33,7 +33,7 @@ private:
         // DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
         // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
         ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer;
-        std::array<ref<Buffer>, 2> pSplatProbeBuffers;
+        ref<Buffer> pSrcSplatProbeBuffer, pDstSplatProbeBuffer;
         ref<Buffer> pSplatDrawArgBuffer;
         ref<Fbo> pSplatFbo;
         uint32_t probeTick{};

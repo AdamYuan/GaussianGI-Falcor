@@ -1,0 +1,3 @@
+#pragma once
+
+#define SH_SIZE(L) (((L) + 1) * ((L) + 1))
