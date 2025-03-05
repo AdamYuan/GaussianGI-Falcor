@@ -1,5 +1,4 @@
 #include "Utils/Math/MathConstants.slangh"
-import Utils.Math.Quaternion;
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Algorithm.SphericalHarmonics;

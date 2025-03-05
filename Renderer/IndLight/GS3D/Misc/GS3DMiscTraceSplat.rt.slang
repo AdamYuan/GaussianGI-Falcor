@@ -1,7 +1,6 @@
 import GaussianGI.Scene.GStaticScene;
 import Utils.Sampling.TinyUniformSampleGenerator;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
-import Utils.Math.Quaternion;
 import GaussianGI.Algorithm.SphericalHarmonics;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.ShaderMisc;

@@ -4,7 +4,6 @@ import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Renderer.Shadow.GShadow;
 import GS3DIndLightSplat;
-import Utils.Math.Quaternion;
 
 using namespace GS3DIndLight;
 

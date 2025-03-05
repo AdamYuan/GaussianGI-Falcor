@@ -1,5 +1,4 @@
 import Utils.Math.FormatConversion;
-import Utils.Math.Quaternion;
 import Utils.Math.MathHelpers;
 import Utils.Sampling.TinyUniformSampleGenerator;
 import GS3DIndLightSplat;

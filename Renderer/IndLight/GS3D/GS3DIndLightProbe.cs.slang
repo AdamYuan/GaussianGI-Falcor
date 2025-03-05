@@ -8,7 +8,6 @@ import GaussianGI.Algorithm.SphericalHarmonics;
 import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Renderer.Shadow.GShadow;
 import GS3DIndLightSplat;
-import Utils.Math.Quaternion;
 import Utils.Sampling.TinyUniformSampleGenerator;
 import Utils.Sampling.UniformSampleGenerator;
 import Utils.Math.MathHelpers;

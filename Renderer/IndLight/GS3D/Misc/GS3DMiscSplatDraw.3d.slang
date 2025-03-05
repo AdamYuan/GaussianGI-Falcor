@@ -1,6 +1,5 @@
 import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
-import Utils.Math.Quaternion;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 import GaussianGI.Algorithm.SphericalHarmonics;
 import GS3DMiscColor;
