@@ -91,7 +91,9 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         alpha = saturate(alpha);
 
         float3 hitNormal = SGGX::getSplatNormal(transpose(hitSplatRotMatT), hitSplat.geom.scale, -ray.dir);
-        SH<float3, SH_LEVEL> hitProbe = gPrevSplatProbes[hitSplatIdx];
+        SH<float3, SH_LEVEL> hitProbe = (SH<float3, SH_LEVEL>)0;
+        if (gTick > 0)
+            hitProbe = gPrevSplatProbes[hitSplatIdx];
 
         float3 hitRadiance = float3(0);
         hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
