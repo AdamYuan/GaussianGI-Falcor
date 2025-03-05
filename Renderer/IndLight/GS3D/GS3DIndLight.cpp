@@ -19,7 +19,7 @@ namespace GSGI
 
 namespace
 {
-constexpr uint32_t kDefaultSplatsPerMesh = 65536;
+constexpr uint32_t kDefaultSplatsPerMesh = 4096;
 }
 
 void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
