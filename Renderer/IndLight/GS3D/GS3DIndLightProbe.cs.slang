@@ -73,11 +73,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
 
         var hitSplat = gSplats.load(hitMeshSplatIdx, hitInstanceIdx);
 
-        float3x3 hitSplatRotMatT = float3x3(
-            rotate_vector(float3(1, 0, 0), hitSplat.geom.rotate),
-            rotate_vector(float3(0, 1, 0), hitSplat.geom.rotate),
-            rotate_vector(float3(0, 0, 1), hitSplat.geom.rotate)
-        );
+        float3x3 hitSplatRotMatT = transpose(GS3D::getQuatMatrix(hitSplat.geom.rotate));
         float3 hitSplatInvScale = 1.0 / hitSplat.geom.scale;
         float3 o_g = mul(hitSplatRotMatT, ray.origin - hitSplat.geom.mean) * hitSplatInvScale;
         float3 d_g = mul(hitSplatRotMatT, ray.dir) * hitSplatInvScale;

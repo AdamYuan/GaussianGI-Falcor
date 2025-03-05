@@ -6,6 +6,7 @@ import GS3DIndLightSplat;
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.GVBuffer;
 import GaussianGI.Algorithm.SGGX;
+import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.SphericalHarmonics;
 #include "Utils/Math/MathConstants.slangh"
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
@@ -69,12 +70,8 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     for (uint i = 0; i < 9; ++i)
         o.probe.data[i] = float16_t3(1.0); */
 
-    float3x3 splatRotMatT = float3x3(
-        rotate_vector(float3(1, 0, 0), splat.geom.rotate),
-        rotate_vector(float3(0, 1, 0), splat.geom.rotate),
-        rotate_vector(float3(0, 0, 1), splat.geom.rotate)
-    );
-    float3x3 splatRotMat = transpose(splatRotMatT);
+    float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
+    float3x3 splatRotMatT = transpose(splatRotMat);
 
     /* SGGX::VNDFSampler vndfSampler =
         SGGX::VNDFSampler::fromSplat(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));

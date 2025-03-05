@@ -3,6 +3,7 @@ import Utils.Sampling.TinyUniformSampleGenerator;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 import Utils.Math.Quaternion;
 import GaussianGI.Algorithm.SphericalHarmonics;
+import GaussianGI.Algorithm.GS3D;
 import GS3DMiscColor;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 
@@ -31,13 +32,7 @@ void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs
 
     float3 splatInvScale = 1.0 / splatGeom.scale;
 
-    float3x3 splatRotMatT = float3x3(
-        rotate_vector(float3(1, 0, 0), splatGeom.rotate), //
-        rotate_vector(float3(0, 1, 0), splatGeom.rotate),
-        float3(0, 0, 0)
-    );
-    splatRotMatT[2] = cross(splatRotMatT[0], splatRotMatT[1]);
-
+    float3x3 splatRotMatT = transpose(GS3D::getQuatMatrix(splatGeom.rotate));
     Ray ray;
     ray.origin = WorldRayOrigin();
     ray.dir = WorldRayDirection();

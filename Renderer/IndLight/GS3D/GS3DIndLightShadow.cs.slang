@@ -21,11 +21,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
         return;
 
     var splatGeom = gSplats.load(splatID).geom;
-    float3x3 splatRotMat = transpose(float3x3(
-        rotate_vector(float3(1, 0, 0), splatGeom.rotate),
-        rotate_vector(float3(0, 1, 0), splatGeom.rotate),
-        rotate_vector(float3(0, 0, 1), splatGeom.rotate)
-    ));
+    float3x3 splatRotMat = GS3D::getQuatMatrix(splatGeom.rotate);
     float3x3 splatScaleMat = float3x3(float3(splatGeom.scale.x, 0, 0), float3(0, splatGeom.scale.y, 0), float3(0, 0, splatGeom.scale.z)) *
                              GS3D_BOUND_SQRT_2LOG_255;
     float3x3 splatMat = mul(splatRotMat, splatScaleMat);
