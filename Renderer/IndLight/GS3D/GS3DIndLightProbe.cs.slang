@@ -5,6 +5,7 @@ import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.SGGX;
 import GaussianGI.Algorithm.SphericalHarmonics;
+import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Renderer.Shadow.GShadow;
 import GS3DIndLightSplat;
 import Utils.Math.Quaternion;
@@ -73,20 +74,15 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
 
         var hitSplat = gSplats.load(hitMeshSplatIdx, hitInstanceIdx);
 
-        float3x3 hitSplatRotMatT = transpose(GS3D::getQuatMatrix(hitSplat.geom.rotate));
-        float3 hitSplatInvScale = 1.0 / hitSplat.geom.scale;
-        float3 o_g = mul(hitSplatRotMatT, ray.origin - hitSplat.geom.mean) * hitSplatInvScale;
-        float3 d_g = mul(hitSplatRotMatT, ray.dir) * hitSplatInvScale;
-        float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
-        float3 x = ray.eval(t_max);
-        float3 x_g = mul(hitSplatRotMatT, x - hitSplat.geom.mean) * hitSplatInvScale;
-        float power = max(dot(x_g, x_g), 0);
-        float alpha = exp(-0.5 * power);
-        if (isinf(alpha) || isnan(alpha))
-            alpha = 0.0;
-        alpha = saturate(alpha);
+        float3x3 hitSplatRotMat = GS3D::getQuatMatrix(hitSplat.geom.rotate);
 
-        float3 hitNormal = SGGX::getSplatNormal(transpose(hitSplatRotMatT), hitSplat.geom.scale, -ray.dir);
+        float3 w_i = -ray.dir;
+        float3x3 w_i_rotMatT = getRobustAlignRotMatT(w_i);
+
+        float2x3 hitSplatCov3D = GS3D::getCovariance3D(hitSplatRotMat, hitSplat.geom.scale);
+        float hitAlpha = GS3D::getRayAlpha(ray.origin, w_i_rotMatT, hitSplatCov3D, hitSplat.geom.mean);
+
+        float3 hitNormal = SGGX::getSplatNormal(hitSplatRotMat, hitSplat.geom.scale, w_i_rotMatT);
         SH<float3, SH_LEVEL> hitProbe = (SH<float3, SH_LEVEL>)0;
         if (gTick > 0)
             hitProbe = gPrevSplatProbes[hitSplatIdx];
@@ -95,16 +91,10 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
         hitRadiance += gGStaticScene.lighting.evaluateSunIrradiance(hitNormal, gSplatShadows[hitSplatIdx]);
         hitRadiance = M_1_PI * hitSplat.attrib.albedo * hitRadiance;
-        // float3 hitRadiance = hitSplat.attrib.albedo;
-        // hitRadiance = gGStaticScene.lighting.skyRadiance;
 
         float3 missRadiance = max((float3)shDot(hitProbe, shBasis<SH_LEVEL>(ray.dir)), 0.0);
-        // float3 missRadiance = gGStaticScene.lighting.skyRadiance;
 
-        radiance = hitRadiance * alpha + missRadiance * (1 - alpha); // lerp(missRadiance, hitRadiance, alpha);
-
-        // if (any(isinf(radiance)) || any(isnan(radiance)))
-        //     radiance = 0;
+        radiance = lerp(missRadiance, hitRadiance, hitAlpha);
 
         if (splatIdx == hitSplatIdx)
             error = true;

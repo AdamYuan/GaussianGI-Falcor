@@ -16,7 +16,9 @@ using namespace GS3DIndLight;
 public float3 getGS3DMiscColor(Splat splat, float shadow, SH<float3, 2> probe)
 {
     float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
-    float3 normal = SGGX::getSplatNormal(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
+    float3 normal = SGGX::getSplatNormal(
+        splatRotMat, splat.geom.scale, getRobustAlignRotMatT(normalize(gGStaticScene.camera.getPosition() - splat.geom.mean))
+    );
     float3 albedo = splat.attrib.albedo;
     float3 indirectLight = M_1_PI * shDiffuse(probe, shBasis<2>(normal));
     float3 directLight = M_1_PI * gGStaticScene.lighting.evaluateSunIrradiance(normal, shadow);

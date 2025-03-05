@@ -4,6 +4,7 @@ import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 import Utils.Math.Quaternion;
 import GaussianGI.Algorithm.SphericalHarmonics;
 import GaussianGI.Algorithm.GS3D;
+import GaussianGI.Algorithm.ShaderMisc;
 import GS3DMiscColor;
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 
@@ -30,22 +31,8 @@ void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs
 
     var splatGeom = gSplats.load(firstMeshSplatID + meshSplatOfst, instanceID).geom;
 
-    float3 splatInvScale = 1.0 / splatGeom.scale;
-
-    float3x3 splatRotMatT = transpose(GS3D::getQuatMatrix(splatGeom.rotate));
-    Ray ray;
-    ray.origin = WorldRayOrigin();
-    ray.dir = WorldRayDirection();
-    float3 o_g = mul(splatRotMatT, ray.origin - splatGeom.mean) * splatInvScale;
-    float3 d_g = mul(splatRotMatT, ray.dir) * splatInvScale;
-    float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
-    if (isinf(t_max) || isnan(t_max))
-        IgnoreHit();
-
-    float3 x = ray.eval(t_max);
-    float3 x_g = mul(splatRotMatT, x - splatGeom.mean) * splatInvScale;
-    float power = max(dot(x_g, x_g), 0);
-    float alpha = exp(-0.5 * power);
+    float2x3 splatCov3D = GS3D::getCovariance3D(splatGeom.rotate, splatGeom.scale);
+    float alpha = GS3D::getRayAlpha(WorldRayOrigin(), WorldRayDirection(), splatCov3D, splatGeom.mean);
 
     float rand = sampleNext1D(rayData.randGen);
     if (rand >= alpha)

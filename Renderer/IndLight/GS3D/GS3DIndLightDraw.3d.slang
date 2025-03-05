@@ -33,11 +33,10 @@ StructuredBuffer<SH9<float3>> gSplatProbes;
 struct PSIn
 {
     nointerpolation float3 splatMean;
-    nointerpolation float16_t3 splatInvScale;
+    nointerpolation float16_t3 splatScale;
     nointerpolation uint2 packedSplatInvRotate;
     nointerpolation float16_t3 albedo;
     nointerpolation float16_t shadow;
-    // nointerpolation float16_t2x3 sggxM;
     nointerpolation float16_t3 normal;
     nointerpolation SH9<float3> probe;
     linear float4 clipPos : SV_Position;
@@ -62,7 +61,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
     PSIn o;
     o.splatMean = splat.geom.mean;
-    o.splatInvScale = float16_t3(1.0 / splat.geom.scale);
+    o.splatScale = float16_t3(splat.geom.scale);
     o.albedo = float16_t3(splat.attrib.albedo);
     o.shadow = float16_t(gSplatShadows[splatID]);
     o.probe = gSplatProbes[splatID];
@@ -73,11 +72,20 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
     float3x3 splatRotMatT = transpose(splatRotMat);
 
-    /* SGGX::VNDFSampler vndfSampler =
-        SGGX::VNDFSampler::fromSplat(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
-    o.sggxM = float16_t2x3(vndfSampler.M_kji); */
-    o.normal =
-        (float16_t3)SGGX::getSplatNormal(splatRotMat, splat.geom.scale, normalize(gGStaticScene.camera.getPosition() - splat.geom.mean));
+    float3 splatCamMean = splat.geom.mean - gGStaticScene.camera.getPosition();
+    float splatCamDist = length(splatCamMean);
+    float3 splatViewDir = splatCamMean / splatCamDist;
+    float3 splatViewSideDir = select(
+        all(splat.geom.scale.x > splat.geom.scale.yz), //
+        splatRotMatT[0],
+        select(splat.geom.scale.y > splat.geom.scale.z, splatRotMatT[1], splatRotMatT[2])
+    );
+    splatViewSideDir = normalize(cross(splatViewDir, splatViewSideDir));
+
+    float3x3 splatVDMatT = float3x3(splatViewSideDir, cross(splatViewDir, splatViewSideDir), splatViewDir);
+    float3x3 splatVDMat = transpose(splatVDMatT);
+
+    o.normal = (float16_t3)SGGX::getSplatNormal(splatRotMat, splat.geom.scale, splatVDMatT);
 
     o.packedSplatInvRotate = uint2(packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[0])), packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[1])));
 
@@ -106,22 +114,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     }
 #elif WRAP_GEOM == WRAP_GEOM_QUAD
 
-    float3 splatCamMean = splat.geom.mean - gGStaticScene.camera.getPosition();
-    float splatCamDist = length(splatCamMean);
-
-    float3 splatViewDir = splatCamMean / splatCamDist;
-
     float3x3 splatScaleMat = GS3D::getScaleMatrix(splat.geom.scale);
-
-    float3 splatViewSideDir = select(
-        all(splat.geom.scale.x > splat.geom.scale.yz), //
-        splatRotMatT[0],
-        select(splat.geom.scale.y > splat.geom.scale.z, splatRotMatT[1], splatRotMatT[2])
-    );
-    splatViewSideDir = normalize(cross(splatViewDir, splatViewSideDir));
-
-    float3x3 splatVDMatT = float3x3(splatViewSideDir, cross(splatViewDir, splatViewSideDir), splatViewDir);
-    float3x3 splatVDMat = transpose(splatVDMatT);
 
     float3 splatVDMean = float3(0, 0, splatCamDist);
     float3x3 splatVDRotScaleMat = mul(splatVDMatT, mul(splatRotMat, splatScaleMat));
@@ -172,48 +165,17 @@ float4 psMain(PSIn pIn)
     splatRotMatT[2] = cross(splatRotMatT[0], splatRotMatT[1]);
 
     Ray ray = gGStaticScene.camera.computeRayPinhole(coord, uint2(gResolution), false);
-    float3 o_g = mul(splatRotMatT, ray.origin - pIn.splatMean) * pIn.splatInvScale;
-    float3 d_g = mul(splatRotMatT, ray.dir) * pIn.splatInvScale;
-    float t_max = -dot(o_g, d_g) / dot(d_g, d_g); // 3D Gaussian Ray Tracing, 4.3 Evaluating Particle Response
-    if (isinf(t_max) || isnan(t_max))
-        discard;
-    float3 x = ray.eval(t_max);
-    float3 x_g = mul(splatRotMatT, x - pIn.splatMean) * pIn.splatInvScale;
-    float power = max(dot(x_g, x_g), 0);
-    float alpha = exp(-0.5 * power);
 
-    var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    float3 p = hitPoint.position - pIn.splatMean;
-
-    // Ellipsoid SDF: https://iquilezles.org/articles/ellipsoids/
-    /* float3 p_invScale = pIn.splatInvScale * 2.0;
-    float3 p_g = mul(splatRotMatT, p);
-    float k1 = length(p_g * p_invScale);
-    float k2 = length(p_g * p_invScale * p_invScale);
-    float maxDist = 0.1, dist = k1 * (k1 - 1.0) / k2; */
-
-    float maxDist = 0.1, dist = length(p);
-
-    // float maxDist = 0.1, dist = length(hitPoint.position - x);
-
-    // float maxDist = 16.0, dist = length(mul(splatRotMatT, p) * pIn.splatInvScale);
-
-    float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
+    float2x3 splatCov3D = GS3D::getCovariance3D(transpose(splatRotMatT), pIn.splatScale);
+    float alpha = GS3D::getRayAlpha(ray.origin, ray.dir, splatCov3D, pIn.splatMean);
 
     if (alpha < 1.0 / 255.0)
         discard;
 
-    /* SGGX::VNDFSampler vndfSampler =
-        SGGX::VNDFSampler::create(float2x3(pIn.sggxM), normalize(gGStaticScene.camera.getPosition() - pIn.splatMean));
-
-    TinyUniformSampleGenerator randGen = TinyUniformSampleGenerator(uint2(pIn.clipPos.xy), 0);
-    float3 normal = vndfSampler.sample(sampleNext2D(randGen)); */
-
-    // float3 splatNormal = float3(pIn.normal);
-
-    // float3 color = splatNormal * 0.5 + 0.5; // float3(pIn.albedo * pIn.shadow);
-    // if (any(isnan(color)) || any(isinf(color)))
-    //     discard;
+    var hitPoint = gGStaticScene.getHitPoint(hitInfo);
+    float3 p = hitPoint.position - pIn.splatMean;
+    float maxDist = 0.1, dist = length(p);
+    float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
     float3 color = M_1_PI * max(shDiffuse(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
     // color = float3(pIn.albedo * pIn.shadow);

@@ -19,6 +19,7 @@ public float3 alignDirection(float3 n, float3 d)
     return mul(getAlignRotMat(n), d);
 }
 
+[Differentiable]
 public float3x3 getRobustAlignRotMatT(float3 n)
 {
     float3 u = normalize(cross(abs(n.x) > .01 ? float3(0, 1, 0) : float3(1, 0, 0), n));
@@ -26,11 +27,13 @@ public float3x3 getRobustAlignRotMatT(float3 n)
     return float3x3(u, v, n);
 }
 
+[Differentiable]
 public float3x3 getRobustAlignRotMat(float3 n)
 {
     return transpose(getRobustAlignRotMatT(n));
 }
 
+[Differentiable]
 public float3 alignDirectionRobust(float3 n, float3 d)
 {
     return mul(getRobustAlignRotMat(n), d);
