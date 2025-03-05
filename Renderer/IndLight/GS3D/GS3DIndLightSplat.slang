@@ -1,4 +1,5 @@
 import GaussianGI.Scene.GStaticScene;
+import Utils.Math.Quaternion;
 import Utils.Math.FormatConversion;
 
 public namespace GS3DIndLight
