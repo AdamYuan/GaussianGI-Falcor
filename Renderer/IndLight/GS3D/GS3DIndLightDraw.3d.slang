@@ -111,7 +111,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 
     float3 splatViewDir = splatCamMean / splatCamDist;
 
-    float3x3 splatScaleMat = float3x3(float3(splat.geom.scale.x, 0, 0), float3(0, splat.geom.scale.y, 0), float3(0, 0, splat.geom.scale.z));
+    float3x3 splatScaleMat = GS3D::getScaleMatrix(splat.geom.scale);
 
     float3 splatViewSideDir = select(
         all(splat.geom.scale.x > splat.geom.scale.yz), //

@@ -17,9 +17,15 @@ public namespace GS3D
     }
 
     [Differentiable]
+    public float3x3 getScaleMatrix(float3 scale)
+    {
+        return float3x3(scale.x, 0, 0, 0, scale.y, 0, 0, 0, scale.z);
+    }
+
+    [Differentiable]
     public float2x3 getCovariance3D(float4 splatRotate, float3 splatScale)
     {
-        float3x3 scaleMat = float3x3(splatScale.x, 0, 0, 0, splatScale.y, 0, 0, 0, splatScale.z);
+        float3x3 scaleMat = getScaleMatrix(splatScale);
         float3x3 rotMat = getQuatMatrix(splatRotate);
         float3x3 rotScaleMat = mul(rotMat, scaleMat);
         float3x3 sigma = mul(rotScaleMat, transpose(rotScaleMat));
