@@ -24,9 +24,33 @@ constexpr uint32_t kDefaultSplatsPerMesh = 65536;
 
 void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture)
 {
-    if (!mDrawResource.pShadowPass)
-        mDrawResource.pShadowPass =
-            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang", "csMain");
+    if (mConfig.useTracedShadow)
+    {
+        auto& pass = mDrawResource.traceShadowPass;
+        if (!pass.pProgram)
+        {
+            ProgramDesc desc;
+            desc.addShaderLibrary("GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightTraceShadow.rt.slang");
+            desc.setMaxPayloadSize(sizeof(float));    // float T
+            desc.setMaxAttributeSize(sizeof(float2)); // BuiltInTriangleIntersectionAttributes
+            desc.setMaxTraceRecursionDepth(1);        // TraceRay is only called in rayGen()
+
+            pass.pBindingTable = RtBindingTable::create(1, 1, 1);
+            pass.pBindingTable->setRayGen(desc.addRayGen("rayGen"));
+            pass.pBindingTable->setMiss(0, desc.addMiss("miss"));
+            pass.pBindingTable->setHitGroup(0, 0, desc.addHitGroup("closestHit", "anyHit"));
+
+            pass.pProgram = Program::create(getDevice(), desc);
+
+            pass.pVars = RtProgramVars::create(getDevice(), pass.pProgram, pass.pBindingTable);
+        }
+    }
+    else
+    {
+        if (!mDrawResource.pShadowPass)
+            mDrawResource.pShadowPass =
+                ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightShadow.cs.slang", "csMain");
+    }
 
     if (!mDrawResource.pProbePass)
         mDrawResource.pProbePass =
@@ -372,6 +396,26 @@ void GS3DIndLight::draw(
     auto resolutionFloat = float2(resolution);
 
     // Splat Shadow Pass
+    if (mConfig.useTracedShadow)
+    {
+        bool runPass = !mPrevConfig.useTracedShadow;
+        runPass = runPass || math::any(mPrevTracedShadowDirection != pStaticScene->getLighting()->getData().direction);
+        mPrevTracedShadowDirection = pStaticScene->getLighting()->getData().direction;
+
+        if (runPass)
+        {
+            FALCOR_PROFILE(pRenderContext, "traceShadow");
+            const auto& pass = mDrawResource.traceShadowPass;
+            auto var = pass.pVars->getRootVar();
+            pStaticScene->bindRootShaderData(var);
+            mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
+            var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
+            var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
+
+            pRenderContext->raytrace(pass.pProgram.get(), pass.pVars.get(), mInstancedSplatBuffer.splatCount, 1, 1);
+        }
+    }
+    else
     {
         FALCOR_PROFILE(pRenderContext, "shadow");
         auto [prog, var] = getShaderProgVar(mDrawResource.pShadowPass);
@@ -465,6 +509,7 @@ void GS3DIndLight::draw(
     }
 
     ++mDrawResource.probeTick;
+    mPrevConfig = mConfig;
 }
 
 void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene, const ref<Fbo>& pTargetFbo)
@@ -486,6 +531,8 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 {
     if (widget.button("Reset Probe Tick"))
         mDrawResource.probeTick = 0u;
+
+    widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
 
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);

@@ -29,6 +29,12 @@ private:
     {
         ref<ComputePass> pCullPass, pBlendPass, pShadowPass, pProbePass;
         ref<RasterPass> pDrawPass;
+        struct
+        {
+            ref<Program> pProgram;
+            ref<RtBindingTable> pBindingTable;
+            ref<RtProgramVars> pVars;
+        } traceShadowPass;
         // DeviceSorter<DeviceSortDispatchType::kIndirect> splatViewSorter;
         // DeviceSortResource<DeviceSortDispatchType::kIndirect> splatViewSortResource;
         // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
@@ -41,8 +47,10 @@ private:
 
     struct Config
     {
-        bool operator==(const Config&) const = default;
-    } mConfig = {};
+        bool useTracedShadow = true;
+    } mConfig = {}, mPrevConfig = {};
+
+    float3 mPrevTracedShadowDirection{};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
     static void preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats);
