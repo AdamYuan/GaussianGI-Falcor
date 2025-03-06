@@ -75,13 +75,57 @@ public namespace GS3D
         return float2x3(float3(sigma[0][0], sigma[0][1], sigma[0][2]), float3(sigma[1][1], sigma[1][2], sigma[2][2]));
     }
 
-    [Differentiable]
-    public float2 project(float3 viewPos, no_diff float camProjMat00, no_diff float2 screenResolution)
+    public float getFocal(float camProjMat00, float2 screenResolution)
     {
         // focal = 0.5 * h / tan(fov * 0.5),
         // projMatrix[0][0] = h / (w * tan(fov * 0.5))
-        float focal = screenResolution.x * camProjMat00 * 0.5;
+        return screenResolution.x * camProjMat00 * 0.5;
+    }
+
+    [Differentiable]
+    public float2 project(float3 viewPos, no_diff float camProjMat00, no_diff float2 screenResolution)
+    {
+        return project(viewPos, getFocal(camProjMat00, screenResolution));
+    }
+
+    [Differentiable]
+    public float2 project(float3 viewPos, no_diff float focal = 1.0)
+    {
         return focal * viewPos.xy / viewPos.z;
+    }
+
+    [Differentiable]
+    public float3 getCovariance2D(float2x3 cov3d, float3 rotPos, no_diff float3x3 rotMat, no_diff float focal)
+    {
+        float3x3 J = float3x3(
+            float3(focal / rotPos.z, 0, -(focal * rotPos.x) / (rotPos.z * rotPos.z)),
+            float3(0, focal / rotPos.z, -(focal * rotPos.y) / (rotPos.z * rotPos.z)),
+            float3(0, 0, 0)
+        );
+        float3x3 W = rotMat;
+        float3x3 T = mul(J, W);
+        float3x3 V = float3x3(
+            float3(cov3d[0].x, cov3d[0].y, cov3d[0].z),
+            float3(cov3d[0].y, cov3d[1].x, cov3d[1].y),
+            float3(cov3d[0].z, cov3d[1].y, cov3d[1].z)
+        );
+        float3x3 cov = mul(T, mul(V, transpose(T)));
+        return float3(cov[0][0], cov[0][1], cov[1][1]);
+    }
+
+    [Differentiable]
+    public float3 getGSPPCovariance2D(float2x3 cov3d, float rotZ, no_diff float3x3 rotMat, no_diff float focal)
+    {
+        float3x3 J = float3x3(float3(focal / rotZ, 0, 0), float3(0, focal / rotZ, 0), float3(0, 0, 0));
+        float3x3 W = rotMat;
+        float3x3 T = mul(J, W);
+        float3x3 V = float3x3(
+            float3(cov3d[0].x, cov3d[0].y, cov3d[0].z),
+            float3(cov3d[0].y, cov3d[1].x, cov3d[1].y),
+            float3(cov3d[0].z, cov3d[1].y, cov3d[1].z)
+        );
+        float3x3 cov = mul(T, mul(V, transpose(T)));
+        return float3(cov[0][0], cov[0][1], cov[1][1]);
     }
 
     [Differentiable]
@@ -93,23 +137,7 @@ public namespace GS3D
         no_diff float2 screenResolution
     )
     {
-        // focal = 0.5 * h / tan(fov * 0.5),
-        // projMatrix[0][0] = h / (w * tan(fov * 0.5))
-        float focal = screenResolution.x * camProjMat00 * 0.5;
-        float3x3 J = float3x3(
-            float3(focal / viewPos.z, 0, -(focal * viewPos.x) / (viewPos.z * viewPos.z)),
-            float3(0, focal / viewPos.z, -(focal * viewPos.y) / (viewPos.z * viewPos.z)),
-            float3(0, 0, 0)
-        );
-        float3x3 W = camViewRotMat;
-        float3x3 T = mul(J, W);
-        float3x3 V = float3x3(
-            float3(cov3d[0].x, cov3d[0].y, cov3d[0].z),
-            float3(cov3d[0].y, cov3d[1].x, cov3d[1].y),
-            float3(cov3d[0].z, cov3d[1].y, cov3d[1].z)
-        );
-        float3x3 cov = mul(T, mul(V, transpose(T)));
-        return float3(cov[0][0], cov[0][1], cov[1][1]);
+        return getCovariance2D(cov3d, viewPos, camViewRotMat, getFocal(camProjMat00, screenResolution));
     }
 
     // GS++
@@ -122,20 +150,10 @@ public namespace GS3D
         no_diff float2 screenResolution
     )
     {
-        // focal = 0.5 * h / tan(fov * 0.5),
-        // projMatrix[0][0] = h / (w * tan(fov * 0.5))
-        float focal = screenResolution.x * camProjMat00 * 0.5;
         float viewPosLen = length(viewPos);
-        float3x3 J = float3x3(float3(focal / viewPosLen, 0, 0), float3(0, focal / viewPosLen, 0), float3(0, 0, 0));
-        float3x3 W = mul(getAlignRotMatT(viewPos / viewPosLen), camViewRotMat);
-        float3x3 T = mul(J, W);
-        float3x3 V = float3x3(
-            float3(cov3d[0].x, cov3d[0].y, cov3d[0].z),
-            float3(cov3d[0].y, cov3d[1].x, cov3d[1].y),
-            float3(cov3d[0].z, cov3d[1].y, cov3d[1].z)
+        return getGSPPCovariance2D(
+            cov3d, viewPosLen, mul(getAlignRotMatT(viewPos / viewPosLen), camViewRotMat), getFocal(camProjMat00, screenResolution)
         );
-        float3x3 cov = mul(T, mul(V, transpose(T)));
-        return float3(cov[0][0], cov[0][1], cov[1][1]);
     }
 
     [Differentiable]
