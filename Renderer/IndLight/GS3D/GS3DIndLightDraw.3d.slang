@@ -23,7 +23,7 @@ StructuredBuffer<SH9<float3>> gSplatProbes;
 
 #define BOUND_FACTOR GS3D_BOUND_SQRT_2LOG_255
 
-#define USE_GSPP 0
+#define USE_GSPP 1
 
 #define WRAP_GEOM_ICOSAHEDRON 0 // Must enable culling
 #define WRAP_GEOM_BOX 1
@@ -34,7 +34,11 @@ StructuredBuffer<SH9<float3>> gSplatProbes;
 struct PSIn
 {
     nointerpolation float3 splatMean;
+#if USE_GSPP
+    linear float2 quadPos;
+#else
     nointerpolation float2x3 splatCov3D;
+#endif
     // nointerpolation float16_t3 splatScale;
     // nointerpolation uint2 packedSplatInvRotate;
     // nointerpolation float16_t3 albedo;
@@ -74,7 +78,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
     float3x3 splatRotMatT = transpose(splatRotMat);
 
-    o.splatCov3D = GS3D::getCovariance3D(splatRotMat, splat.geom.scale);
+    float2x3 splatCov3D = GS3D::getCovariance3D(splatRotMat, splat.geom.scale);
 
     float3 splatCamMean = splat.geom.mean - gGStaticScene.camera.getPosition();
     float splatCamDist = length(splatCamMean);
@@ -89,9 +93,46 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     float3x3 splatVDMatT = float3x3(splatViewSideDir, cross(splatViewDir, splatViewSideDir), splatViewDir);
     float3x3 splatVDMat = transpose(splatVDMatT);
 
+#if USE_GSPP
+
+    float3 splatCov2D = GS3D::getGSPPCovariance2D(splatCov3D, splatCamDist, splatVDMatT, 1.0);
+    GS3D::Eigen<2> eigen2D = GS3D::decomposeCovariance2D(splatCov2D);
+
+    float4 centerClip =
+        mul(gGStaticScene.camera.data.projMatNoJitter, float4(mul(float3x3(gGStaticScene.camera.data.viewMat), splatViewDir), 1.0));
+    float2 deltaQuad0 = eigen2D.eigen[0] * sqrt(eigen2D.lambda[0]);
+    float2 deltaQuad1 = eigen2D.eigen[1] * sqrt(eigen2D.lambda[1]);
+    float4 deltaClip0 =
+        mul(gGStaticScene.camera.data.projMatNoJitter,
+            float4(mul(float3x3(gGStaticScene.camera.data.viewMat), splatVDMatT[0] * deltaQuad0.x + splatVDMatT[1] * deltaQuad0.y), 0.0));
+    float4 deltaClip1 =
+        mul(gGStaticScene.camera.data.projMatNoJitter,
+            float4(mul(float3x3(gGStaticScene.camera.data.viewMat), splatVDMatT[0] * deltaQuad1.x + splatVDMatT[1] * deltaQuad1.y), 0.0));
+
+    o.quadPos = float2(-BOUND_FACTOR, -BOUND_FACTOR);
+    o.clipPos = float4(centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1);
+    output.Append(o);
+
+    o.quadPos = float2(BOUND_FACTOR, -BOUND_FACTOR);
+    o.clipPos = float4(centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1);
+    output.Append(o);
+
+    o.quadPos = float2(-BOUND_FACTOR, BOUND_FACTOR);
+    o.clipPos = float4(centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1);
+    output.Append(o);
+
+    o.quadPos = float2(BOUND_FACTOR, BOUND_FACTOR);
+    o.clipPos = float4(centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1);
+    output.Append(o);
+    output.RestartStrip();
+
     // o.normal = (float16_t3)SGGX::getSplatNormal(splatRotMat, splat.geom.scale, splatVDMatT);
 
     // o.packedSplatInvRotate = uint2(packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[0])), packUnorm2x16(ndir_to_oct_unorm(splatRotMatT[1])));
+
+#else
+
+    o.splatCov3D = splatCov3D;
 
 #if WRAP_GEOM == WRAP_GEOM_ICOSAHEDRON
     float4 clips[ICOSAHEDRON_VERTEX_COUNT];
@@ -151,6 +192,8 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 #else
 #error
 #endif
+
+#endif
 }
 
 float4 psMain(PSIn pIn)
@@ -161,17 +204,12 @@ float4 psMain(PSIn pIn)
     if (!hitInfo.isHit)
         discard;
 
-    /* float3x3 splatRotMatT = float3x3(
-        oct_to_ndir_unorm(unpackUnorm2x16(pIn.packedSplatInvRotate.x)),
-        oct_to_ndir_unorm(unpackUnorm2x16(pIn.packedSplatInvRotate.y)),
-        float3(0, 0, 0)
-    );
-    splatRotMatT[2] = cross(splatRotMatT[0], splatRotMatT[1]); */
-
+#if USE_GSPP
+    float alpha = exp(-0.5 * dot(pIn.quadPos, pIn.quadPos));
+#else
     Ray ray = gGStaticScene.camera.computeRayPinhole(coord, uint2(gResolution), false);
-
-    // float2x3 splatCov3D = GS3D::getCovariance3D(transpose(splatRotMatT), pIn.splatScale);
     float alpha = GS3D::getRayAlpha(ray.origin, ray.dir, pIn.splatCov3D, pIn.splatMean);
+#endif
 
     if (alpha < 1.0 / 255.0)
         discard;
