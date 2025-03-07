@@ -59,6 +59,10 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     if (!mDrawResource.pCullPass)
         mDrawResource.pCullPass = ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang", "csMain");
 
+    if (!mDrawResource.pZNormalPass)
+        mDrawResource.pZNormalPass =
+            ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightZNormal.cs.slang", "csMain");
+
     if (!mDrawResource.pDrawPass)
     {
         ProgramDesc splatDrawDesc;
@@ -124,6 +128,24 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     }
 
     uint2 resolution = getTextureResolution2(pIndirectTexture);
+
+    updateTextureSize(
+        mDrawResource.pZNormalTexture,
+        resolution,
+        [this](uint width, uint height)
+        {
+            return getDevice()->createTexture2D(
+                width,
+                height,
+                ResourceFormat::R32Uint,
+                1,
+                1,
+                nullptr,
+                ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
+            );
+        }
+    );
+
     updateTextureSize(
         mDrawResource.pSplatFbo,
         resolution,
@@ -473,6 +495,17 @@ void GS3DIndLight::draw(
         );
     } */
 
+    // Z-Normal Pass
+    {
+        FALCOR_PROFILE(pRenderContext, "zNormal");
+        auto [prog, var] = getShaderProgVar(mDrawResource.pZNormalPass);
+        pStaticScene->bindRootShaderData(var);
+        var["gZNormals"] = mDrawResource.pZNormalTexture;
+        args.pVBuffer->bindShaderData(var["gGVBuffer"]);
+
+        mDrawResource.pZNormalPass->execute(pRenderContext, resolution.x, resolution.y, 1);
+    }
+
     // Splat Draw Pass
     {
         FALCOR_PROFILE(pRenderContext, "draw");
@@ -484,6 +517,7 @@ void GS3DIndLight::draw(
         var["gResolution"] = resolutionFloat;
         var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
         var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
+        var["gZNormals"] = mDrawResource.pZNormalTexture;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);

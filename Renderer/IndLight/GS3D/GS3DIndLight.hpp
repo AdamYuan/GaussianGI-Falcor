@@ -27,7 +27,7 @@ private:
 
     struct
     {
-        ref<ComputePass> pCullPass, pBlendPass, pShadowPass, pProbePass;
+        ref<ComputePass> pCullPass, pBlendPass, pShadowPass, pProbePass, pZNormalPass;
         ref<RasterPass> pDrawPass;
         struct
         {
@@ -41,6 +41,7 @@ private:
         ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer;
         ref<Buffer> pSrcSplatProbeBuffer, pDstSplatProbeBuffer;
         ref<Buffer> pSplatDrawArgBuffer;
+        ref<Texture> pZNormalTexture;
         ref<Fbo> pSplatFbo;
         uint32_t probeTick{};
     } mDrawResource{};

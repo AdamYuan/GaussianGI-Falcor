@@ -123,6 +123,7 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GS3D/GS3DIndLightTraceShadow.rt.slang
         Renderer/IndLight/GS3D/GS3DIndLightProbe.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightCull.cs.slang
+        Renderer/IndLight/GS3D/GS3DIndLightZNormal.cs.slang
         Renderer/IndLight/GS3D/GS3DIndLightDraw.3d.slang
         Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang
         Renderer/IndLight/GS3D/Misc/GS3DMiscRenderer.hpp

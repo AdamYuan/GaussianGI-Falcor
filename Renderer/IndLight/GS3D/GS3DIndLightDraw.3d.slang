@@ -18,12 +18,15 @@ RWStructuredBuffer<uint> gSplatIDs;
 RWBuffer<float> gSplatShadows;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
+Texture2D<uint> gZNormals;
 
 StructuredBuffer<SH9<float3>> gSplatProbes;
 
 #define BOUND_FACTOR GS3D_BOUND_SQRT_2LOG_255
 
 #define USE_GSPP 1
+
+#define USE_Z_NORMAL 1
 
 #define WRAP_GEOM_ICOSAHEDRON 0 // Must enable culling
 #define WRAP_GEOM_BOX 1
@@ -53,12 +56,20 @@ uint vsMain(uint instanceID: SV_InstanceID)
     return instanceID;
 }
 
+#if USE_GSPP
+
+[maxvertexcount(4)]
+
+#else
+
 #if WRAP_GEOM == WRAP_GEOM_ICOSAHEDRON
 [maxvertexcount(ICOSAHEDRON_TRISTRIP_INDEX_COUNT)]
 #elif WRAP_GEOM == WRAP_GEOM_QUAD
 [maxvertexcount(4)]
 #else
 #error
+#endif
+
 #endif
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
@@ -200,9 +211,16 @@ float4 psMain(PSIn pIn)
 {
     uint2 coord = uint2(pIn.clipPos.xy);
 
-    var hitInfo = gGVBuffer.LoadHitInfo(coord);
-    if (!hitInfo.isHit)
-        discard;
+    // TODO: Replace this with stencil test
+    /* #if USE_Z_NORMAL
+        uint zNormal = gZNormals[coord];
+        if (zNormal == -1)
+            discard;
+    #else
+        var hitInfo = gGVBuffer.LoadHitInfo(coord);
+        if (!hitInfo.isHit)
+            discard;
+    #endif */
 
 #if USE_GSPP
     float alpha = exp(-0.5 * dot(pIn.quadPos, pIn.quadPos));
@@ -214,12 +232,29 @@ float4 psMain(PSIn pIn)
     if (alpha < 1.0 / 255.0)
         discard;
 
+    float3 normal, position;
+
+#if USE_Z_NORMAL
+    uint zNormal = gZNormals[coord];
+    normal = oct_to_ndir_unorm(unpackUnorm2x8(zNormal >> 16u));
+    float z = unpackUnorm16(zNormal & 0xFFFFu);
+    float4 invClip = float4((pIn.clipPos.xy / gResolution), z, 1.0);
+    invClip.xy = invClip.xy * 2.0 - 1.0;
+    invClip.y = -invClip.y;
+    invClip = mul(gGStaticScene.camera.data.invViewProj, invClip);
+    position = invClip.xyz / invClip.w;
+#else
+    var hitInfo = gGVBuffer.LoadHitInfo(coord);
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
-    float3 p = hitPoint.position - pIn.splatMean;
+    normal = hitPoint.normal;
+    position = hitPoint.position;
+#endif
+
+    float3 p = position - pIn.splatMean;
     float maxDist = 0.1, dist = length(p);
     float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
-    float3 color = M_1_PI * max(shDot(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
+    float3 color = M_1_PI * max(shDot(pIn.probe, shBasis<2>(normal)), 0.0);
 
     return float4(color * alpha, alpha) * weight;
 }
