@@ -70,7 +70,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     // o.splatScale = float16_t3(splat.geom.scale);
     // o.albedo = float16_t3(splat.attrib.albedo);
     // o.shadow = float16_t(gSplatShadows[splatID]);
-    o.probe = gSplatProbes[splatID];
+    o.probe = shConvolve(gSplatProbes[splatID], shDiffuseLobe<2>());
     /* [ForceUnroll]
     for (uint i = 0; i < 9; ++i)
         o.probe.data[i] = float16_t3(1.0); */
@@ -219,10 +219,7 @@ float4 psMain(PSIn pIn)
     float maxDist = 0.1, dist = length(p);
     float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
-    float3 color = M_1_PI * max(shDiffuse(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
-    // color = float3(pIn.albedo * pIn.shadow);
-    // color = gGStaticScene.lighting.evaluateSunIrradiance(pIn.normal, pIn.shadow) * M_1_PI * float3(pIn.albedo);
-    // color = float3(pIn.normal) * 0.5 + 0.5;
+    float3 color = M_1_PI * max(shDot(pIn.probe, shBasis<2>(hitPoint.normal)), 0.0);
 
     return float4(color * alpha, alpha) * weight;
 }
