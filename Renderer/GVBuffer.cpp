@@ -25,6 +25,22 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         ProgramDesc rasterDesc;
         rasterDesc.addShaderLibrary("GaussianGI/Renderer/GVBuffer.3d.slang").vsEntry("vsMain").gsEntry("gsMain").psEntry("psMain");
         mpRasterPass = RasterPass::create(getDevice(), rasterDesc);
+
+        DepthStencilState::Desc depthStencilDesc;
+        depthStencilDesc.setDepthEnabled(true);
+        depthStencilDesc.setDepthWriteMask(true);
+        depthStencilDesc.setStencilEnabled(true);
+        depthStencilDesc.setStencilOp(
+            DepthStencilState::Face::FrontAndBack,
+            DepthStencilState::StencilOp::Replace,
+            DepthStencilState::StencilOp::Replace,
+            DepthStencilState::StencilOp::Replace
+        );
+        depthStencilDesc.setStencilFunc(DepthStencilState::Face::FrontAndBack, ComparisonFunc::Always);
+        depthStencilDesc.setStencilWriteMask(0xFF);
+        depthStencilDesc.setStencilReadMask(0xFF);
+        depthStencilDesc.setStencilRef(1);
+        mpRasterPass->getState()->setDepthStencilState(DepthStencilState::create(depthStencilDesc));
     }
     uint2 resolution = getTextureResolution2(pScreenFbo);
     updateTextureSize(
@@ -60,17 +76,32 @@ void GVBuffer::draw(RenderContext* pRenderContext, const ref<Fbo>& pScreenFbo, c
         }
     );
     updateTextureSize(
+        mpDepthStencilTexture,
+        resolution,
+        [this](uint width, uint height)
+        {
+            return getDevice()->createTexture2D(
+                width,
+                height,
+                ResourceFormat::D32FloatS8Uint, //
+                1,
+                1,
+                nullptr,
+                ResourceBindFlags::DepthStencil
+            );
+        }
+    );
+    updateTextureSize(
         mpFbo,
         resolution,
-        [&](uint width, uint height)
-        { return Fbo::create(getDevice(), {mpAlbedoTexture, mpHitTexture}, pScreenFbo->getDepthStencilTexture()); }
+        [&](uint width, uint height) { return Fbo::create(getDevice(), {mpAlbedoTexture, mpHitTexture}, mpDepthStencilTexture); }
     );
 
     mpRasterPass->getState()->setRasterizerState(GMesh::getRasterizerState());
 
     pRenderContext->clearRtv(mpAlbedoTexture->getRTV().get(), float4{0.0f});
     pRenderContext->clearRtv(mpHitTexture->getRTV().get(), float4{asfloat(0xFFFFFFFFu)});
-    pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, false);
+    pRenderContext->clearDsv(mpFbo->getDepthStencilView().get(), 1.0f, 0, true, true);
     pStaticScene->draw(pRenderContext, mpFbo, mpRasterPass);
 }
 

@@ -30,9 +30,14 @@ inline uint3 getTextureResolution3(const ref<Texture>& pTexture)
 }
 
 template<typename Texture_T> // Texture_T can be Texture or Fbo
-inline bool updateTextureSize(ref<Texture_T>& pTexture, uint2 resolution, std::invocable<uint, uint> auto&& createTexture)
+inline bool updateTextureSize(
+    ref<Texture_T>& pTexture,
+    uint2 resolution,
+    std::invocable<uint, uint> auto&& createTexture,
+    bool extraUpdateCond = false
+)
 {
-    if (!pTexture || math::any(resolution != getTextureResolution2(pTexture)))
+    if (!pTexture || math::any(resolution != getTextureResolution2(pTexture)) || extraUpdateCond)
     {
         pTexture = createTexture(resolution.x, resolution.y);
         return true;
@@ -40,9 +45,14 @@ inline bool updateTextureSize(ref<Texture_T>& pTexture, uint2 resolution, std::i
     return false;
 }
 
-inline bool updateTextureSize(ref<Texture>& pTexture, uint3 resolution, std::invocable<uint, uint, uint> auto&& createTexture)
+inline bool updateTextureSize(
+    ref<Texture>& pTexture,
+    uint3 resolution,
+    std::invocable<uint, uint, uint> auto&& createTexture,
+    bool extraUpdateCond = false
+)
 {
-    if (!pTexture || math::any(resolution != getTextureResolution3(pTexture)))
+    if (!pTexture || math::any(resolution != getTextureResolution3(pTexture)) || extraUpdateCond)
     {
         pTexture = createTexture(resolution.x, resolution.y, resolution.z);
         return true;

@@ -73,9 +73,6 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pDrawPass = RasterPass::create(getDevice(), splatDrawDesc);
         mDrawResource.pDrawPass->getState()->setVao(Vao::create(Vao::Topology::PointList));
 
-        DepthStencilState::Desc splatDepthDesc;
-        splatDepthDesc.setDepthEnabled(false);
-        splatDepthDesc.setDepthWriteMask(false);
         BlendState::Desc splatBlendDesc;
         splatBlendDesc.setRtBlend(0, true).setRtParams(
             0,
@@ -90,7 +87,40 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         splatRasterDesc.setCullMode(RasterizerState::CullMode::None);
         mDrawResource.pDrawPass->getState()->setRasterizerState(RasterizerState::create(splatRasterDesc));
         mDrawResource.pDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
-        mDrawResource.pDrawPass->getState()->setDepthStencilState(DepthStencilState::create(splatDepthDesc));
+    }
+
+    if (mConfig.useStencil)
+    {
+        static ref<DepthStencilState> sDepthStencilState = []
+        {
+            DepthStencilState::Desc splatDSDesc;
+            splatDSDesc.setDepthEnabled(false);
+            splatDSDesc.setDepthWriteMask(false);
+            splatDSDesc.setStencilEnabled(true);
+            splatDSDesc.setStencilRef(1);
+            splatDSDesc.setStencilFunc(DepthStencilState::Face::FrontAndBack, ComparisonFunc::Equal);
+            splatDSDesc.setStencilOp(
+                DepthStencilState::Face::FrontAndBack,
+                DepthStencilState::StencilOp::Keep,
+                DepthStencilState::StencilOp::Keep,
+                DepthStencilState::StencilOp::Keep
+            );
+            splatDSDesc.setStencilReadMask(0xFF);
+            splatDSDesc.setStencilWriteMask(0);
+            return DepthStencilState::create(splatDSDesc);
+        }();
+        mDrawResource.pDrawPass->getState()->setDepthStencilState(sDepthStencilState);
+    }
+    else
+    {
+        static ref<DepthStencilState> sDepthStencilState = []
+        {
+            DepthStencilState::Desc splatDepthDesc;
+            splatDepthDesc.setDepthEnabled(false);
+            splatDepthDesc.setDepthWriteMask(false);
+            return DepthStencilState::create(splatDepthDesc);
+        }();
+        mDrawResource.pDrawPass->getState()->setDepthStencilState(sDepthStencilState);
     }
 
     if (!mDrawResource.pBlendPass)
@@ -150,13 +180,8 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pSplatFbo,
         resolution,
         [&](uint width, uint height)
-        {
-            return Fbo::create(
-                getDevice(),
-                {pIndirectTexture},
-                nullptr // args.pVBuffer->getDepthStencilTexture()
-            );
-        }
+        { return Fbo::create(getDevice(), {pIndirectTexture}, mConfig.useStencil ? args.pVBuffer->getDepthStencilTexture() : nullptr); },
+        mConfig.useStencil != mPrevConfig.useStencil
     );
 }
 
@@ -567,6 +592,7 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
         mDrawResource.probeTick = 0u;
 
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
+    widget.checkbox("Use Stencil", mConfig.useStencil);
 
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);

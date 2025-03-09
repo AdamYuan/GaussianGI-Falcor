@@ -207,6 +207,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 #endif
 }
 
+[earlydepthstencil]
 float4 psMain(PSIn pIn)
 {
     uint2 coord = uint2(pIn.clipPos.xy);
