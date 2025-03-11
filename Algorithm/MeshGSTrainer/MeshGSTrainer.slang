@@ -8,9 +8,7 @@ import GaussianGI.Algorithm.ShaderMisc;
 #define TRAIT_INCLUDE_PATH "GaussianGI/Algorithm/MeshGSTrainer/Trait/Depth.slangh"
 #endif
 
-#define TRAIT_IN_MESHGSTRAINER_SLANG
 #include TRAIT_INCLUDE_PATH
-#undef TRAIT_IN_MESHGSTRAINER_SLANG
 
 #define USE_N2_GENERALIZED_GAUSSIAN 0
 
@@ -38,6 +36,7 @@ namespace MeshGSTrain
 #define FLOATS_PER_SPLAT (FLOATS_PER_SPLAT_GEOM + FLOATS_PER_SPLAT_ATTRIB)
 #define FLOATS_PER_SPLAT_VIEW (FLOATS_PER_SPLAT_VIEW_GEOM + FLOATS_PER_SPLAT_CHANNEL)
 #define FLOATS_PER_SPLAT_ADAM (FLOATS_PER_SPLAT * 2)
+#define FLOATS_PER_SPLAT_CHANNEL_T (FLOATS_PER_SPLAT_CHANNEL + 1)
 
     // Splat SOA
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT
@@ -228,7 +227,6 @@ namespace MeshGSTrain
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT_ADAM
 #define SOA_TUPLE_NAME FlatSplatAdam
 #define SOA_IELEMENT_NAME ISplatAdamElement
-#define SOA_BUFFER_NAME SplatAdamBuffer
 #define SOA_RWBUFFER_NAME RWSplatAdamBuffer
 #define SOA_BUFFER_DEF
 #define SOA_BUFFER_UNDEF
@@ -238,8 +236,26 @@ namespace MeshGSTrain
 #undef SOA_WORDS_PER_ELEM
 #undef SOA_TUPLE_NAME
 #undef SOA_IELEMENT_NAME
-#undef SOA_BUFFER_NAME
 #undef SOA_RWBUFFER_NAME
+
+    // SplatChannelT SOA
+#define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT_CHANNEL_T
+#define SOA_TUPLE_NAME FlatSplatChannelT
+#define SOA_IELEMENT_NAME ISplatChannelTElement
+#define SOA_TEXTURE2D_NAME SplatTexture
+#define SOA_RWTEXTURE2D_NAME RWSplatTexture
+#define SOA_COHERENTTEXTURE2D_NAME CoherentSplatTexture
+#define SOA_BUFFER_DEF
+#define SOA_BUFFER_UNDEF
+#include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_UNDEF
+#undef SOA_BUFFER_DEF
+#undef SOA_WORDS_PER_ELEM
+#undef SOA_TUPLE_NAME
+#undef SOA_IELEMENT_NAME
+#undef SOA_TEXTURE2D_NAME
+#undef SOA_RWTEXTURE2D_NAME
+#undef SOA_COHERENTTEXTURE2D_NAME
 
     public struct Splat : ISplatElement, IDifferentiable
     {
@@ -322,6 +338,31 @@ namespace MeshGSTrain
                 splatAdam.v.setWord(i, soa.getWord(i + FLOATS_PER_SPLAT));
             }
             return splatAdam;
+        }
+    }
+
+    public struct SplatChannelT : ISplatChannelTElement
+    {
+        public Trait::SplatChannel channel;
+        public float T;
+
+        public FlatSplatChannelT toSOA()
+        {
+            FlatSplatChannelT soa;
+            [ForceUnroll]
+            for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
+                soa.setWord(i, this.channel.getWord(i));
+            soa.setWord(FLOATS_PER_SPLAT_CHANNEL, this.T);
+            return soa;
+        }
+        public static This fromSOA(FlatSplatChannelT soa)
+        {
+            This channelT;
+            [ForceUnroll]
+            for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
+                channelT.channel.setWord(i, soa.getWord(i));
+            channelT.T = soa.getWord(FLOATS_PER_SPLAT_CHANNEL);
+            return channelT;
         }
     }
 

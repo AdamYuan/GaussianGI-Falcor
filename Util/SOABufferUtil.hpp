@@ -57,11 +57,8 @@ struct SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>
         GSGI_SAO_X(float, Float)
         else GSGI_SAO_X(uint32_t, Uint)   //
             else GSGI_SAO_X(int32_t, Int) //
-            else
-        {
-            static_assert(false);
-            return ResourceFormat::Unknown;
-        }
+            else static_assert(false);
+        return ResourceFormat::Unknown;
 #undef GSGI_SAO_X
     }
     static_assert(kUnitsPerElem * WordsPerUnit_V + kWordsPerExt == WordsPerElem_V);
@@ -210,6 +207,88 @@ struct SOABuffer<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
             );
         }
         return data;
+    }
+};
+
+template<typename, uint32_t>
+struct SOATexture;
+template<typename Word_T, uint32_t WordsPerUnit_V, uint32_t WordsPerElem_V, uint32_t Dim_V>
+struct SOATexture<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>, Dim_V>
+{
+    static_assert(Dim_V == 1 || Dim_V == 2 || Dim_V == 3);
+
+    using Trait = SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>;
+
+    std::array<ref<Texture>, Trait::kVectorsPerElem> pVectorTextures;
+
+    SOATexture() = default;
+    SOATexture(const ref<Device>& pDevice, math::vector<uint32_t, Dim_V> resolution, ResourceBindFlags bindFlags)
+    {
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            if constexpr (Dim_V == 1)
+                pVectorTextures[vecIdx] =
+                    pDevice->createTexture1D(resolution.x, Trait::getPaddedVectorFormat(vecIdx), 1, 1, nullptr, bindFlags);
+            else if constexpr (Dim_V == 2)
+                pVectorTextures[vecIdx] =
+                    pDevice->createTexture2D(resolution.x, resolution.y, Trait::getPaddedVectorFormat(vecIdx), 1, 1, nullptr, bindFlags);
+            else if constexpr (Dim_V == 3)
+                pVectorTextures[vecIdx] = pDevice->createTexture3D(
+                    resolution.x, resolution.y, resolution.z, Trait::getPaddedVectorFormat(vecIdx), 1, nullptr, bindFlags
+                );
+        }
+    }
+
+    bool isCapable(math::vector<uint32_t, Dim_V> resolution) const
+    {
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            const auto& pTexture = pVectorTextures[vecIdx];
+            if (pTexture == nullptr || pTexture->getFormat() != Trait::getPaddedVectorFormat(vecIdx))
+                return false;
+            if constexpr (Dim_V >= 1)
+                if (pTexture->getWidth() != resolution.x)
+                    return false;
+            if constexpr (Dim_V >= 2)
+                if (pTexture->getHeight() != resolution.y)
+                    return false;
+            if constexpr (Dim_V >= 3)
+                if (pTexture->getDepth() != resolution.z)
+                    return false;
+        }
+        return true;
+    }
+
+    void bindShaderData(const ShaderVar& var) const
+    {
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            if (Trait::isExtVector(vecIdx))
+                var["extTex"] = pVectorTextures[vecIdx];
+            else
+                var["unitTexs"][vecIdx] = pVectorTextures[vecIdx];
+        }
+    }
+
+    template<typename Element_T>
+    void clearTexture(RenderContext* pRenderContext, const Element_T& value) const
+        requires(sizeof(Element_T) == sizeof(Word_T) * WordsPerElem_V)
+    {
+        auto pElementWords = reinterpret_cast<const float*>(&value);
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            float4 clearValue{};
+            std::copy_n(pElementWords, Trait::getWordsPerVector(vecIdx), &clearValue[0]);
+            pRenderContext->clearTexture(pVectorTextures[vecIdx].get(), clearValue);
+
+            pElementWords += Trait::getWordsPerVector(vecIdx);
+        }
+    }
+
+    void clearTexture(RenderContext* pRenderContext) const
+    {
+        for (const auto& pTexture : pVectorTextures)
+            pRenderContext->clearTexture(pTexture.get(), float4{});
     }
 };
 

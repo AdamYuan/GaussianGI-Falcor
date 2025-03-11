@@ -27,17 +27,6 @@ struct MeshGSTrainDepthTrait
         float depth;
     };
 
-    struct SplatTexture
-    {
-        ref<Texture> pDepthTTexture;
-
-        static SplatTexture create(const ref<Device>& pDevice, uint2 resolution);
-        void clearUavRsMs(RenderContext* pRenderContext) const;
-        void bindShaderData(const ShaderVar& var) const;
-        void bindRsMsShaderData(const ShaderVar& var) const;
-        bool isCapable(uint2 resolution) const;
-    };
-
     struct SplatRTTexture
     {
         ref<Texture> pDepthTexture, pTTexture;

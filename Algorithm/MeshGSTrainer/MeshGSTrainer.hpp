@@ -23,14 +23,6 @@ concept MeshGSTrainSplatAttrib = (std::is_empty_v<T> || sizeof(T) % sizeof(float
 template<typename T>
 concept MeshGSTrainSplatChannel = sizeof(T) % sizeof(float) == 0 && alignof(T) == sizeof(float);
 template<typename T>
-concept MeshGSTrainSplatTexture = requires(const T& ct, const ref<Device>& pDevice, const ShaderVar& var, RenderContext* pRenderContext) {
-    { T::create(pDevice, uint2{}) } -> std::convertible_to<T>;
-    { ct.bindShaderData(var) } -> std::same_as<void>;
-    { ct.bindRsMsShaderData(var) } -> std::same_as<void>;
-    { ct.clearUavRsMs(pRenderContext) } -> std::same_as<void>;
-    { ct.isCapable(uint2{}) } -> std::convertible_to<bool>;
-};
-template<typename T>
 concept MeshGSTrainSplatRTTexture = requires(const T& ct, const ref<Device>& pDevice, const ShaderVar& var, RenderContext* pRenderContext) {
     { T::create(pDevice, uint2{}) } -> std::convertible_to<T>;
     { T::getBlendStateDesc() } -> std::convertible_to<BlendState::Desc>;
@@ -67,8 +59,6 @@ concept MeshGSTrainTrait = requires {
     requires MeshGSTrainSplatChannel<typename T::SplatChannel>;
     requires T::kFloatsPerSplatChannel == sizeof(typename T::SplatChannel) / sizeof(float);
 
-    typename T::SplatTexture;
-    requires MeshGSTrainSplatTexture<typename T::SplatTexture>;
     typename T::SplatRTTexture;
     requires MeshGSTrainSplatRTTexture<typename T::SplatRTTexture>;
     typename T::MeshRTTexture;
@@ -153,16 +143,20 @@ public:
     static_assert(sizeof(Splat) == kFloatsPerSplat * sizeof(float));
     static constexpr uint kFloatsPerSplatView = kMeshGSTrainSplatViewGeomFloatCount + Trait_T::kFloatsPerSplatChannel;
     static constexpr uint kFloatsPerSplatAdam = kFloatsPerSplat * 2;
+    static constexpr uint kFloatsPerSplatChannelT = Trait_T::kFloatsPerSplatChannel + 1;
 
     using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
     using SplatSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplat>;
     using SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatView>;
     using SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatAdam>;
+    using SplatChannelTSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatChannelT>;
 
     using SplatBuffer = SOABuffer<SplatSOATrait>;
     using SplatBufferData = SOABufferData<SplatSOATrait>;
     using SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
     using SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
+
+    using SplatTexture = SOATexture<SplatChannelTSOATrait, 2>;
 
     struct Desc
     {
@@ -176,7 +170,7 @@ public:
     {
         typename Trait_T::SplatRTTexture splatRT;
         // typename Derived_T::MeshRTTexture meshRT;
-        typename Trait_T::SplatTexture splatDLossTex, splatTmpTex;
+        SplatTexture splatDLossTex, splatTmpTex;
         SplatBuffer splatBuf, splatDLossBuf;
         SplatAdamBuffer splatAdamBuf;
         SplatViewBuffer splatViewBuf, splatViewDLossBuf;

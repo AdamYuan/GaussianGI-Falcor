@@ -13,16 +13,9 @@ uniform float2 gResolution;
 uniform float4x4 gCamInvProjMat;
 uniform float gCamProjMat00;
 
-Trait::SplatTexture gDLossDCs_Ts;
+SplatTexture gDLossDCs_Ts;
+CoherentSplatTexture gRs_Ms;
 RWSplatViewBuffer gDLossDSplatViews;
-
-#ifndef TRAIT_INCLUDE_PATH
-#define TRAIT_INCLUDE_PATH "GaussianGI/Algorithm/MeshGSTrainer/Trait/Depth.slangh"
-#endif
-
-#define TRAIT_IN_BACKWARDDRAW_3D_SLANG
-#include TRAIT_INCLUDE_PATH
-#undef TRAIT_IN_BACKWARDDRAW_3D_SLANG
 
 struct PSIn
 {
@@ -83,19 +76,22 @@ void psMain(PSIn pIn)
 
     Trait::SplatChannel ci = pIn.splatView.channel; // c_i
 
-    float T;                                                 // T = \prod (1 - \alpha_i)
-    Trait::SplatChannel dL_dC = gDLossDCs_Ts.load(coord, T); // \dfrac{dL}{dC}
+    SplatChannelT tmpChannelT;
+
+    tmpChannelT = gDLossDCs_Ts.load<SplatChannelT>(coord);
+    float T = tmpChannelT.T;                         // T = \prod (1 - \alpha_i)
+    Trait::SplatChannel dL_dC = tmpChannelT.channel; // \dfrac{dL}{dC}
 
     float oneMinusAlpha = 1 - alpha;
     Trait::SplatChannel ciMulAlpha = ci.mul(alpha);
 
     beginInvocationInterlock();
-    Trait::RWSplatTexture coherentRsMs = getCoherentRsMs();
-    float Ri;                                                         // R_i
-    Trait::SplatChannel Mi = coherentRsMs.load(coord, Ri);            // M_i
+    tmpChannelT = gRs_Ms.load<SplatChannelT>(coord);
+    float Ri = tmpChannelT.T;                                         // R_i
+    Trait::SplatChannel Mi = tmpChannelT.channel;                     // M_i
     float Ri_1 = Ri * oneMinusAlpha;                                  // R_{i - 1}
     Trait::SplatChannel Mi_1 = ciMulAlpha.add(Mi.mul(oneMinusAlpha)); // M_{i - 1}
-    coherentRsMs.store(coord, Mi_1, Ri_1);
+    gRs_Ms.store(coord, SplatChannelT(Mi_1, Ri_1));
     endInvocationInterlock();
 
     float Ti = T / Ri_1;

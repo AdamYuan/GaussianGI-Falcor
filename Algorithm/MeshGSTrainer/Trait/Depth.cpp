@@ -9,31 +9,6 @@
 namespace GSGI
 {
 
-MeshGSTrainDepthTrait::SplatTexture MeshGSTrainDepthTrait::SplatTexture::create(const ref<Device>& pDevice, uint2 resolution)
-{
-    SplatTexture splatTex = {};
-    splatTex.pDepthTTexture = createTexture<ResourceFormat::RG32Float>(
-        pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
-    return splatTex;
-}
-void MeshGSTrainDepthTrait::SplatTexture::clearUavRsMs(RenderContext* pRenderContext) const
-{
-    pRenderContext->clearTexture(pDepthTTexture.get(), float4{0.0f, 1.0f, 0.0f, 0.0f});
-}
-void MeshGSTrainDepthTrait::SplatTexture::bindShaderData(const ShaderVar& var) const
-{
-    var["depths_Ts"] = pDepthTTexture;
-}
-void MeshGSTrainDepthTrait::SplatTexture::bindRsMsShaderData(const ShaderVar& var) const
-{
-    var["gRs_Ms"] = pDepthTTexture;
-}
-bool MeshGSTrainDepthTrait::SplatTexture::isCapable(uint2 resolution) const
-{
-    return isTextureCapable(resolution, pDepthTTexture);
-}
-
 MeshGSTrainDepthTrait::SplatRTTexture MeshGSTrainDepthTrait::SplatRTTexture::create(const ref<Device>& pDevice, uint2 resolution)
 {
     SplatRTTexture splatRT = {};

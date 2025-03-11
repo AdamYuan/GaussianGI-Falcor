@@ -7,7 +7,7 @@ using namespace MeshGSTrain;
 
 Trait::SplatRTTexture gSplatRT;
 Trait::MeshRTTexture gMeshRT;
-Trait::RWSplatTexture gDLossDCs_Ts;
+RWSplatTexture gDLossDCs_Ts;
 
 uniform uint2 gResolution;
 
@@ -29,5 +29,5 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     bwd_diff(Trait::loss)(dp, data, pixelCount, 1.0);
 
     Trait::SplatChannel dL_dC = dp.d;
-    gDLossDCs_Ts.store(threadID, dL_dC, T);
+    gDLossDCs_Ts.store(threadID, SplatChannelT(dL_dC, T));
 }

@@ -20,35 +20,37 @@
 #define SOA_IELEMENT_NAME ISOAElement
 #endif
 
-#ifndef SOA_BUFFER_NAME
-#define SOA_BUFFER_NAME SOABuffer
-#endif
-
-#ifndef SOA_RWBUFFER_NAME
-#define SOA_RWBUFFER_NAME SOARWBuffer
-#endif
-
 // Checks
 #if !(SOA_WORDS_PER_UNIT == 1 || SOA_WORDS_PER_UNIT == 2 || SOA_WORDS_PER_UNIT == 4)
 #error SOA_WORDS_PER_UNIT should be 1 or 2 or 4
 #endif
 
-#if !(SOA_WORDS_PER_ELEM > SOA_WORDS_PER_UNIT)
-#error SOA_WORDS_PER_ELEM should be greater than SOA_WORDS_PER_UNIT
+#if !(SOA_WORDS_PER_ELEM > 0)
+#error SOA_WORDS_PER_ELEM should be greater than 0
 #endif
 
 // Values
 #define SOA_UNITS_PER_ELEM (SOA_WORDS_PER_ELEM / SOA_WORDS_PER_UNIT)
 #define SOA_WORDS_PER_EXT (SOA_WORDS_PER_ELEM % SOA_WORDS_PER_UNIT)
-#define SOA_IS_EXT_PADDED ((SOA_WORDS_PER_EXT) == 3)
-#define SOA_PADDED_WORDS_PER_EXT (SOA_IS_EXT_PADDED ? 4 : SOA_WORDS_PER_EXT)
 
 #define SOA_HAS_UNITS (SOA_UNITS_PER_ELEM > 0)
 #define SOA_HAS_EXT (SOA_WORDS_PER_EXT > 0)
 
+#if SOA_HAS_UNITS
 #define SOA_UNIT_TYPE vector<SOA_WORD_TYPE, SOA_WORDS_PER_UNIT>
+#endif
+
+#if SOA_HAS_EXT
+#define SOA_IS_EXT_PADDED ((SOA_WORDS_PER_EXT) == 3)
+#define SOA_PADDED_WORDS_PER_EXT (SOA_IS_EXT_PADDED ? 4 : SOA_WORDS_PER_EXT)
 #define SOA_EXT_TYPE vector<SOA_WORD_TYPE, SOA_WORDS_PER_EXT>
 #define SOA_PADDED_EXT_TYPE vector<SOA_WORD_TYPE, SOA_PADDED_WORDS_PER_EXT>
+#if SOA_WORDS_PER_EXT == 1
+#define SOA_TEXTURE_PADDED_EXT_TYPE SOA_WORD_TYPE
+#else
+#define SOA_TEXTURE_PADDED_EXT_TYPE SOA_PADDED_EXT_TYPE
+#endif
+#endif
 
 public interface SOA_IELEMENT_NAME
 {
@@ -116,6 +118,7 @@ public struct SOA_TUPLE_NAME : SOA_IELEMENT_NAME
     }
 }
 
+#ifdef SOA_BUFFER_NAME
 public struct SOA_BUFFER_NAME
 {
 #if SOA_HAS_UNITS
@@ -146,7 +149,9 @@ public struct SOA_BUFFER_NAME
         return T::fromSOA(a);
     }
 }
+#endif // SOA_BUFFER_NAME
 
+#ifdef SOA_RWBUFFER_NAME
 public struct SOA_RWBUFFER_NAME
 {
 #if SOA_HAS_UNITS
@@ -196,21 +201,165 @@ public struct SOA_RWBUFFER_NAME
 #endif
     }
 }
+#endif // SOA_RWBUFFER_NAME
+
+#ifdef SOA_TEXTURE2D_NAME
+public struct SOA_TEXTURE2D_NAME
+{
+#if SOA_HAS_UNITS
+    public Texture2D<SOA_UNIT_TYPE> unitTexs[SOA_UNITS_PER_ELEM];
+#endif
+
+#if SOA_HAS_EXT
+    public Texture2D<SOA_TEXTURE_PADDED_EXT_TYPE> extTex;
+#endif
+
+    public T load<T : SOA_IELEMENT_NAME>(uint2 coord)
+    {
+        SOA_TUPLE_NAME a;
+
+#if SOA_HAS_UNITS
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            a.units[i] = unitTexs[i][coord];
+#endif
+
+#if SOA_HAS_EXT
+#if SOA_IS_EXT_PADDED
+        a.ext = extTex[coord].xyz;
+#else
+        a.ext = extTex[coord];
+#endif
+#endif
+        return T::fromSOA(a);
+    }
+}
+#endif // SOA_TEXTURE2D_NAME
+
+#ifdef SOA_RWTEXTURE2D_NAME
+public struct SOA_RWTEXTURE2D_NAME
+{
+#if SOA_HAS_UNITS
+    public RWTexture2D<SOA_UNIT_TYPE> unitTexs[SOA_UNITS_PER_ELEM];
+#endif
+
+#if SOA_HAS_EXT
+    public RWTexture2D<SOA_TEXTURE_PADDED_EXT_TYPE> extTex;
+#endif
+
+    public T load<T : SOA_IELEMENT_NAME>(uint2 coord)
+    {
+        SOA_TUPLE_NAME a;
+
+#if SOA_HAS_UNITS
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            a.units[i] = unitTexs[i][coord];
+#endif
+
+#if SOA_HAS_EXT
+#if SOA_IS_EXT_PADDED
+        a.ext = extTex[coord].xyz;
+#else
+        a.ext = extTex[coord];
+#endif
+#endif
+        return T::fromSOA(a);
+    }
+
+    public void store<T : SOA_IELEMENT_NAME>(uint2 coord, T elem)
+    {
+        SOA_TUPLE_NAME a = elem.toSOA();
+
+#if SOA_HAS_UNITS
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            unitTexs[i][coord] = a.units[i];
+#endif
+
+#if SOA_HAS_EXT
+#if SOA_IS_EXT_PADDED
+        extTex[coord] = SOA_PADDED_EXT_TYPE(a.ext, 0);
+#else
+        extTex[coord] = a.ext;
+#endif
+#endif
+    }
+}
+#endif // SOA_RWTEXTURE2D_NAME
+
+#ifdef SOA_COHERENTTEXTURE2D_NAME
+public struct SOA_COHERENTTEXTURE2D_NAME
+{
+#if SOA_HAS_UNITS
+    public globallycoherent RWTexture2D<SOA_UNIT_TYPE> unitTexs[SOA_UNITS_PER_ELEM];
+#endif
+
+#if SOA_HAS_EXT
+    public globallycoherent RWTexture2D<SOA_TEXTURE_PADDED_EXT_TYPE> extTex;
+#endif
+
+    public T load<T : SOA_IELEMENT_NAME>(uint2 coord)
+    {
+        SOA_TUPLE_NAME a;
+
+#if SOA_HAS_UNITS
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            a.units[i] = unitTexs[i][coord];
+#endif
+
+#if SOA_HAS_EXT
+#if SOA_IS_EXT_PADDED
+        a.ext = extTex[coord].xyz;
+#else
+        a.ext = extTex[coord];
+#endif
+#endif
+        return T::fromSOA(a);
+    }
+
+    public void store<T : SOA_IELEMENT_NAME>(uint2 coord, T elem)
+    {
+        SOA_TUPLE_NAME a = elem.toSOA();
+
+#if SOA_HAS_UNITS
+        [ForceUnroll]
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            unitTexs[i][coord] = a.units[i];
+#endif
+
+#if SOA_HAS_EXT
+#if SOA_IS_EXT_PADDED
+        extTex[coord] = SOA_PADDED_EXT_TYPE(a.ext, 0);
+#else
+        extTex[coord] = a.ext;
+#endif
+#endif
+    }
+}
+#endif // SOA_COHERENTTEXTURE2D_NAME
 
 #endif
 
 #ifdef SOA_BUFFER_UNDEF
 
-#undef SOA_UNITS_PER_ELEM
-#undef SOA_WORDS_PER_EXT
+#if SOA_HAS_UNITS
+#undef SOA_UNIT_TYPE
+#endif
+
+#if SOA_HAS_EXT
 #undef SOA_IS_EXT_PADDED
 #undef SOA_PADDED_WORDS_PER_EXT
+#undef SOA_EXT_TYPE
+#undef SOA_PADDED_EXT_TYPE
+#undef SOA_TEXTURE_PADDED_EXT_TYPE
+#endif
 
 #undef SOA_HAS_UNITS
 #undef SOA_HAS_EXT
 
-#undef SOA_UNIT_TYPE
-#undef SOA_EXT_TYPE
-#undef SOA_PADDED_EXT_TYPE
+#undef SOA_UNITS_PER_ELEM
+#undef SOA_WORDS_PER_EXT
 
 #endif

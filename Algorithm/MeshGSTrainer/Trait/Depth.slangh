@@ -1,10 +1,3 @@
-#if !defined(TRAIT_IN_MESHGSTRAINER_SLANG) && !defined(TRAIT_IN_BACKWARDDRAW_3D_SLANG)
-#define TRAIT_IN_MESHGSTRAINER_SLANG
-#define TRAIT_IN_BACKWARDDRAW_3D_SLANG
-#endif
-
-#ifdef TRAIT_IN_MESHGSTRAINER_SLANG
-
 #include "ITrait.slangh"
 
 namespace MeshGSTrain
@@ -28,35 +21,6 @@ namespace MeshGSTrain
             public float getWord(uint idx) { return depth; }
             [mutating]
             public void setWord(uint idx, float value) { depth = value; }
-        };
-
-        public struct SplatTexture : ISplatTexture<SplatChannel>
-        {
-            Texture2D<float2> depths_Ts;
-
-            public SplatChannel load(uint2 coord, out float o_T)
-            {
-                float2 depth_T = depths_Ts[coord];
-                SplatChannel ch;
-                ch.depth = depth_T.x;
-                o_T = depth_T.y;
-                return ch;
-            }
-        };
-
-        public struct RWSplatTexture : IRWSplatTexture<SplatChannel>
-        {
-            public RWTexture2D<float2> depths_Ts;
-
-            public SplatChannel load(uint2 coord, out float o_T)
-            {
-                float2 depth_T = depths_Ts[coord];
-                SplatChannel ch;
-                ch.depth = depth_T.x;
-                o_T = depth_T.y;
-                return ch;
-            }
-            public void store(uint2 coord, SplatChannel ch, float T) { depths_Ts[coord] = float2(ch.depth, T); }
         };
 
         public struct SplatRTTexture : ISplatRTTexture<SplatChannel>
@@ -147,18 +111,3 @@ namespace MeshGSTrain
         }
     }
 }
-
-#endif
-
-#ifdef TRAIT_IN_BACKWARDDRAW_3D_SLANG
-
-globallycoherent RWTexture2D<float2> gRs_Ms;
-
-MeshGSTrain::Trait::RWSplatTexture getCoherentRsMs()
-{
-    MeshGSTrain::Trait::RWSplatTexture splatTex;
-    splatTex.depths_Ts = gRs_Ms;
-    return splatTex;
-}
-
-#endif

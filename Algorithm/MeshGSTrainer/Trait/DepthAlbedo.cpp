@@ -9,37 +9,6 @@
 namespace GSGI
 {
 
-MeshGSTrainDepthAlbedoTrait::SplatTexture MeshGSTrainDepthAlbedoTrait::SplatTexture::create(const ref<Device>& pDevice, uint2 resolution)
-{
-    SplatTexture splatTex = {};
-    splatTex.pAlbedoDepthTexture = createTexture<ResourceFormat::RGBA32Float>(
-        pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
-    splatTex.pTTexture = createTexture<ResourceFormat::R32Float>(
-        pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess
-    );
-    return splatTex;
-}
-void MeshGSTrainDepthAlbedoTrait::SplatTexture::clearUavRsMs(RenderContext* pRenderContext) const
-{
-    pRenderContext->clearTexture(pAlbedoDepthTexture.get(), float4{});
-    pRenderContext->clearTexture(pTTexture.get(), float4{1.0f});
-}
-void MeshGSTrainDepthAlbedoTrait::SplatTexture::bindShaderData(const ShaderVar& var) const
-{
-    var["albedos_depths"] = pAlbedoDepthTexture;
-    var["Ts"] = pTTexture;
-}
-void MeshGSTrainDepthAlbedoTrait::SplatTexture::bindRsMsShaderData(const ShaderVar& var) const
-{
-    var["gAlbedoDepthMs"] = pAlbedoDepthTexture;
-    var["gRs"] = pTTexture;
-}
-bool MeshGSTrainDepthAlbedoTrait::SplatTexture::isCapable(uint2 resolution) const
-{
-    return isTextureCapable(resolution, pAlbedoDepthTexture, pTTexture);
-}
-
 MeshGSTrainDepthAlbedoTrait::SplatRTTexture MeshGSTrainDepthAlbedoTrait::SplatRTTexture::create(
     const ref<Device>& pDevice,
     uint2 resolution

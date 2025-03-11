@@ -104,8 +104,8 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
     return Resource{
         .splatRT = Trait_T::SplatRTTexture::create(pDevice, resolution),
         // .meshRT = Trait_T::MeshRTTexture::create(pDevice, resolution),
-        .splatDLossTex = Trait_T::SplatTexture::create(pDevice, resolution),
-        .splatTmpTex = Trait_T::SplatTexture::create(pDevice, resolution),
+        .splatDLossTex = SplatTexture{pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess},
+        .splatTmpTex = SplatTexture{pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess},
         .splatBuf = createSplatBuffer(pDevice, splatCount, splatInitData),
         .splatDLossBuf = createSplatBuffer(pDevice, splatCount),
         .splatAdamBuf = createSplatAdamBuffer(pDevice, splatCount),
@@ -368,7 +368,9 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        resource.splatTmpTex.clearUavRsMs(pRenderContext);
+        std::array<float, kFloatsPerSplatChannelT> clearRsMsValue{};
+        clearRsMsValue[kFloatsPerSplatChannelT - 1] = 1.0;
+        resource.splatTmpTex.clearTexture(pRenderContext, clearRsMsValue);
 
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
@@ -379,7 +381,7 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
         var["gCamProjMat00"] = camera.projMat[0][0];
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
-        resource.splatTmpTex.bindRsMsShaderData(var);
+        resource.splatTmpTex.bindShaderData(var["gRs_Ms"]);
 
         pRenderContext->drawIndirect(
             mpBackwardDrawPass->getState().get(),
