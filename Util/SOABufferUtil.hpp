@@ -26,12 +26,44 @@ struct SOATrait;
 template<typename Word_T, uint32_t WordsPerUnit_V, uint32_t WordsPerElem_V>
 struct SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>
 {
-    static_assert(WordsPerElem_V > WordsPerUnit_V);
+    static_assert(WordsPerElem_V > 0);
     static constexpr uint32_t kWordsPerElem = WordsPerElem_V;
-    static constexpr uint32_t kUnitsPerElem = WordsPerElem_V / WordsPerUnit_V - (WordsPerElem_V % WordsPerUnit_V == 0);
-    static constexpr uint32_t kWordsPerExt = WordsPerElem_V - kUnitsPerElem * WordsPerUnit_V;
+    static constexpr uint32_t kUnitsPerElem = WordsPerElem_V / WordsPerUnit_V;
+    static constexpr uint32_t kWordsPerExt = WordsPerElem_V % WordsPerUnit_V;
     static constexpr uint32_t kPaddedWordsPerExt = kWordsPerExt == 3 ? 4 : kWordsPerExt;
-    static_assert(kUnitsPerElem > 0 && kWordsPerExt > 0);
+    static constexpr bool kHasUnits = kUnitsPerElem > 0;
+    static constexpr bool kHasExt = kWordsPerExt > 0;
+    static_assert(kHasUnits || kHasExt);
+    static constexpr uint32_t kVectorsPerElem = kUnitsPerElem + kHasExt;
+    static constexpr bool isExtVector(uint32_t vecID) { return kHasExt && vecID == kUnitsPerElem; }
+    static constexpr uint32_t getWordsPerVector(uint32_t vecID) { return isExtVector(vecID) ? kWordsPerExt : WordsPerUnit_V; }
+    static constexpr uint32_t getPaddedWordsPerVector(uint32_t vecID) { return isExtVector(vecID) ? kPaddedWordsPerExt : WordsPerUnit_V; }
+    static constexpr ResourceFormat getPaddedVectorFormat(uint32_t vecID)
+    {
+        uint32_t count = getPaddedWordsPerVector(vecID);
+
+#define GSGI_SAO_X(C_TYPE, R_TYPE)                 \
+    if constexpr (std::same_as<Word_T, C_TYPE>)    \
+    {                                              \
+        if (count == 1)                            \
+            return ResourceFormat::R32##R_TYPE;    \
+        if (count == 2)                            \
+            return ResourceFormat::RG32##R_TYPE;   \
+        if (count == 3)                            \
+            return ResourceFormat::RGB32##R_TYPE;  \
+        if (count == 4)                            \
+            return ResourceFormat::RGBA32##R_TYPE; \
+    }
+        GSGI_SAO_X(float, Float)
+        else GSGI_SAO_X(uint32_t, Uint)   //
+            else GSGI_SAO_X(int32_t, Int) //
+            else
+        {
+            static_assert(false);
+            return ResourceFormat::Unknown;
+        }
+#undef GSGI_SAO_X
+    }
     static_assert(kUnitsPerElem * WordsPerUnit_V + kWordsPerExt == WordsPerElem_V);
 };
 
@@ -42,8 +74,7 @@ struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem
 {
     using Trait = SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>;
 
-    std::array<std::vector<uint32_t>, Trait::kUnitsPerElem> unitData;
-    std::vector<uint32_t> extData;
+    std::array<std::vector<uint32_t>, Trait::kVectorsPerElem> vectorData;
 
     SOABufferData() = default;
 
@@ -52,9 +83,8 @@ struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem
     {
         static_assert(sizeof(std::ranges::range_value_t<ElementRange_T>) == sizeof(Word_T) * WordsPerElem_V);
 
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
-            unitData[unitIdx].resize(elementCount * WordsPerUnit_V);
-        extData.resize(elementCount * Trait::kPaddedWordsPerExt);
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+            vectorData[vecIdx].resize(elementCount * Trait::getPaddedWordsPerVector(vecIdx));
 
         for (uint32_t elemIdx = 0; const auto& element : elements)
         {
@@ -62,12 +92,15 @@ struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem
                 break;
             auto pElementWords = reinterpret_cast<const uint32_t*>(&element);
 
-            for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+            for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
             {
-                std::copy_n(pElementWords, WordsPerUnit_V, unitData[unitIdx].data() + elemIdx * WordsPerUnit_V);
-                pElementWords += WordsPerUnit_V;
+                std::copy_n(
+                    pElementWords,
+                    Trait::getWordsPerVector(vecIdx),
+                    vectorData[vecIdx].data() + elemIdx * Trait::getPaddedWordsPerVector(vecIdx)
+                );
+                pElementWords += Trait::getWordsPerVector(vecIdx);
             }
-            std::copy_n(pElementWords, Trait::kWordsPerExt, extData.data() + elemIdx * Trait::kPaddedWordsPerExt);
 
             ++elemIdx;
         }
@@ -79,12 +112,15 @@ struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem
     {
         Element_T element;
         auto pElementWords = reinterpret_cast<uint32_t*>(&element);
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
         {
-            std::copy_n(unitData[unitIdx].data() + elemIdx * WordsPerUnit_V, WordsPerUnit_V, pElementWords);
-            pElementWords += WordsPerUnit_V;
+            std::copy_n(
+                vectorData[vecIdx].data() + elemIdx * Trait::getPaddedWordsPerVector(vecIdx),
+                Trait::getWordsPerVector(vecIdx),
+                pElementWords
+            );
+            pElementWords += Trait::getWordsPerVector(vecIdx);
         }
-        std::copy_n(extData.data() + elemIdx * Trait::kPaddedWordsPerExt, Trait::kWordsPerExt, pElementWords);
         return element;
     }
 
@@ -100,16 +136,14 @@ struct SOABufferData<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem
 
     bool isEmpty() const
     {
-        return std::ranges::all_of(unitData, [](const auto& data) { return data.empty(); }) && extData.empty();
+        return std::ranges::all_of(vectorData, [](const auto& data) { return data.empty(); });
     }
 
     bool isCapable(uint32_t elementCount) const
     {
-        for (const auto& data : unitData)
-            if (elementCount * WordsPerUnit_V > data.size())
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+            if (elementCount * Trait::getPaddedWordsPerVector(vecIdx) > vectorData[vecIdx].size())
                 return false;
-        if (elementCount * Trait::kPaddedWordsPerExt > extData.size())
-            return false;
         return true;
     }
 };
@@ -121,65 +155,60 @@ struct SOABuffer<SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>>
 {
     using Trait = SOATrait<SOAUnitTrait<Word_T, WordsPerUnit_V>, WordsPerElem_V>;
 
-    std::array<ref<Buffer>, Trait::kUnitsPerElem> pUnitBuffers;
-    ref<Buffer> pExtBuffer;
+    std::array<ref<Buffer>, Trait::kVectorsPerElem> pVectorBuffers;
 
     SOABuffer() = default;
     SOABuffer(const ref<Device>& pDevice, uint elementCount, ResourceBindFlags bindFlags, const SOABufferData<Trait>& initData = {})
     {
         bool isInitDataCapable = initData.isCapable(elementCount);
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
         {
-            const uint32_t* pInitData = isInitDataCapable ? initData.unitData[unitIdx].data() : nullptr;
-            pUnitBuffers[unitIdx] = pDevice->createStructuredBuffer(
-                WordsPerUnit_V * sizeof(Word_T), elementCount, bindFlags, MemoryType::DeviceLocal, pInitData, false
-            );
-        }
-        {
-            const uint32_t* pInitData = isInitDataCapable ? initData.extData.data() : nullptr;
-            pExtBuffer = pDevice->createStructuredBuffer(
-                Trait::kPaddedWordsPerExt * sizeof(Word_T), elementCount, bindFlags, MemoryType::DeviceLocal, pInitData, false
+            const uint32_t* pInitData = isInitDataCapable ? initData.vectorData[vecIdx].data() : nullptr;
+            pVectorBuffers[vecIdx] = pDevice->createStructuredBuffer(
+                Trait::getPaddedWordsPerVector(vecIdx) * sizeof(Word_T), elementCount, bindFlags, MemoryType::DeviceLocal, pInitData, false
             );
         }
     }
 
     bool isCapable(uint32_t elementCount) const
     {
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
         {
-            const auto& pUnitBuffer = pUnitBuffers[unitIdx];
-            if (pUnitBuffer == nullptr || pUnitBuffer->getStructSize() != WordsPerUnit_V * sizeof(Word_T) ||
-                pUnitBuffer->getElementCount() < elementCount)
+            const auto& pBuffer = pVectorBuffers[vecIdx];
+            if (pBuffer == nullptr || pBuffer->getStructSize() != Trait::getPaddedWordsPerVector(vecIdx) * sizeof(Word_T) ||
+                pBuffer->getElementCount() < elementCount)
                 return false;
         }
-        if (pExtBuffer == nullptr || pExtBuffer->getStructSize() != Trait::kPaddedWordsPerExt * sizeof(Word_T) ||
-            pExtBuffer->getElementCount() < elementCount)
-            return false;
         return true;
     }
 
     void bindShaderData(const ShaderVar& var) const
     {
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
-            var["unitBufs"][unitIdx] = pUnitBuffers[unitIdx];
-        var["extBuf"] = pExtBuffer;
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            if (Trait::isExtVector(vecIdx))
+                var["extBuf"] = pVectorBuffers[vecIdx];
+            else
+                var["unitBufs"][vecIdx] = pVectorBuffers[vecIdx];
+        }
     }
 
     void clearUAV(RenderContext* pRenderContext) const
     {
-        for (const auto& pUnitBuffer : pUnitBuffers)
-            pRenderContext->clearUAV(pUnitBuffer->getUAV().get(), uint4{});
-        pRenderContext->clearUAV(pExtBuffer->getUAV().get(), uint4{});
+        for (const auto& pBuffer : pVectorBuffers)
+            pRenderContext->clearUAV(pBuffer->getUAV().get(), uint4{});
     }
 
     SOABufferData<Trait> getData(uint firstElement = 0, uint elementCount = 0) const
     {
         SOABufferData<Trait> data = {};
-        for (uint32_t unitIdx = 0; unitIdx < Trait::kUnitsPerElem; ++unitIdx)
-            data.unitData[unitIdx] =
-                pUnitBuffers[unitIdx]->template getElements<uint32_t>(firstElement * WordsPerUnit_V, elementCount * WordsPerUnit_V);
-        data.extData =
-            pExtBuffer->getElements<uint32_t>(firstElement * Trait::kPaddedWordsPerExt, elementCount * Trait::kPaddedWordsPerExt);
+        for (uint32_t vecIdx = 0; vecIdx < Trait::kVectorsPerElem; ++vecIdx)
+        {
+            const auto& pBuffer = pVectorBuffers[vecIdx];
+            data.vectorData[vecIdx] = pBuffer->template getElements<uint32_t>(
+                firstElement * Trait::getPaddedWordsPerVector(vecIdx), elementCount * Trait::getPaddedWordsPerVector(vecIdx)
+            );
+        }
         return data;
     }
 };

@@ -39,36 +39,202 @@ namespace MeshGSTrain
 #define FLOATS_PER_SPLAT_VIEW (FLOATS_PER_SPLAT_VIEW_GEOM + FLOATS_PER_SPLAT_CHANNEL)
 #define FLOATS_PER_SPLAT_ADAM (FLOATS_PER_SPLAT * 2)
 
+    // Splat SOA
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT
 #define SOA_TUPLE_NAME FlatSplat
 #define SOA_IELEMENT_NAME ISplatElement
 #define SOA_BUFFER_NAME SplatBuffer
 #define SOA_RWBUFFER_NAME RWSplatBuffer
+#define SOA_BUFFER_DEF
 #include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_DEF
+    public extension FlatSplat
+    {
+#if SOA_HAS_UNITS && SOA_HAS_EXT
+#define FS_DEF_OP(NAME, OP)                           \
+    public This NAME(This r)                          \
+    {                                                 \
+        This t;                                       \
+        [ForceUnroll]                                 \
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i) \
+            t.units[i] = this.units[i] OP r.units[i]; \
+        t.ext = this.ext OP r.ext;                    \
+        return t;                                     \
+    }                                                 \
+    public This NAME(float r)                         \
+    {                                                 \
+        This t;                                       \
+        [ForceUnroll]                                 \
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i) \
+            t.units[i] = this.units[i] OP r;          \
+        t.ext = this.ext OP r;                        \
+        return t;                                     \
+    }
+#elif SOA_HAS_UNITS
+#define FS_DEF_OP(NAME, OP)                           \
+    public This NAME(This r)                          \
+    {                                                 \
+        This t;                                       \
+        [ForceUnroll]                                 \
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i) \
+            t.units[i] = this.units[i] OP r.units[i]; \
+        return t;                                     \
+    }                                                 \
+    public This NAME(float r)                         \
+    {                                                 \
+        This t;                                       \
+        [ForceUnroll]                                 \
+        for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i) \
+            t.units[i] = this.units[i] OP r;          \
+        return t;                                     \
+    }
+#elif SOA_HAS_EXT
+#define FS_DEF_OP(NAME, OP)        \
+    public This NAME(This r)       \
+    {                              \
+        This t;                    \
+        t.ext = this.ext OP r.ext; \
+        return t;                  \
+    }                              \
+    public This NAME(float r)      \
+    {                              \
+        This t;                    \
+        t.ext = this.ext OP r;     \
+        return t;                  \
+    }
+#endif
+
+        FS_DEF_OP(add, +)
+        FS_DEF_OP(sub, -)
+        FS_DEF_OP(mul, *)
+        FS_DEF_OP(div, /)
+#undef FS_DEF_OP
+
+        public This sqrt()
+        {
+            This t;
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+                t.units[i] = sqrt(this.units[i]);
+#endif
+#if SOA_HAS_EXT
+            t.ext = sqrt(this.ext);
+#endif
+            return t;
+        }
+
+        public bool anyIsNanOrInf()
+        {
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+                if (any(isnan(this.units[i])) || any(isinf(this.units[i])))
+                    return true;
+#endif
+#if SOA_HAS_EXT
+            return any(isnan(this.ext)) || any(isinf(this.ext));
+#endif
+            return false;
+        }
+    }
+#define SOA_BUFFER_UNDEF
+#include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_UNDEF
 #undef SOA_WORDS_PER_ELEM
 #undef SOA_TUPLE_NAME
 #undef SOA_IELEMENT_NAME
 #undef SOA_BUFFER_NAME
 #undef SOA_RWBUFFER_NAME
 
+    // SplatView SOA
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT_VIEW
 #define SOA_TUPLE_NAME FlatSplatView
 #define SOA_IELEMENT_NAME ISplatViewElement
 #define SOA_BUFFER_NAME SplatViewBuffer
 #define SOA_RWBUFFER_NAME RWSplatViewBuffer
+#define SOA_BUFFER_DEF
 #include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_DEF
+    public extension FlatSplatView
+    {
+        public This waveActiveSum()
+        {
+            This t;
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+                t.units[i] = WaveActiveSum(this.units[i]);
+#endif
+
+#if SOA_HAS_EXT
+            t.ext = WaveActiveSum(this.ext);
+#endif
+            return t;
+        }
+        public This quadSum()
+        {
+            This t;
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            {
+                t.units[i] = this.units[i];
+                t.units[i] += QuadReadAcrossX(t.units[i]);
+                t.units[i] += QuadReadAcrossY(t.units[i]);
+            }
+#endif
+
+#if SOA_HAS_EXT
+            t.ext = this.ext;
+            t.ext += QuadReadAcrossX(t.ext);
+            t.ext += QuadReadAcrossY(t.ext);
+#endif
+            return t;
+        }
+    }
+    public extension RWSplatViewBuffer
+    {
+        public void atomicAdd<T : ISplatViewElement>(uint id, T elem)
+        {
+            var a = elem.toSOA();
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+            {
+                [ForceUnroll]
+                for (uint j = 0; j < SOA_WORDS_PER_UNIT; ++j)
+                    __atomic_add(unitBufs[i][id][j], a.units[i][j], MemoryOrder.Relaxed);
+            }
+#endif
+
+#if SOA_HAS_EXT
+            [ForceUnroll]
+            for (uint j = 0; j < SOA_WORDS_PER_EXT; ++j)
+                __atomic_add(extBuf[id][j], a.ext[j], MemoryOrder.Relaxed);
+#endif
+        }
+    }
+#define SOA_BUFFER_UNDEF
+#include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_UNDEF
 #undef SOA_WORDS_PER_ELEM
 #undef SOA_TUPLE_NAME
 #undef SOA_IELEMENT_NAME
 #undef SOA_BUFFER_NAME
 #undef SOA_RWBUFFER_NAME
 
+    // SplatAdam SOA
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT_ADAM
 #define SOA_TUPLE_NAME FlatSplatAdam
 #define SOA_IELEMENT_NAME ISplatAdamElement
 #define SOA_BUFFER_NAME SplatAdamBuffer
 #define SOA_RWBUFFER_NAME RWSplatAdamBuffer
+#define SOA_BUFFER_DEF
+#define SOA_BUFFER_UNDEF
 #include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_UNDEF
+#undef SOA_BUFFER_DEF
 #undef SOA_WORDS_PER_ELEM
 #undef SOA_TUPLE_NAME
 #undef SOA_IELEMENT_NAME
@@ -200,99 +366,6 @@ namespace MeshGSTrain
             for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
                 t.setWord(i, getWord(i) * r);
             return t;
-        }
-    }
-
-    public extension FlatSplatView
-    {
-        public This waveActiveSum()
-        {
-            This t;
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-                t.units[i] = WaveActiveSum(this.units[i]);
-            t.ext = WaveActiveSum(this.ext);
-            return t;
-        }
-        public This quadSum()
-        {
-            This t;
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-            {
-                t.units[i] = this.units[i];
-                t.units[i] += QuadReadAcrossX(t.units[i]);
-                t.units[i] += QuadReadAcrossY(t.units[i]);
-            }
-            t.ext = this.ext;
-            t.ext += QuadReadAcrossX(t.ext);
-            t.ext += QuadReadAcrossY(t.ext);
-            return t;
-        }
-    }
-
-    public extension FlatSplat
-    {
-#define FS_DEF_OP(NAME, OP)                            \
-    public This NAME(This r)                           \
-    {                                                  \
-        This t;                                        \
-        [ForceUnroll]                                  \
-        for (uint i = 0; i < This::kUnitsPerElem; ++i) \
-            t.units[i] = this.units[i] OP r.units[i];  \
-        t.ext = this.ext OP r.ext;                     \
-        return t;                                      \
-    }                                                  \
-    public This NAME(float r)                          \
-    {                                                  \
-        This t;                                        \
-        [ForceUnroll]                                  \
-        for (uint i = 0; i < This::kUnitsPerElem; ++i) \
-            t.units[i] = this.units[i] OP r;           \
-        t.ext = this.ext OP r;                         \
-        return t;                                      \
-    }
-
-        FS_DEF_OP(add, +)
-        FS_DEF_OP(sub, -)
-        FS_DEF_OP(mul, *)
-        FS_DEF_OP(div, /)
-#undef FS_DEF_OP
-
-        public This sqrt()
-        {
-            This t;
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-                t.units[i] = sqrt(this.units[i]);
-            t.ext = sqrt(this.ext);
-            return t;
-        }
-
-        public bool anyIsNanOrInf()
-        {
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-                if (any(isnan(this.units[i])) || any(isinf(this.units[i])))
-                    return true;
-            return any(isnan(this.ext)) || any(isinf(this.ext));
-        }
-    }
-    public extension RWSplatViewBuffer
-    {
-        public void atomicAdd<T : ISplatViewElement>(uint id, T elem)
-        {
-            var a = elem.toSOA();
-            [ForceUnroll]
-            for (uint i = 0; i < This::kUnitsPerElem; ++i)
-            {
-                [ForceUnroll]
-                for (uint j = 0; j < This::kWordsPerUnit; ++j)
-                    __atomic_add(unitBufs[i][id][j], a.units[i][j], MemoryOrder.Relaxed);
-            }
-            [ForceUnroll]
-            for (uint j = 0; j < This::kWordsPerExt; ++j)
-                __atomic_add(extBuf[id][j], a.ext[j], MemoryOrder.Relaxed);
         }
     }
 
