@@ -14,7 +14,7 @@ uniform float4x4 gCamInvProjMat;
 uniform float gCamProjMat00;
 
 SplatTexture gDLossDCs_Ts;
-CoherentSplatTexture gRs_Ms;
+CoherentSplatTexture gMs_Ts;
 RWSplatViewBuffer gDLossDSplatViews;
 
 struct PSIn
@@ -76,25 +76,19 @@ void psMain(PSIn pIn)
 
     Trait::SplatChannel ci = pIn.splatView.channel; // c_i
 
-    SplatChannelT tmpChannelT;
-
-    tmpChannelT = gDLossDCs_Ts.load<SplatChannelT>(coord);
-    float T = tmpChannelT.T;                         // T = \prod (1 - \alpha_i)
-    Trait::SplatChannel dL_dC = tmpChannelT.channel; // \dfrac{dL}{dC}
+    Trait::SplatChannel dL_dC = gDLossDCs_Ts.load<SplatChannelT>(coord).channel; // \dfrac{dL}{dC}
 
     float oneMinusAlpha = 1 - alpha;
+    float invOneMinusAlpha = 1.0 / oneMinusAlpha;
     Trait::SplatChannel ciMulAlpha = ci.mul(alpha);
 
     beginInvocationInterlock();
-    tmpChannelT = gRs_Ms.load<SplatChannelT>(coord);
-    float Ri = tmpChannelT.T;                                         // R_i
-    Trait::SplatChannel Mi = tmpChannelT.channel;                     // M_i
-    float Ri_1 = Ri * oneMinusAlpha;                                  // R_{i - 1}
+    var Mi_Ti1 = gMs_Ts.load<SplatChannelT>(coord);                   // M_i & T_{i + 1}
+    float Ti = Mi_Ti1.T * invOneMinusAlpha;                           // R_i
+    Trait::SplatChannel Mi = Mi_Ti1.channel;                          // M_i
     Trait::SplatChannel Mi_1 = ciMulAlpha.add(Mi.mul(oneMinusAlpha)); // M_{i - 1}
-    gRs_Ms.store(coord, SplatChannelT(Mi_1, Ri_1));
+    gMs_Ts.store(coord, SplatChannelT(Mi_1, Ti));
     endInvocationInterlock();
-
-    float Ti = T / Ri_1;
 
     SplatView dL_dsplatView;
     dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}

@@ -360,6 +360,7 @@ void MeshGSTrainer<Trait_T>::loss(RenderContext* pRenderContext, const Resource&
     resource.splatRT.bindShaderData(var["gSplatRT"]);
     data.meshRT.bindShaderData(var["gMeshRT"]);
     resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
+    resource.splatTmpTex.bindShaderData(var["gMs_Ts"]);
     mpLossPass->execute(pRenderContext, mDesc.resolution.x, mDesc.resolution.y, 1);
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
@@ -368,9 +369,9 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
         FALCOR_PROFILE(pRenderContext, "draw");
-        std::array<float, kFloatsPerSplatChannelT> clearRsMsValue{};
+        /* std::array<float, kFloatsPerSplatChannelT> clearRsMsValue{};
         clearRsMsValue[kFloatsPerSplatChannelT - 1] = 1.0;
-        resource.splatTmpTex.clearTexture(pRenderContext, clearRsMsValue);
+        resource.splatTmpTex.clearTexture(pRenderContext, clearRsMsValue); */
 
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
@@ -381,7 +382,7 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
         var["gCamProjMat00"] = camera.projMat[0][0];
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
-        resource.splatTmpTex.bindShaderData(var["gRs_Ms"]);
+        resource.splatTmpTex.bindShaderData(var["gMs_Ts"]);
 
         pRenderContext->drawIndirect(
             mpBackwardDrawPass->getState().get(),

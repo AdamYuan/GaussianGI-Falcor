@@ -10,10 +10,6 @@ $C = \sum_{i=1}^n C_i, C_i = c_i \alpha_i T_i, T_i = \prod_{j=1}^{i-1}(1-\alpha_
 
 $T = \prod_{i=1}^n(1-\alpha_i)$
 
-$R_{i} = \prod_{j=i+1}^n(1-\alpha_j), R_n = 1, R_{i - 1} = (1 - \alpha_i)R_i$
-
-$T_i = \frac{T}{(1 - \alpha_i)R_i}$
-
 $C = \sum_{i=1}^n [c_i \alpha_i \prod_{j=1}^{i-1}(1-\alpha_j)], C_i = c_i \alpha_i \prod_{j=1}^{i-1}(1-\alpha_j)$
 
 $\dfrac{dL}{dc_i}=\dfrac{dL}{dC}\dfrac{dC}{dc_i} = \dfrac{dL}{dC} \alpha_i T_i$
