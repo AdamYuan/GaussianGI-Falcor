@@ -14,7 +14,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         return;
 
     float4 indirect = gIndirect[threadID];
-    indirect.xyz /= max(indirect.w, 1.0);
+    indirect.xyz /= max(indirect.w, 1.0 / 255.0);
     indirect.w = 0;
     gIndirect[threadID] = indirect;
 }

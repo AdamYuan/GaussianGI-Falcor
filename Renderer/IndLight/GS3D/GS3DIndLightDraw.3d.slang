@@ -37,6 +37,7 @@ StructuredBuffer<SH9<float3>> gSplatProbes;
 struct PSIn
 {
     nointerpolation float3 splatMean;
+    nointerpolation float splatMaxDist;
 #if USE_GSPP
     linear float2 quadPos;
 #else
@@ -82,6 +83,7 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     // o.albedo = float16_t3(splat.attrib.albedo);
     // o.shadow = float16_t(gSplatShadows[splatID]);
     o.probe = shConvolve(gSplatProbes[splatID], shDiffuseLobe<2>());
+    o.splatMaxDist = max(splat.geom.scale.x, max(splat.geom.scale.y, splat.geom.scale.z)) * BOUND_FACTOR;
     /* [ForceUnroll]
     for (uint i = 0; i < 9; ++i)
         o.probe.data[i] = float16_t3(1.0); */
@@ -252,7 +254,7 @@ float4 psMain(PSIn pIn)
 #endif
 
     float3 p = position - pIn.splatMean;
-    float maxDist = 0.1, dist = length(p);
+    float maxDist = pIn.splatMaxDist, dist = length(p);
     float weight = 1.0 / clamp(dist / maxDist, 1e-6, 1.0) - 1.0;
 
     float3 color = M_1_PI * max(shDot(pIn.probe, shBasis<2>(normal)), 0.0);
