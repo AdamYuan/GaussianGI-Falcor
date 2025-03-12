@@ -10,6 +10,8 @@ uniform float2 gResolution;
 uniform float4x4 gCamInvProjMat;
 uniform float gCamProjMat00;
 
+CoherentSplatTexture gSplatRT;
+
 struct PSIn
 {
     nointerpolation SplatView splatView;
@@ -43,13 +45,23 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     output.Append(o);
 }
 
-Trait::SplatRTOut psMain(PSIn pIn)
+void psMain(PSIn pIn)
 {
     bool shouldDiscard;
     float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
     // float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
     if (shouldDiscard)
         discard;
-    return Trait::SplatRTOut::create(pIn.splatView.channel, alpha);
+
+    float oneMinusAlpha = 1.0 - alpha;
+
+    uint2 coord = uint2(pIn.clipPos.xy);
+
+    beginInvocationInterlock();
+    var color = gSplatRT.load<SplatChannelT>(coord);
+    color.channel = color.channel.mul(oneMinusAlpha).add(pIn.splatView.channel.mul(alpha));
+    color.T *= oneMinusAlpha;
+    gSplatRT.store(coord, color);
+    endInvocationInterlock();
 }
 

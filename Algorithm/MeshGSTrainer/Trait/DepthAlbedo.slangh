@@ -38,36 +38,6 @@ namespace MeshGSTrain
             }
         };
 
-        public struct SplatRTTexture : ISplatRTTexture<SplatChannel>
-        {
-            Texture2D<float4> albedos_oneMinusTs;
-            Texture2D<float> depths;
-
-            public SplatChannel load(uint2 coord, out float o_T)
-            {
-                float4 albedo_oneMinusT = albedos_oneMinusTs[coord];
-                SplatChannel ch;
-                ch.depth = depths[coord];
-                ch.albedo = albedo_oneMinusT.xyz;
-                o_T = 1.0 - albedo_oneMinusT.w;
-                return ch;
-            }
-        };
-
-        public struct SplatRTOut : ISplatRTOut<SplatChannel>
-        {
-            public float4 albedo : SV_Target0;
-            public float4 depth : SV_Target1;
-
-            public static SplatRTOut create(SplatChannel channel, float alpha)
-            {
-                SplatRTOut o;
-                o.albedo = float4(channel.albedo, alpha);
-                o.depth = float4(float3(channel.depth), alpha);
-                return o;
-            }
-        };
-
         public struct MeshRTTexture : IMeshRTTexture<SplatChannel>
         {
             Texture2D<float4> albedos_depths;
@@ -129,8 +99,9 @@ namespace MeshGSTrain
         {
             float dDepth = data.depth - predict.depth;
             float3 dAlbedo = data.albedo - predict.albedo;
-            float lDepth = 3.0 * dDepth * dDepth;
+            float lDepth = dDepth * dDepth;
             float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
+            lAlbedo *= 0.01;
             float lT = predictT - dataT;
             lT = lT * lT;
             return lDepth + lAlbedo + lT;

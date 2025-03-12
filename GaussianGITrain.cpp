@@ -92,7 +92,7 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     if (mConfig.drawMeshData)
         pRenderContext->blit(mTrainData.meshRT.pAlbedoDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
     else
-        pRenderContext->blit(mTrainResource.splatRT.pAlbedoOneMinusTTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+        pRenderContext->blit(mTrainResource.splatTex.pVectorTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)

@@ -23,15 +23,6 @@ concept MeshGSTrainSplatAttrib = (std::is_empty_v<T> || sizeof(T) % sizeof(float
 template<typename T>
 concept MeshGSTrainSplatChannel = sizeof(T) % sizeof(float) == 0 && alignof(T) == sizeof(float);
 template<typename T>
-concept MeshGSTrainSplatRTTexture = requires(const T& ct, const ref<Device>& pDevice, const ShaderVar& var, RenderContext* pRenderContext) {
-    { T::create(pDevice, uint2{}) } -> std::convertible_to<T>;
-    { T::getBlendStateDesc() } -> std::convertible_to<BlendState::Desc>;
-    { ct.bindShaderData(var) } -> std::same_as<void>;
-    { ct.clearRtv(pRenderContext) } -> std::same_as<void>;
-    { ct.isCapable(uint2{}) } -> std::convertible_to<bool>;
-    { ct.getFbo() } -> std::convertible_to<ref<Fbo>>;
-};
-template<typename T>
 concept MeshGSTrainMeshRTTexture = requires(const T& ct, const ref<Device>& pDevice, const ShaderVar& var, RenderContext* pRenderContext) {
     { T::create(pDevice, uint2{}) } -> std::convertible_to<T>;
     { ct.bindShaderData(var) } -> std::same_as<void>;
@@ -59,8 +50,6 @@ concept MeshGSTrainTrait = requires {
     requires MeshGSTrainSplatChannel<typename T::SplatChannel>;
     requires T::kFloatsPerSplatChannel == sizeof(typename T::SplatChannel) / sizeof(float);
 
-    typename T::SplatRTTexture;
-    requires MeshGSTrainSplatRTTexture<typename T::SplatRTTexture>;
     typename T::MeshRTTexture;
     requires MeshGSTrainMeshRTTexture<typename T::MeshRTTexture>;
 };
@@ -168,9 +157,8 @@ public:
 
     struct Resource
     {
-        typename Trait_T::SplatRTTexture splatRT;
         // typename Derived_T::MeshRTTexture meshRT;
-        SplatTexture splatDLossTex, splatTmpTex;
+        SplatTexture splatTex, splatDLossTex, splatTmpTex;
         SplatBuffer splatBuf, splatDLossBuf;
         SplatAdamBuffer splatAdamBuf;
         SplatViewBuffer splatViewBuf, splatViewDLossBuf;

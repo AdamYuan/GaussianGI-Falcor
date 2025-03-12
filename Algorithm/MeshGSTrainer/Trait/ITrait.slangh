@@ -29,14 +29,6 @@ namespace MeshGSTrain
         [mutating]
         void setWord(uint idx, float value);
     }
-    public interface ISplatRTTexture<SplatChannel_T : ISplatChannel>
-    {
-        SplatChannel_T load(uint2 coord, out float o_T);
-    }
-    public interface ISplatRTOut<SplatChannel_T : ISplatChannel>
-    {
-        static This create(SplatChannel_T channel, float alpha);
-    }
     public interface IMeshRTTexture<SplatChannel_T : ISplatChannel>
     {
         SplatChannel_T load(uint2 coord, out float o_T);
@@ -49,8 +41,6 @@ namespace MeshGSTrain
     {
         associatedtype SplatAttrib : ISplatAttrib;
         associatedtype SplatChannel : ISplatChannel;
-        associatedtype SplatRTTexture : ISplatRTTexture<SplatChannel>;
-        associatedtype SplatRTOut : ISplatRTOut<SplatChannel>;
         associatedtype MeshRTTexture : IMeshRTTexture<SplatChannel>;
         associatedtype MeshRTOut : IMeshRTOut<SplatChannel>;
         [Differentiable]

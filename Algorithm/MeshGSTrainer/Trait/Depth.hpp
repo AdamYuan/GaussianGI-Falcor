@@ -27,18 +27,6 @@ struct MeshGSTrainDepthTrait
         float depth;
     };
 
-    struct SplatRTTexture
-    {
-        ref<Texture> pDepthTexture, pTTexture;
-        ref<Fbo> pFbo;
-
-        static SplatRTTexture create(const ref<Device>& pDevice, uint2 resolution);
-        static BlendState::Desc getBlendStateDesc();
-        void clearRtv(RenderContext* pRenderContext) const;
-        void bindShaderData(const ShaderVar& var) const;
-        bool isCapable(uint2 resolution) const;
-        const auto& getFbo() const { return pFbo; }
-    };
     struct MeshRTTexture
     {
         ref<Texture> pDepthTexture, pDepthBuffer;

@@ -5,7 +5,7 @@ using namespace MeshGSTrain;
 
 #define GROUP_DIM 8
 
-Trait::SplatRTTexture gSplatRT;
+SplatTexture gSplatRT;
 Trait::MeshRTTexture gMeshRT;
 RWSplatTexture gDLossDCs_Ts;
 RWSplatTexture gMs_Ts;
@@ -20,7 +20,7 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     if (any(coord >= gResolution))
         return;
 
-    SplatChannelT predict = gSplatRT.load(coord);
+    var predict = gSplatRT.load<SplatChannelT>(coord);
     SplatChannelT data = gMeshRT.load(coord);
 
     uint pixelCount = gResolution.x * gResolution.y;

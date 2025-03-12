@@ -366,16 +366,6 @@ namespace MeshGSTrain
         }
     }
 
-    public extension Trait::SplatRTTexture
-    {
-        public SplatChannelT load(uint2 coord)
-        {
-            SplatChannelT channelT;
-            channelT.channel = load(coord, channelT.T);
-            return channelT;
-        }
-    }
-
     public extension Trait::MeshRTTexture
     {
         public SplatChannelT load(uint2 coord)
