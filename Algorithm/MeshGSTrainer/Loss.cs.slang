@@ -20,16 +20,15 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     if (any(coord >= gResolution))
         return;
 
-    float T;
-    Trait::SplatChannel predict = gSplatRT.load(coord, T);
-    Trait::SplatChannel data = gMeshRT.load(coord);
+    SplatChannelT predict = gSplatRT.load(coord);
+    SplatChannelT data = gMeshRT.load(coord);
 
     uint pixelCount = gResolution.x * gResolution.y;
 
     var dp = diffPair(predict);
-    bwd_diff(Trait::loss)(dp, data, pixelCount, 1.0);
+    bwd_diff(loss)(dp, data, 1.0 / float(pixelCount));
 
-    Trait::SplatChannel dL_dC = dp.d;
-    gDLossDCs_Ts.store(coord, SplatChannelT(dL_dC, T));
-    gMs_Ts.store(coord, SplatChannelT((Trait::SplatChannel)0, T));
+    SplatChannelT dLdC_dLdT = dp.d;
+    gDLossDCs_Ts.store(coord, SplatChannelT(dLdC_dLdT.channel, dLdC_dLdT.T * predict.T));
+    gMs_Ts.store(coord, SplatChannelT((Trait::SplatChannel)0, predict.T));
 }

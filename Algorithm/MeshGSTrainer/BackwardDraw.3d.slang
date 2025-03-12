@@ -76,7 +76,10 @@ void psMain(PSIn pIn)
 
     Trait::SplatChannel ci = pIn.splatView.channel; // c_i
 
-    Trait::SplatChannel dL_dC = gDLossDCs_Ts.load<SplatChannelT>(coord).channel; // \dfrac{dL}{dC}
+    var dLdC_TdLdT = gDLossDCs_Ts.load<SplatChannelT>(coord);
+
+    Trait::SplatChannel dL_dC = dLdC_TdLdT.channel; // \dfrac{dL}{dC}
+    float TdL_dT = dLdC_TdLdT.T;                    // T \dfrac{dL}{dT}
 
     float oneMinusAlpha = 1 - alpha;
     float invOneMinusAlpha = 1.0 / oneMinusAlpha;
@@ -91,8 +94,8 @@ void psMain(PSIn pIn)
     endInvocationInterlock();
 
     SplatView dL_dsplatView;
-    dL_dsplatView.channel = dL_dC.mul(Ti * alpha);         // \dfrac{dL}{dc_i}
-    float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum(); // \dfrac{dL}{d\alpha_i}
+    dL_dsplatView.channel = dL_dC.mul(Ti * alpha);                                     // \dfrac{dL}{dc_i}
+    float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum() - TdL_dT * invOneMinusAlpha; // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
     bwd_diff(getAlphaGSPP)(dp, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, dL_dalpha);
     dL_dsplatView.geom = dp.d;

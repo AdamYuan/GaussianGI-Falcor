@@ -54,11 +54,12 @@ namespace MeshGSTrain
         {
             Texture2D<float> depths;
 
-            public SplatChannel load(uint2 coord)
+            public SplatChannel load(uint2 coord, out float o_T)
             {
                 float depth = depths[coord];
                 SplatChannel ch;
                 ch.depth = depth;
+                o_T = float(ch.depth == 0.0);
                 return ch;
             }
         };
@@ -104,10 +105,10 @@ namespace MeshGSTrain
         }
 
         [Differentiable]
-        public static float loss(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
+        public static float loss(SplatChannel predict, float predictT, no_diff SplatChannel data, no_diff float dataT)
         {
             float d = data.depth - predict.depth;
-            return (d * d) / float(pixelCount);
+            return d * d;
         }
     }
 }

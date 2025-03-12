@@ -72,12 +72,13 @@ namespace MeshGSTrain
         {
             Texture2D<float4> albedos_depths;
 
-            public SplatChannel load(uint2 coord)
+            public SplatChannel load(uint2 coord, out float o_T)
             {
                 float4 albedo_depth = albedos_depths[coord];
                 SplatChannel ch;
                 ch.albedo = albedo_depth.xyz;
                 ch.depth = albedo_depth.w;
+                o_T = float(ch.depth == 0.0);
                 return ch;
             }
         };
@@ -98,7 +99,7 @@ namespace MeshGSTrain
         public static float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
         {
             viewZ = -viewZ; // make viewZ positive
-            return camNearZ / viewZ + 0.02;
+            return camNearZ / viewZ;
         }
 
         [Differentiable]
@@ -124,13 +125,15 @@ namespace MeshGSTrain
         }
 
         [Differentiable]
-        public static float loss(SplatChannel predict, no_diff SplatChannel data, no_diff uint pixelCount)
+        public static float loss(SplatChannel predict, float predictT, no_diff SplatChannel data, no_diff float dataT)
         {
             float dDepth = data.depth - predict.depth;
             float3 dAlbedo = data.albedo - predict.albedo;
             float lDepth = 3.0 * dDepth * dDepth;
             float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
-            return (lDepth + lAlbedo) / float(pixelCount);
+            float lT = predictT - dataT;
+            lT = lT * lT;
+            return lDepth + lAlbedo + lT;
         }
     }
 }

@@ -341,7 +341,7 @@ namespace MeshGSTrain
         }
     }
 
-    public struct SplatChannelT : ISplatChannelTElement
+    public struct SplatChannelT : ISplatChannelTElement, IDifferentiable
     {
         public Trait::SplatChannel channel;
         public float T;
@@ -362,6 +362,26 @@ namespace MeshGSTrain
             for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
                 channelT.channel.setWord(i, soa.getWord(i));
             channelT.T = soa.getWord(FLOATS_PER_SPLAT_CHANNEL);
+            return channelT;
+        }
+    }
+
+    public extension Trait::SplatRTTexture
+    {
+        public SplatChannelT load(uint2 coord)
+        {
+            SplatChannelT channelT;
+            channelT.channel = load(coord, channelT.T);
+            return channelT;
+        }
+    }
+
+    public extension Trait::MeshRTTexture
+    {
+        public SplatChannelT load(uint2 coord)
+        {
+            SplatChannelT channelT;
+            channelT.channel = load(coord, channelT.T);
             return channelT;
         }
     }
@@ -633,5 +653,11 @@ namespace MeshGSTrain
     {
         bool shouldDiscard;
         return getAlphaGSPPSafe(splatViewGeom, screenPos, screenResolution, camProjMat00, camInvProjMat, shouldDiscard);
+    }
+
+    [Differentiable]
+    public float loss(SplatChannelT predict, no_diff SplatChannelT data)
+    {
+        return Trait::loss(predict.channel, predict.T, data.channel, data.T);
     }
 }
