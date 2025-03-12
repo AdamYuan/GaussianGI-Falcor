@@ -1,7 +1,7 @@
 public struct GTransform
 {
     public float3 center;
-    uint packedScaleRotateY;
+    public uint packedScaleRotateY;
 
     public property float scale
     {
