@@ -87,7 +87,7 @@ void psMain(PSIn pIn)
 
     beginInvocationInterlock();
     var Mi_Ti1 = gMs_Ts.load<SplatChannelT>(coord);                   // M_i & T_{i + 1}
-    float Ti = Mi_Ti1.T * invOneMinusAlpha;                           // R_i
+    float Ti = Mi_Ti1.T * invOneMinusAlpha;                           // T_i
     Trait::SplatChannel Mi = Mi_Ti1.channel;                          // M_i
     Trait::SplatChannel Mi_1 = ciMulAlpha.add(Mi.mul(oneMinusAlpha)); // M_{i - 1}
     gMs_Ts.store(coord, SplatChannelT(Mi_1, Ti));
