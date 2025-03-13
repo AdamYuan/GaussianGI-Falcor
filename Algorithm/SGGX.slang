@@ -3,12 +3,12 @@ import ShaderMisc;
 
 public namespace SGGX
 {
-    public struct VNDFSampler
+    public struct VNDFSampler : IDifferentiable
     {
-        // public float3 w_i;
         public float3x3 w_kji;
         public float2x3 M_kji;
 
+        [Differentiable]
         public static VNDFSampler create(float2x3 cov3d, float sqrtDetCov3d, float3x3 w_i_rotMatT)
         {
             float3x3 S = float3x3(cov3d[0], float3(cov3d[0][1], cov3d[1][0], cov3d[1][1]), float3(cov3d[0][2], cov3d[1][1], cov3d[1][2]));
@@ -28,6 +28,7 @@ public namespace SGGX
             return sampler;
         }
 
+        [Differentiable]
         public static VNDFSampler create(float3x3 rotMat, float3 scale, float3x3 w_i_rotMatT)
         {
             float3x3 scaleMat = float3x3(scale.x, 0, 0, 0, scale.y, 0, 0, 0, scale.z);
@@ -38,11 +39,13 @@ public namespace SGGX
             return create(cov3d, sqrtDetCov3d, w_i_rotMatT);
         }
 
+        [Differentiable]
         public static VNDFSampler fromSplat(float3x3 rotMat, float3 scale, float3x3 w_i_rotMatT)
         {
             return create(rotMat, 1.0 / scale, w_i_rotMatT);
         }
 
+        [Differentiable]
         public float3 apply(float3 d)
         {
             float3 w_m_kji = float3(this.M_kji[0].x * d.x, 0, 0) + float3(this.M_kji[0].yz * d.y, 0) + this.M_kji[1] * d.z;
@@ -54,6 +57,7 @@ public namespace SGGX
         public float3 sample(float2 u) { return apply(sample_cosine_hemisphere_polar(u)); }
     }
 
+    [Differentiable]
     public float3 getSplatNormal(float3x3 rotMat, float3 scale, float3x3 w_i_rotMatT)
     {
         VNDFSampler sampler = VNDFSampler::fromSplat(rotMat, scale, w_i_rotMatT);

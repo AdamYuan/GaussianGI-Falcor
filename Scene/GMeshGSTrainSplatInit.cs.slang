@@ -22,6 +22,7 @@ SamplerState gSampler;
 
 #define DEPTH_TRAIT 0
 #define DEPTH_ALBEDO_TRAIT 1
+#define DEPTH_ALBEDO_NORMAL_TRAIT 2
 
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
@@ -53,6 +54,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 #if TRAIT == DEPTH_TRAIT
 
 #elif TRAIT == DEPTH_ALBEDO_TRAIT
+    splat.attrib.albedo = texColor.rgb;
+#elif TRAIT == DEPTH_ALBEDO_NORMAL_TRAIT
     splat.attrib.albedo = texColor.rgb;
 #else
 #error

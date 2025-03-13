@@ -203,6 +203,7 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/ThreadGroupTilingX.slang
         Algorithm/ShaderMisc.slang
         Algorithm/GS3D.slang
+        Algorithm/SGGX.slang
         Algorithm/GS3DBound.hpp
         Algorithm/GS3DBound.slangh
 
@@ -233,6 +234,9 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.slangh
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp
         Algorithm/MeshGSTrainer/Trait/DepthAlbedo.cpp
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.slangh
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.hpp
+        Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.cpp
 
         Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp
         Renderer/IndLight/GS3D/GS3DIndLightSplatPersist.cpp

@@ -12,6 +12,7 @@
 
 #include "../Algorithm/MeshGSTrainer/Trait/Depth.hpp"
 #include "../Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
+#include "../Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.hpp"
 #include "../Util/ShaderUtil.hpp"
 
 namespace GSGI
@@ -61,6 +62,8 @@ void GMeshGSTrainSplatInit<Trait_T>::initialize(
             defList.add("TRAIT", "DEPTH_TRAIT");
         else if constexpr (std::same_as<Trait_T, MeshGSTrainDepthAlbedoTrait>)
             defList.add("TRAIT", "DEPTH_ALBEDO_TRAIT");
+        else if constexpr (std::same_as<Trait_T, MeshGSTrainDepthAlbedoNormalTrait>)
+            defList.add("TRAIT", "DEPTH_ALBEDO_NORMAL_TRAIT");
         else
             static_assert(false, "Not implemented");
         auto pPass = ComputePass::create(pDevice, "GaussianGI/Scene/GMeshGSTrainSplatInit.cs.slang", "csMain", defList);
@@ -88,5 +91,6 @@ void GMeshGSTrainSplatInit<Trait_T>::initialize(
 
 template struct GMeshGSTrainSplatInit<MeshGSTrainDepthTrait>;
 template struct GMeshGSTrainSplatInit<MeshGSTrainDepthAlbedoTrait>;
+template struct GMeshGSTrainSplatInit<MeshGSTrainDepthAlbedoNormalTrait>;
 
 } // namespace GSGI

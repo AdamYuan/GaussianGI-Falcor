@@ -9,6 +9,7 @@
 
 #include "../Algorithm/MeshGSTrainer/Trait/Depth.hpp"
 #include "../Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
+#include "../Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.hpp"
 
 namespace GSGI
 {
@@ -72,6 +73,8 @@ void GMeshGSTrainDataset<Trait_T>::generate(
             defList.add("TRAIT", "DEPTH_TRAIT");
         else if constexpr (std::same_as<Trait_T, MeshGSTrainDepthAlbedoTrait>)
             defList.add("TRAIT", "DEPTH_ALBEDO_TRAIT");
+        else if constexpr (std::same_as<Trait_T, MeshGSTrainDepthAlbedoNormalTrait>)
+            defList.add("TRAIT", "DEPTH_ALBEDO_NORMAL_TRAIT");
         else
             static_assert(false, "Not implemented");
         auto pPass = RasterPass::create(pDevice, desc, defList);
@@ -91,5 +94,7 @@ template struct GMeshGSTrainDataset<MeshGSTrainDepthTrait>;
 static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthTrait>, MeshGSTrainDepthTrait>);
 template struct GMeshGSTrainDataset<MeshGSTrainDepthAlbedoTrait>;
 static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthAlbedoTrait>, MeshGSTrainDepthAlbedoTrait>);
+template struct GMeshGSTrainDataset<MeshGSTrainDepthAlbedoNormalTrait>;
+static_assert(Concepts::MeshGSTrainDataset<GMeshGSTrainDataset<MeshGSTrainDepthAlbedoNormalTrait>, MeshGSTrainDepthAlbedoNormalTrait>);
 
 } // namespace GSGI

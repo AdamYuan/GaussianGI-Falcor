@@ -1,0 +1,134 @@
+#include "ITrait.slangh"
+
+import GaussianGI.Algorithm.SGGX;
+import GaussianGI.Algorithm.GS3D;
+import GaussianGI.Algorithm.ShaderMisc;
+import Utils.Math.FormatConversion;
+import Utils.Math.MathHelpers;
+
+namespace MeshGSTrain
+{
+#define FLOATS_PER_SPLAT_ATTRIB 3
+#define FLOATS_PER_SPLAT_CHANNEL 7
+    public struct Trait : ITrait
+    {
+        public struct SplatAttrib : ISplatAttrib
+        {
+            public float3 albedo;
+
+            public float getWord(uint idx) { return albedo[idx]; }
+            [mutating]
+            public void setWord(uint idx, float value) { albedo[idx] = value; }
+            [mutating]
+            public void regularize() { albedo = max(albedo, float3(0)); }
+        };
+        public struct SplatChannel : ISplatChannel
+        {
+            public float3 albedo;
+            public float3 normal;
+            public float depth;
+
+            [ForceInline]
+            public float getWord(uint idx)
+            {
+                if (idx < 3)
+                    return albedo[idx];
+                else if (idx < 6)
+                    return normal[idx - 3];
+                else
+                    return depth;
+            }
+            [mutating]
+            [ForceInline]
+            public void setWord(uint idx, float value)
+            {
+                if (idx < 3)
+                    albedo[idx] = value;
+                else if (idx < 6)
+                    normal[idx - 3] = value;
+                else
+                    depth = value;
+            }
+        };
+
+        public struct MeshRTTexture : IMeshRTTexture<SplatChannel>
+        {
+            Texture2D<float4> tex;
+
+            public SplatChannel load(uint2 coord, out float o_T)
+            {
+                float4 texel = tex[coord];
+                SplatChannel ch;
+                ch.depth = texel.x;
+                ch.albedo = unpackUnorm3x8(asuint(texel.y));
+                bool miss = ch.depth == 0.0;
+                ch.normal = select(miss, float3(0), oct_to_ndir_snorm(texel.zw));
+                o_T = float(miss);
+                return ch;
+            }
+        };
+
+        public struct MeshRTOut : IMeshRTOut<SplatChannel>
+        {
+            public float4 texel : SV_Target0;
+
+            public static MeshRTOut create(SplatChannel channel)
+            {
+                MeshRTOut o;
+                o.texel.x = channel.depth;
+                o.texel.y = asfloat(packUnorm3x8(channel.albedo));
+                o.texel.zw = ndir_to_oct_snorm(channel.normal);
+                return o;
+            }
+        };
+
+        [Differentiable]
+        public static float viewZ2Depth(float viewZ, no_diff float camNearZ, no_diff float camFarZ)
+        {
+            viewZ = -viewZ; // make viewZ positive
+            return camNearZ / viewZ;
+        }
+
+        [Differentiable]
+        public static SplatChannel getSplatChannel(
+            SplatGeom splatGeom,
+            SplatAttrib splatAttrib,
+            SplatViewGeom splatViewGeom,
+            float3 splatViewPos,
+            float3 splatClipPos,
+            float2x3 splatCov3d,
+            float3 splatCov2d,
+            no_diff float4x4 camViewMat,
+            no_diff float4x4 camProjMat,
+            no_diff float camNearZ,
+            no_diff float camFarZ
+        )
+        {
+            SplatChannel channel;
+            channel.depth = viewZ2Depth(splatViewPos.z, camNearZ, camFarZ);
+            channel.albedo = splatAttrib.albedo;
+            float3x3 camViewRotMat = float3x3(camViewMat);
+            channel.normal = SGGX::getSplatNormal(
+                mul(camViewRotMat, GS3D::getQuatMatrix(splatGeom.rotate)), splatGeom.scale, getAlignRotMatT(-normalize(splatViewPos))
+            );
+            channel.normal = mul(transpose(camViewRotMat), channel.normal);
+            return channel;
+        }
+
+        [Differentiable]
+        public static float loss(SplatChannel predict, float predictT, no_diff SplatChannel data, no_diff float dataT)
+        {
+            float dDepth = data.depth - predict.depth;
+            float3 dAlbedo = data.albedo - predict.albedo;
+            float3 dNormal = data.normal - predict.normal;
+            float dT = dataT - predictT;
+            float lDepth = dDepth * dDepth;
+            float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
+            lAlbedo *= 0.01;
+            float lNormal = dNormal.x * dNormal.x + dNormal.y * dNormal.y + dNormal.z * dNormal.z;
+            lNormal *= 0.2;
+            float lT = dT * dT;
+            return lDepth + lAlbedo + lNormal + lT;
+        }
+    }
+}
