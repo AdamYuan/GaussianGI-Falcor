@@ -20,7 +20,7 @@ struct GSIn
 {
     float viewZ;
     float2 texcoord;
-    float3 normal;
+    float3 position;
     float4 clipPos;
 }
 
@@ -28,8 +28,8 @@ struct PSIn
 {
     linear float viewZ;
     linear float2 texcoord;
-    linear float3 normal;
     linear float4 clipPos : SV_Position;
+    nointerpolation float3 geomNormal;
     nointerpolation uint textureID;
 }
 
@@ -37,7 +37,7 @@ GSIn vsMain(GMesh::VSIn vIn)
 {
     GSIn o;
     o.texcoord = vIn.texcoord;
-    o.normal = vIn.normal;
+    o.position = vIn.position;
     float3 viewPos = mul(gCamera.viewMat, float4(vIn.position, 1)).xyz;
     o.viewZ = viewPos.z;
     o.clipPos = mul(gCamera.projMat, float4(viewPos, 1));
@@ -50,13 +50,14 @@ void gsMain(triangle GSIn gIn[3], uint primitiveID: SV_PrimitiveID, inout Triang
 {
     PSIn o;
     o.textureID = gMeshRasterData.getTextureID(primitiveID);
+    o.geomNormal = cross(gIn[1].position - gIn[0].position, gIn[2].position - gIn[0].position);
+    o.geomNormal = normalize(o.geomNormal);
 
     [ForceUnroll]
     for (int i = 0; i < 3; ++i)
     {
         o.viewZ = gIn[i].viewZ;
         o.texcoord = gIn[i].texcoord;
-        o.normal = gIn[i].normal;
         o.clipPos = gIn[i].clipPos;
         output.Append(o);
     }
@@ -69,7 +70,7 @@ MeshGSTrain::Trait::MeshRTOut psMain(PSIn pIn, bool isFrontFace: SV_IsFrontFace)
     if (alphaShouldDiscard(texColor.a))
         discard;
 
-    float3 normal = normalize(pIn.normal);
+    float3 normal = pIn.geomNormal;
     normal = select(isFrontFace, normal, -normal);
 
 #if TRAIT == DEPTH_TRAIT
