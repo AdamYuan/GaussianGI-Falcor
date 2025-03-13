@@ -448,27 +448,26 @@ namespace MeshGSTrain
 
     public struct SplatQuad : ISplatQuadElement
     {
-        public float3 delta0, delta1;
+        public float3 deltaView0, deltaView1;
 
         public FlatSplatQuad toSOA()
         {
             FlatSplatQuad soa;
-            soa.units[0] = float4(delta0, delta1.x);
-            soa.ext = delta1.yz;
+            soa.units[0] = float4(deltaView0, deltaView1.x);
+            soa.ext = deltaView1.yz;
             return soa;
         }
         public static This fromSOA(FlatSplatQuad soa)
         {
             This quad;
-            quad.delta0 = soa.units[0].xyz;
-            quad.delta1 = float3(soa.units[0].w, soa.ext);
+            quad.deltaView0 = soa.units[0].xyz;
+            quad.deltaView1 = float3(soa.units[0].w, soa.ext);
             return quad;
         }
 
-        public static float3 getCenter(float2 clipMean, float4x4 camInvProjMat)
+        public static float3 getCenterView(float2 clipMean, float4x4 camInvProjMat)
         {
-            float3 center = normalize(mul(camInvProjMat, float4(clipMean, 0, 1)).xyz);
-            return center;
+            return normalize(mul(camInvProjMat, float4(clipMean, 0, 1)).xyz);
         }
     }
 
@@ -505,10 +504,10 @@ namespace MeshGSTrain
         // float4 centerClip = mul(camProjMat, float4(splatViewDir, 1.0));
         float2 deltaQuad0 = eigen.eigen[0] * sqrt(eigen.lambda[0] * 2.0);
         float2 deltaQuad1 = eigen.eigen[1] * sqrt(eigen.lambda[1] * 2.0);
-        float3 delta0 = splatViewDirMatT[0] * deltaQuad0.x + splatViewDirMatT[1] * deltaQuad0.y;
-        float3 delta1 = splatViewDirMatT[0] * deltaQuad1.x + splatViewDirMatT[1] * deltaQuad1.y;
+        float3 deltaView0 = splatViewDirMatT[0] * deltaQuad0.x + splatViewDirMatT[1] * deltaQuad0.y;
+        float3 deltaView1 = splatViewDirMatT[0] * deltaQuad1.x + splatViewDirMatT[1] * deltaQuad1.y;
 
-        o_splatQuad = SplatQuad(delta0, delta1);
+        o_splatQuad = SplatQuad(deltaView0, deltaView1);
 
         return splatView;
     }

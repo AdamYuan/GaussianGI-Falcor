@@ -29,13 +29,13 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     var splatView = gSplatViews.load<SplatView>(splatViewID);
     var splatQuad = gSplatQuads.load<SplatQuad>(splatViewID);
 
-    float3 center = SplatQuad::getCenter(splatView.geom.clipMean, gCamInvProjMat);
-    float3 delta0 = splatQuad.delta0;
-    float3 delta1 = splatQuad.delta1;
+    float3 centerView = SplatQuad::getCenterView(splatView.geom.clipMean, gCamInvProjMat);
+    float3 deltaView0 = splatQuad.deltaView0;
+    float3 deltaView1 = splatQuad.deltaView1;
 
-    float4 centerClip = mul(gCamProjMat, float4(center, 1));
-    float4 deltaClip0 = mul(gCamProjMat, float4(delta0, 0));
-    float4 deltaClip1 = mul(gCamProjMat, float4(delta1, 0));
+    float4 centerClip = mul(gCamProjMat, float4(centerView, 1));
+    float4 deltaClip0 = mul(gCamProjMat, float4(deltaView0, 0));
+    float4 deltaClip1 = mul(gCamProjMat, float4(deltaView1, 0));
 
     PSIn o;
     o.splatView = splatView;
