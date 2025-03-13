@@ -32,6 +32,6 @@ bool MeshGSTrainDepthTrait::MeshRTTexture::isCapable(uint2 resolution) const
     return isTextureCapable(resolution, pDepthTexture, pDepthBuffer, pFbo);
 }
 
-template struct MeshGSTrainer<MeshGSTrainDepthTrait>;
+template class MeshGSTrainer<MeshGSTrainDepthTrait>;
 
 } // namespace GSGI

@@ -33,6 +33,6 @@ bool MeshGSTrainDepthAlbedoTrait::MeshRTTexture::isCapable(uint2 resolution) con
     return isTextureCapable(resolution, pAlbedoDepthTexture, pDepthBuffer, pFbo);
 }
 
-template struct MeshGSTrainer<MeshGSTrainDepthAlbedoTrait>;
+template class MeshGSTrainer<MeshGSTrainDepthAlbedoTrait>;
 
 } // namespace GSGI
