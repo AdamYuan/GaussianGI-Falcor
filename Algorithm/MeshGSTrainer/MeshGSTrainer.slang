@@ -501,7 +501,6 @@ namespace MeshGSTrain
 
         GS3D::Eigen<2> eigen = GS3D::decomposeCovariance2D(cov2d);
 
-        // float4 centerClip = mul(camProjMat, float4(splatViewDir, 1.0));
         float2 deltaQuad0 = eigen.eigen[0] * sqrt(eigen.lambda[0] * 2.0);
         float2 deltaQuad1 = eigen.eigen[1] * sqrt(eigen.lambda[1] * 2.0);
         float3 deltaView0 = splatViewDirMatT[0] * deltaQuad0.x + splatViewDirMatT[1] * deltaQuad0.y;
@@ -544,10 +543,6 @@ namespace MeshGSTrain
         no_diff float4x4 camInvProjMat
     )
     {
-        /* float2 fragClipPos = (fragScreenPos / screenResolution) * 2.0 - 1.0;
-        fragClipPos.y = -fragClipPos.y;
-        float3 fragViewDir = mul(camInvProjMat, float4(fragClipPos, 0, 1)).xyz; // No need to normalize() */
-
         float3 splatViewDir = normalize(mul(camInvProjMat, float4(splatViewGeom.clipMean, 0, 1)).xyz);
         float3x3 splatViewDirMatT = getAlignRotMatT(splatViewDir);
         float2 planePos = GS3D::project(mul(splatViewDirMatT, fragViewDir), 1.0);
