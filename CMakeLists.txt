@@ -172,6 +172,7 @@ set_target_properties(GaussianGITrain PROPERTIES CXX_STANDARD 20)
 target_sources(GaussianGITrain PRIVATE
         GaussianGITrain.hpp
         GaussianGITrain.cpp
+        GaussianGITrain.ps.slang
 
         Util/DeviceUtil.hpp
         Util/DeviceUtil.cpp

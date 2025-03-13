@@ -9,11 +9,22 @@
 #include "Scene/GMeshLoader.hpp"
 #include "Scene/GMeshView.hpp"
 #include "Renderer/IndLight/GS3D/GS3DIndLightSplat.hpp"
+#include "Util/ShaderUtil.hpp"
 
 FALCOR_EXPORT_D3D12_AGILITY_SDK
 
 namespace GSGI
 {
+
+using DrawType = GaussianGITrainDrawType;
+
+struct DrawTypeProperty
+{
+    const char* fieldName;
+};
+GSGI_ENUM_REGISTER(DrawType::kAlbedo, void, "Albedo", DrawTypeProperty, .fieldName = "channel.albedo");
+GSGI_ENUM_REGISTER(DrawType::kDepth, void, "Depth", DrawTypeProperty, .fieldName = "channel.depth");
+GSGI_ENUM_REGISTER(DrawType::kT, void, "T", DrawTypeProperty, .fieldName = "T");
 
 GaussianGITrain::GaussianGITrain(const SampleAppConfig& config) : SampleApp(config)
 {
@@ -51,6 +62,17 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     auto sortDesc = Trainer::getSortDesc();
     mSortResource = DeviceSortResource<DeviceSortDispatchType::kIndirect>::create(getDevice(), sortDesc, kMaxSplatCount);
     mSorter = DeviceSorter<DeviceSortDispatchType::kIndirect>(getDevice(), sortDesc);
+
+    mpDrawPass = FullScreenPass::create(
+        getDevice(),
+        "GaussianGI/GaussianGITrain.ps.slang",
+        []
+        {
+            DefineList defList;
+            Trainer::addDefine(defList);
+            return defList;
+        }()
+    );
 }
 
 void GaussianGITrain::resetTrainer()
@@ -89,10 +111,17 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
         }
     }
 
-    if (mConfig.drawMeshData)
-        pRenderContext->blit(mTrainData.meshRT.pAlbedoDepthTexture->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
-    else
-        pRenderContext->blit(mTrainResource.splatTex.pVectorTextures[0]->getSRV(), pTargetFbo->getColorTexture(0)->getRTV());
+    {
+        FALCOR_PROFILE(pRenderContext, "blit");
+        auto [prog, var] = getShaderProgVar(mpDrawPass);
+        var["gDrawMesh"] = uint32_t(mConfig.drawMeshData);
+        mTrainData.meshRT.bindShaderData(var["gMeshRT"]);
+        mTrainResource.splatTex.bindShaderData(var["gSplatRT"]);
+        enumVisit(
+            mConfig.drawType, [&]<typename EnumInfo_T>(EnumInfo_T) { prog->addDefine("FIELD_NAME", EnumInfo_T::kProperty.fieldName); }
+        );
+        mpDrawPass->execute(pRenderContext, pTargetFbo);
+    }
 }
 
 void GaussianGITrain::onGuiRender(Gui* pGui)
@@ -134,6 +163,7 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
         mpCamera->renderUI(g);
 
     w.checkbox("Draw Mesh", mConfig.drawMeshData);
+    enumDropdown(w, "Draw Type", mConfig.drawType);
 
     static uint32_t sSplatCount = mConfig.splatCount;
     w.var("Splat Count", sSplatCount, 1u, kMaxSplatCount);

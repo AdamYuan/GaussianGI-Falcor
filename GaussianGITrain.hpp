@@ -9,14 +9,24 @@
 #include <Core/SampleApp.h>
 #include <Scene/Camera/Camera.h>
 #include <Scene/Camera/CameraController.h>
+#include <Core/Pass/FullScreenPass.h>
 #include "Scene/GMesh.hpp"
 #include "Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
 #include "Scene/GMeshGSTrainDataset.hpp"
+#include "Util/EnumUtil.hpp"
 
 using namespace Falcor;
 
 namespace GSGI
 {
+
+enum class GaussianGITrainDrawType
+{
+    kAlbedo,
+    kDepth,
+    kT,
+    GSGI_ENUM_COUNT
+};
 
 class GaussianGITrain final : public SampleApp
 {
@@ -44,10 +54,13 @@ private:
         bool drawMeshData = false;
         bool train = false;
         uint32_t splatCount = kMaxSplatCount;
+        GaussianGITrainDrawType drawType = GaussianGITrainDrawType::kAlbedo;
     } mConfig = {};
     ref<GMesh> mpMesh;
     ref<Camera> mpCamera;
     std::unique_ptr<CameraController> mpCameraController;
+
+    ref<FullScreenPass> mpDrawPass;
 
     Trainer mTrainer;
     Trainer::Resource mTrainResource;
