@@ -128,8 +128,9 @@ namespace MeshGSTrain
 #endif
 #if SOA_HAS_EXT
             return any(isnan(this.ext)) || any(isinf(this.ext));
-#endif
+#else
             return false;
+#endif
         }
     }
 #define SOA_BUFFER_UNDEF
@@ -197,8 +198,9 @@ namespace MeshGSTrain
 #endif
 #if SOA_HAS_EXT
             return any(isnan(this.ext)) || any(isinf(this.ext));
-#endif
+#else
             return false;
+#endif
         }
     }
     public extension RWSplatViewBuffer
