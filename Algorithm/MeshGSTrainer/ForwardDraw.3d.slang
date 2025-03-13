@@ -4,17 +4,16 @@ import MeshGSTrainer;
 using namespace MeshGSTrain;
 
 SplatViewBuffer gSplatViews;
+SplatQuadBuffer gSplatQuads;
 StructuredBuffer<uint> gSplatViewSortPayloads;
-StructuredBuffer<float16_t2x2> gSplatViewAxes;
-uniform float2 gResolution;
-uniform float4x4 gCamInvProjMat;
-uniform float gCamProjMat00;
+uniform float4x4 gCamProjMat, gCamInvProjMat;
 
 CoherentSplatTexture gSplatRT;
 
 struct PSIn
 {
     nointerpolation SplatView splatView;
+    linear float2 quadPos;
     linear float4 clipPos : SV_Position;
 };
 
@@ -28,29 +27,41 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
     uint splatViewID = gSplatViewSortPayloads[gIn[0]];
     var splatView = gSplatViews.load<SplatView>(splatViewID);
-    float16_t2x2 splatViewAxis = gSplatViewAxes[splatViewID];
+    var splatQuad = gSplatQuads.load<SplatQuad>(splatViewID);
 
-    float2 clip = splatView.geom.clipMean;
-    float2x2 deltaClip = getDeltaClip(float2x2(splatViewAxis), gResolution);
+    float3 center = SplatQuad::getCenter(splatView.geom.clipMean, gCamInvProjMat);
+    float3 delta0 = splatQuad.delta0;
+    float3 delta1 = splatQuad.delta1;
+
+    float4 centerClip = mul(gCamProjMat, float4(center, 1));
+    float4 deltaClip0 = mul(gCamProjMat, float4(delta0, 0));
+    float4 deltaClip1 = mul(gCamProjMat, float4(delta1, 0));
 
     PSIn o;
     o.splatView = splatView;
-    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
+
+    o.quadPos = float2(-kQuadPosBound, -kQuadPosBound);
+    o.clipPos = centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1;
     output.Append(o);
-    o.clipPos = float4(clip + mul(float2(kQuadPosBound, -kQuadPosBound), deltaClip), 0, 1);
+
+    o.quadPos = float2(kQuadPosBound, -kQuadPosBound);
+    o.clipPos = centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1;
     output.Append(o);
-    o.clipPos = float4(clip + mul(float2(-kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
+
+    o.quadPos = float2(-kQuadPosBound, kQuadPosBound);
+    o.clipPos = centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1;
     output.Append(o);
-    o.clipPos = float4(clip + mul(float2(kQuadPosBound, kQuadPosBound), deltaClip), 0, 1);
+
+    o.quadPos = float2(kQuadPosBound, kQuadPosBound);
+    o.clipPos = centerClip + o.quadPos.x * deltaClip0 + o.quadPos.y * deltaClip1;
     output.Append(o);
+    output.RestartStrip();
 }
 
 void psMain(PSIn pIn)
 {
-    bool shouldDiscard;
-    float alpha = getAlphaGSPPSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, gCamProjMat00, gCamInvProjMat, shouldDiscard);
-    // float alpha = getAlphaSafe(pIn.splatView.geom, pIn.clipPos.xy, gResolution, shouldDiscard);
-    if (shouldDiscard)
+    float alpha = getAlpha(pIn.quadPos);
+    if (alpha < kAlphaThreshold)
         discard;
 
     float oneMinusAlpha = 1.0 - alpha;

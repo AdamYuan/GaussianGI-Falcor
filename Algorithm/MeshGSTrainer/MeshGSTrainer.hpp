@@ -133,17 +133,20 @@ public:
     static constexpr uint kFloatsPerSplatView = kMeshGSTrainSplatViewGeomFloatCount + Trait_T::kFloatsPerSplatChannel;
     static constexpr uint kFloatsPerSplatAdam = kFloatsPerSplat * 2;
     static constexpr uint kFloatsPerSplatChannelT = Trait_T::kFloatsPerSplatChannel + 1;
+    static constexpr uint kFloatsPerSplatQuad = 6;
 
     using SplatSOAUnitTrait = SOAUnitTrait<float, 4>;
     using SplatSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplat>;
     using SplatViewSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatView>;
     using SplatAdamSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatAdam>;
     using SplatChannelTSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatChannelT>;
+    using SplatQuadSOATrait = SOATrait<SplatSOAUnitTrait, kFloatsPerSplatQuad>;
 
     using SplatBuffer = SOABuffer<SplatSOATrait>;
     using SplatBufferData = SOABufferData<SplatSOATrait>;
     using SplatViewBuffer = SOABuffer<SplatViewSOATrait>;
     using SplatAdamBuffer = SOABuffer<SplatAdamSOATrait>;
+    using SplatQuadBuffer = SOABuffer<SplatQuadSOATrait>;
 
     using SplatTexture = SOATexture<SplatChannelTSOATrait, 2>;
 
@@ -162,7 +165,8 @@ public:
         SplatBuffer splatBuf, splatDLossBuf;
         SplatAdamBuffer splatAdamBuf;
         SplatViewBuffer splatViewBuf, splatViewDLossBuf;
-        ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer;
+        SplatQuadBuffer splatQuadBuf;
+        ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
         ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
 
         static Resource create(const ref<Device>& pDevice, uint splatCount, uint2 resolution, const SplatBufferData& splatInitData = {});

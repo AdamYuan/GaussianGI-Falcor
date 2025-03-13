@@ -10,8 +10,6 @@ import GaussianGI.Algorithm.ShaderMisc;
 
 #include TRAIT_INCLUDE_PATH
 
-#define USE_N2_GENERALIZED_GAUSSIAN 0
-
 namespace MeshGSTrain
 {
     public struct Camera
@@ -20,15 +18,11 @@ namespace MeshGSTrain
         public float nearZ, farZ;
     }
 
-    public const static float kOpacity = 0.975;              // O
-    public const static float kAlphaThreshold = 1.0 / 255.0; // \alpha_T
-#if USE_N2_GENERALIZED_GAUSSIAN
-    public const static float kQuadPosBound = 1.5325159255235876;
-#else
+    public const static float kOpacity = 0.975;                   // O
+    public const static float kAlphaThreshold = 1.0 / 255.0;      // \alpha_T
     public const static float kQuadPosBound = 2.3486050619834185; // Q
-// \alpha = O \exp{-Q^2} = \alpha_T
-// \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
-#endif
+    // \alpha = O \exp{-Q^2} = \alpha_T
+    // \Rightarrow Q = \sqrt{\log{\frac{O}{\alpha_T}}}
 
 #define SOA_WORD_TYPE float
 #define SOA_WORDS_PER_UNIT 4
@@ -37,6 +31,7 @@ namespace MeshGSTrain
 #define FLOATS_PER_SPLAT_VIEW (FLOATS_PER_SPLAT_VIEW_GEOM + FLOATS_PER_SPLAT_CHANNEL)
 #define FLOATS_PER_SPLAT_ADAM (FLOATS_PER_SPLAT * 2)
 #define FLOATS_PER_SPLAT_CHANNEL_T (FLOATS_PER_SPLAT_CHANNEL + 1)
+#define FLOATS_PER_SPLAT_QUAD 6
 
     // Splat SOA
 #define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT
@@ -191,6 +186,20 @@ namespace MeshGSTrain
 #endif
             return t;
         }
+
+        public bool anyIsNanOrInf()
+        {
+#if SOA_HAS_UNITS
+            [ForceUnroll]
+            for (uint i = 0; i < SOA_UNITS_PER_ELEM; ++i)
+                if (any(isnan(this.units[i])) || any(isinf(this.units[i])))
+                    return true;
+#endif
+#if SOA_HAS_EXT
+            return any(isnan(this.ext)) || any(isinf(this.ext));
+#endif
+            return false;
+        }
     }
     public extension RWSplatViewBuffer
     {
@@ -256,6 +265,23 @@ namespace MeshGSTrain
 #undef SOA_TEXTURE2D_NAME
 #undef SOA_RWTEXTURE2D_NAME
 #undef SOA_COHERENTTEXTURE2D_NAME
+
+    // SplatQuad SOA
+#define SOA_WORDS_PER_ELEM FLOATS_PER_SPLAT_QUAD
+#define SOA_TUPLE_NAME FlatSplatQuad
+#define SOA_IELEMENT_NAME ISplatQuadElement
+#define SOA_BUFFER_NAME SplatQuadBuffer
+#define SOA_RWBUFFER_NAME RWSplatQuadBuffer
+#define SOA_BUFFER_DEF
+#define SOA_BUFFER_UNDEF
+#include "GaussianGI/Util/SOABufferDefine.slangh"
+#undef SOA_BUFFER_UNDEF
+#undef SOA_BUFFER_DEF
+#undef SOA_WORDS_PER_ELEM
+#undef SOA_TUPLE_NAME
+#undef SOA_IELEMENT_NAME
+#undef SOA_RWBUFFER_NAME
+#undef SOA_BUFFER_NAME
 
     public struct Splat : ISplatElement, IDifferentiable
     {
@@ -420,229 +446,118 @@ namespace MeshGSTrain
         }
     }
 
+    public struct SplatQuad : ISplatQuadElement
+    {
+        public float3 delta0, delta1;
+
+        public FlatSplatQuad toSOA()
+        {
+            FlatSplatQuad soa;
+            soa.units[0] = float4(delta0, delta1.x);
+            soa.ext = delta1.yz;
+            return soa;
+        }
+        public static This fromSOA(FlatSplatQuad soa)
+        {
+            This quad;
+            quad.delta0 = soa.units[0].xyz;
+            quad.delta1 = float3(soa.units[0].w, soa.ext);
+            return quad;
+        }
+
+        public static float3 getCenter(float2 clipMean, float4x4 camInvProjMat)
+        {
+            float3 center = normalize(mul(camInvProjMat, float4(clipMean, 0, 1)).xyz);
+            return center;
+        }
+    }
+
     [Differentiable]
     public SplatView splat2splatView(
         Splat splat,
         float3 splatViewPos,
         float3 splatClipPos,
-        no_diff out float2x2 o_screenAxis,
+        no_diff out SplatQuad o_splatQuad,
         no_diff float4x4 camViewMat,
-        no_diff float camProjMat00,
+        no_diff float4x4 camProjMat,
         no_diff float camNearZ,
-        no_diff float camFarZ,
-        no_diff float2 screenResolution
+        no_diff float camFarZ
     )
     {
+        float3x3 camViewRotMat = float3x3(camViewMat);
+
+        float splatViewDist = length(splatViewPos);
+        float3 splatViewDir = splatViewPos / splatViewDist;
+        float3x3 splatViewDirMatT = getAlignRotMatT(splatViewDir);
+
         float2x3 cov3d = GS3D::getCovariance3D(splat.geom.rotate, splat.geom.scale);
-        float3 cov2d = GS3D::getCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat00, screenResolution);
+        float3 cov2d = GS3D::getGSPPCovariance2D(cov3d, splatViewDist, mul(splatViewDirMatT, camViewRotMat), 1.0);
+
         SplatView splatView;
         splatView.geom.clipMean = splatClipPos.xy;
         splatView.geom.conic = GS3D::getConic(cov2d);
         splatView.channel = Trait::getSplatChannel(
-            splat.geom,
-            splat.attrib,
-            splatView.geom,
-            splatViewPos,
-            splatClipPos,
-            cov3d,
-            cov2d,
-            camViewMat,
-            camProjMat00,
-            camNearZ,
-            camFarZ,
-            screenResolution
+            splat.geom, splat.attrib, splatView.geom, splatViewPos, splatClipPos, cov3d, cov2d, camViewMat, camProjMat, camNearZ, camFarZ
         );
 
-        GS3D::Eigen<2> eigen2d = GS3D::decomposeCovariance2D(cov2d);
-        float2 screenScale = sqrt(2.0 * eigen2d.lambda);
-        o_screenAxis = float2x2(eigen2d.eigen[0] * screenScale[0], eigen2d.eigen[1] * screenScale[1]);
-        // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
-        // Let d = 2, a = 2\sqrt{2} \sigma < 3 \sigma
+        GS3D::Eigen<2> eigen = GS3D::decomposeCovariance2D(cov2d);
+
+        // float4 centerClip = mul(camProjMat, float4(splatViewDir, 1.0));
+        float2 deltaQuad0 = eigen.eigen[0] * sqrt(eigen.lambda[0] * 2.0);
+        float2 deltaQuad1 = eigen.eigen[1] * sqrt(eigen.lambda[1] * 2.0);
+        float3 delta0 = splatViewDirMatT[0] * deltaQuad0.x + splatViewDirMatT[1] * deltaQuad0.y;
+        float3 delta1 = splatViewDirMatT[0] * deltaQuad1.x + splatViewDirMatT[1] * deltaQuad1.y;
+
+        o_splatQuad = SplatQuad(delta0, delta1);
+
         return splatView;
     }
 
     [Differentiable]
     public SplatView splat2splatView(
         Splat splat,
+        no_diff out SplatQuad o_splatQuad,
         no_diff float4x4 camViewMat,
         no_diff float4x4 camProjMat,
         no_diff float camNearZ,
-        no_diff float camFarZ,
-        no_diff float2 screenResolution
+        no_diff float camFarZ
     )
     {
         float3 viewPos = mul(camViewMat, float4(splat.geom.mean, 1)).xyz;
         float4 clipPos = mul(camProjMat, float4(viewPos, 1));
         clipPos /= clipPos.w;
 
-        float2x2 screenAxis;
-        return splat2splatView(splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat[0][0], camNearZ, camFarZ, screenResolution);
+        SplatQuad quad;
+        return splat2splatView(splat, viewPos, clipPos.xyz, quad, camViewMat, camProjMat, camNearZ, camFarZ);
     }
 
-    [Differentiable]
-    public SplatView splat2splatViewGSPP(
-        Splat splat,
-        float3 splatViewPos,
-        float3 splatClipPos,
-        no_diff out float2x2 o_screenAxis,
-        no_diff float4x4 camViewMat,
-        no_diff float camProjMat00,
-        no_diff float camNearZ,
-        no_diff float camFarZ,
-        no_diff float2 screenResolution
-    )
+    public float getAlpha(float2 splatQuadPos)
     {
-        float2x3 cov3d = GS3D::getCovariance3D(splat.geom.rotate, splat.geom.scale);
-        float3 cov2d = GS3D::getGSPPCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat00, screenResolution);
-
-        SplatView splatView;
-        splatView.geom.clipMean = splatClipPos.xy;
-        splatView.geom.conic = GS3D::getConic(cov2d);
-        splatView.channel = Trait::getSplatChannel(
-            splat.geom,
-            splat.attrib,
-            splatView.geom,
-            splatViewPos,
-            splatClipPos,
-            cov3d,
-            cov2d,
-            camViewMat,
-            camProjMat00,
-            camNearZ,
-            camFarZ,
-            screenResolution
-        );
-
-        // Use naive covariance 2D for screenAxis
-        GS3D::Eigen<2> eigen2d =
-            GS3D::decomposeCovariance2D(GS3D::getCovariance2D(cov3d, splatViewPos, float3x3(camViewMat), camProjMat00, screenResolution));
-        float2 screenScale = sqrt(2.0 * eigen2d.lambda);
-        o_screenAxis = float2x2(eigen2d.eigen[0] * screenScale[0], eigen2d.eigen[1] * screenScale[1]);
-        // e^{-d^2} = e^{-\frac{1}{2}(\frac{a}{\sigma})^2} \Rightarrow a = \sqrt{2}\sigma d
-        // Let d = 2, a = 2\sqrt{2} \sigma < 3 \sigma
-
-        return splatView;
-    }
-
-    [Differentiable]
-    public SplatView splat2splatViewGSPP(
-        Splat splat,
-        no_diff float4x4 camViewMat,
-        no_diff float4x4 camProjMat,
-        no_diff float camNearZ,
-        no_diff float camFarZ,
-        no_diff float2 screenResolution
-    )
-    {
-        float3 viewPos = mul(camViewMat, float4(splat.geom.mean, 1)).xyz;
-        float4 clipPos = mul(camProjMat, float4(viewPos, 1));
-        clipPos /= clipPos.w;
-
-        float2x2 screenAxis;
-        return splat2splatViewGSPP(
-            splat, viewPos, clipPos.xyz, screenAxis, camViewMat, camProjMat[0][0], camNearZ, camFarZ, screenResolution
-        );
-    }
-
-    public float2x2 getDeltaClip(float2x2 screenAxis, float2 screenResolution)
-    {
-        float2x2 deltaClip = screenAxis;
-        deltaClip[0] *= 2.0 / screenResolution;
-        deltaClip[1] *= 2.0 / screenResolution;
-        // * 2 to scale from [0, 1] to [-1, 1]
-        return deltaClip;
-    }
-
-    // Deprecated, now we use conic instead of axis+scale to reduce atomic operations
-    /* [Differentiable]
-    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
-    {
-        // clipMean to screenMean
-        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
-        float2 deltaScreen = screenPos - screenMean;
-        deltaScreen.y = -deltaScreen.y;
-        float2 quadPos =
-            mul(float2x2(
-                    splatViewGeom.axis / splatViewGeom.scale[0],                                  //
-                    float2(-splatViewGeom.axis.y, splatViewGeom.axis.x) / splatViewGeom.scale[1], //
-                ),
-                deltaScreen);
-        return kOpacity * exp(-dot(quadPos, quadPos));
-    } */
-
-    [Differentiable]
-    public float getAlphaSafe(
-        SplatViewGeom splatViewGeom,
-        no_diff float2 screenPos,
-        no_diff float2 screenResolution,
-        no_diff out bool o_shouldDiscard
-    )
-    {
-        // clipMean to screenMean
-        float2 screenMean = (float2(0.5, -0.5) * splatViewGeom.clipMean + 0.5) * screenResolution;
-        float2 deltaScreen = screenPos - screenMean;
-        deltaScreen.y = -deltaScreen.y;
-        float power = 0.5 * (splatViewGeom.conic.x * deltaScreen.x * deltaScreen.x + //
-                             splatViewGeom.conic.z * deltaScreen.y * deltaScreen.y) +
-                      splatViewGeom.conic.y * deltaScreen.x * deltaScreen.y;
-#if USE_N2_GENERALIZED_GAUSSIAN
-        float alpha = kOpacity * exp(-power * power);
-#else
+        float power = dot(splatQuadPos, splatQuadPos);
         float alpha = kOpacity * exp(-power);
-#endif
-        o_shouldDiscard = power < 0.0 || alpha < kAlphaThreshold;
         return alpha;
     }
 
     [Differentiable]
-    public float getAlphaGSPPSafe(
+    public float getAlpha(
         SplatViewGeom splatViewGeom,
-        no_diff float2 screenPos,
-        no_diff float2 screenResolution,
-        no_diff float camProjMat00,
-        no_diff float4x4 camInvProjMat,
-        no_diff out bool o_shouldDiscard
+        no_diff float3 fragViewDir, // No need to normalize()
+        no_diff float4x4 camInvProjMat
     )
     {
-        float3 viewMeanDir = normalize(mul(camInvProjMat, float4(splatViewGeom.clipMean, 0, 1)).xyz);
+        /* float2 fragClipPos = (fragScreenPos / screenResolution) * 2.0 - 1.0;
+        fragClipPos.y = -fragClipPos.y;
+        float3 fragViewDir = mul(camInvProjMat, float4(fragClipPos, 0, 1)).xyz; // No need to normalize() */
 
-        float2 clipPos = (screenPos / screenResolution) * 2.0 - 1.0;
-        clipPos.y = -clipPos.y;
-        float3 viewPosDir = mul(camInvProjMat, float4(clipPos, 0, 1)).xyz; // No need to normalize()
-
-        float3x3 planeRotMat = getAlignRotMatT(viewMeanDir);
-        float2 planePos = GS3D::project(mul(planeRotMat, viewPosDir), camProjMat00, screenResolution);
+        float3 splatViewDir = normalize(mul(camInvProjMat, float4(splatViewGeom.clipMean, 0, 1)).xyz);
+        float3x3 splatViewDirMatT = getAlignRotMatT(splatViewDir);
+        float2 planePos = GS3D::project(mul(splatViewDirMatT, fragViewDir), 1.0);
 
         float power = 0.5 * (splatViewGeom.conic.x * planePos.x * planePos.x + //
                              splatViewGeom.conic.z * planePos.y * planePos.y) +
                       splatViewGeom.conic.y * planePos.x * planePos.y;
-#if USE_N2_GENERALIZED_GAUSSIAN
-        float alpha = kOpacity * exp(-power * power);
-#else
         float alpha = kOpacity * exp(-power);
-#endif
-        o_shouldDiscard = power < 0.0 || alpha < kAlphaThreshold;
         return alpha;
-    }
-
-    [Differentiable]
-    public float getAlpha(SplatViewGeom splatViewGeom, no_diff float2 screenPos, no_diff float2 screenResolution)
-    {
-        bool shouldDiscard;
-        return getAlphaSafe(splatViewGeom, screenPos, screenResolution, shouldDiscard);
-    }
-
-    [Differentiable]
-    public float getAlphaGSPP(
-        SplatViewGeom splatViewGeom,
-        no_diff float2 screenPos,
-        no_diff float2 screenResolution,
-        no_diff float camProjMat00,
-        no_diff float4x4 camInvProjMat
-    )
-    {
-        bool shouldDiscard;
-        return getAlphaGSPPSafe(splatViewGeom, screenPos, screenResolution, camProjMat00, camInvProjMat, shouldDiscard);
     }
 
     [Differentiable]

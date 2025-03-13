@@ -4,7 +4,6 @@ import MeshGSTrainer;
 using namespace MeshGSTrain;
 
 uniform Camera gCamera;
-uniform float2 gResolution;
 
 uniform uint gSplatCount;
 SplatBuffer gSplats;
@@ -15,7 +14,7 @@ RWSplatViewBuffer gSplatViews;
 RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
-RWStructuredBuffer<float16_t2x2> gSplatViewAxes;
+RWSplatQuadBuffer gSplatQuads;
 
 // Radix Tricks by Michael Herf
 // http://stereopsis.com/radix.html
@@ -42,19 +41,17 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (any(abs(clipPos.xy) > 1.3) || clipPos.z > 1 || clipPos.z < 0) // Frustum Culled
         return;
 
-    float2x2 screenAxis;
+    SplatQuad splatQuad;
 
-    SplatView splatView = splat2splatViewGSPP(
-        // splat2splatView(
+    SplatView splatView = splat2splatView(
         splat, //
         viewPos,
         clipPos.xyz,
-        screenAxis,
+        splatQuad,
         gCamera.viewMat,
-        gCamera.projMat[0][0],
+        gCamera.projMat,
         gCamera.nearZ,
-        gCamera.farZ,
-        gResolution
+        gCamera.farZ
     );
 
     uint splatViewID;
@@ -62,7 +59,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     gSplatViewSplatIDs[splatViewID] = splatID;
     gSplatViewSortPayloads[splatViewID] = splatViewID;
     gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
-    gSplatViewAxes[splatViewID] = float16_t2x2(screenAxis);
+    gSplatQuads.store(splatViewID, splatQuad);
     gSplatViews.store(splatViewID, splatView);
     // gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
 }

@@ -82,10 +82,9 @@ namespace MeshGSTrain
             float2x3 splatCov3d,
             float3 splatCov2d,
             no_diff float4x4 camViewMat,
-            no_diff float camProjMat00,
+            no_diff float4x4 camProjMat,
             no_diff float camNearZ,
-            no_diff float camFarZ,
-            no_diff float2 screenResolution
+            no_diff float camFarZ
         )
         {
             SplatChannel channel;

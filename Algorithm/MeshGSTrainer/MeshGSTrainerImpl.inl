@@ -111,14 +111,13 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
         .splatAdamBuf = createSplatAdamBuffer(pDevice, splatCount),
         .splatViewBuf = createSplatViewBuffer(pDevice, splatCount),
         .splatViewDLossBuf = createSplatViewBuffer(pDevice, splatCount),
+        .splatQuadBuf = SplatQuadBuffer{pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource},
         .pSplatViewSplatIDBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSortKeyBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewSortPayloadBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
-        .pSplatViewAxisBuffer =
-            createBuffer<sizeof(float16_t4)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewDrawArgBuffer = createBuffer<sizeof(DrawArguments)>(
             pDevice, //
             1,
@@ -171,13 +170,12 @@ bool MeshGSTrainer<Trait_T>::Resource::isCapable(uint splatCount, uint2 resoluti
                splatTmpTex,
                splatBuf,
                splatDLossBuf,
+               splatQuadBuf,
                splatAdamBuf,
                splatViewBuf,
                splatViewDLossBuf
            ) &&
-           isBufferCapable(
-               splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer, pSplatViewAxisBuffer
-           ) &&
+           isBufferCapable(splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer) &&
            isBufferCapable(1, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer);
     // Don't need to check sortResource since it is checked in DeviceSorter
 }
@@ -302,7 +300,6 @@ void MeshGSTrainer<Trait_T>::forward(
 
         auto [prog, var] = getShaderProgVar(mpForwardViewPass);
         camera.bindShaderData(var["gCamera"]);
-        var["gResolution"] = float2(mDesc.resolution);
         var["gSplatCount"] = state.splatCount;
         resource.splatBuf.bindShaderData(var["gSplats"]);
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
@@ -311,7 +308,7 @@ void MeshGSTrainer<Trait_T>::forward(
         var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
         var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
-        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
+        resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         // Reset counter (pRenderContext->updateBuffer)
         static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint));
         resource.pSplatViewDrawArgBuffer->template setElement<uint>(offsetof(DrawArguments, InstanceCount) / sizeof(uint), 0);
@@ -337,11 +334,10 @@ void MeshGSTrainer<Trait_T>::forward(
         auto [prog, var] = getShaderProgVar(mpForwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         resource.splatTex.bindShaderData(var["gSplatRT"]);
+        resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
-        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
-        var["gResolution"] = float2(mDesc.resolution);
+        var["gCamProjMat"] = camera.projMat;
         var["gCamInvProjMat"] = math::inverse(camera.projMat);
-        var["gCamProjMat00"] = camera.projMat[0][0];
 
         pRenderContext->drawIndirect(
             mpForwardDrawPass->getState().get(),
@@ -376,11 +372,10 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
 
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
+        resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
-        var["gSplatViewAxes"] = resource.pSplatViewAxisBuffer;
-        var["gResolution"] = float2(mDesc.resolution);
+        var["gCamProjMat"] = camera.projMat;
         var["gCamInvProjMat"] = math::inverse(camera.projMat);
-        var["gCamProjMat00"] = camera.projMat[0][0];
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
         resource.splatTmpTex.bindShaderData(var["gMs_Ts"]);
@@ -408,7 +403,6 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
 
         auto [prog, var] = getShaderProgVar(mpBackwardViewPass);
         camera.bindShaderData(var["gCamera"]);
-        var["gResolution"] = float2(mDesc.resolution);
 
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);

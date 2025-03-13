@@ -37,7 +37,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     splat_flat = splat_flat.sub(hat_m.mul(gLearnRate.toSOA()).div(hat_v.sqrt().add(ADAM_EPSILON)));
 
-    if (!splat_flat.anyIsNanOrInf())
+    // if (!splat_flat.anyIsNanOrInf())
     {
         var splat = Splat::fromSOA(splat_flat);
         if (all(splat.geom.rotate == 0))

@@ -10,7 +10,6 @@ RWSplatBuffer gDLossDSplats;
 StructuredBuffer<uint> gSplatViewSplatIDs;
 
 uniform Camera gCamera;
-uniform float2 gResolution;
 
 #ifndef BATCH_SIZE
 #define BATCH_SIZE 2
@@ -28,17 +27,19 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     var splat = gSplats.load<Splat>(splatID);
 
     var dp = diffPair(splat);
-    bwd_diff(splat2splatViewGSPP)(
+    bwd_diff(splat2splatView)(
         dp, //
         gCamera.viewMat,
         gCamera.projMat,
         gCamera.nearZ,
         gCamera.farZ,
-        gResolution,
         dL_dsplatView
     );
 
     var dL_dsplat_flat = dp.d.toSOA();
+    if (dL_dsplat_flat.anyIsNanOrInf())
+        dL_dsplat_flat = (FlatSplat)0;
+
     if (BATCH_SIZE > 1)
         dL_dsplat_flat = dL_dsplat_flat.add(gDLossDSplats.load<FlatSplat>(splatID));
     gDLossDSplats.store(splatID, dL_dsplat_flat);
