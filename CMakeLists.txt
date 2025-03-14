@@ -41,6 +41,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/SGGX.slang
         Algorithm/SphericalHarmonics.slang
         Algorithm/SphericalHarmonics.slangh
+        Algorithm/FrustumCull.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp
@@ -206,6 +207,7 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/SGGX.slang
         Algorithm/GS3DBound.hpp
         Algorithm/GS3DBound.slangh
+        Algorithm/FrustumCull.slang
 
         Algorithm/DeviceSort/DeviceSorter.hpp
         Algorithm/DeviceSort/DeviceSorter.cpp

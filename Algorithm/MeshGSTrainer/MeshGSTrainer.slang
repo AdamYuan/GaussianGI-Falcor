@@ -314,6 +314,25 @@ namespace MeshGSTrain
         }
     }
 
+    [Differentiable]
+    public float2 dir2Sph(float3 p)
+    {
+        float2 sph;
+        sph.x = acos(p.z);
+        sph.y = atan2(-p.y, -p.x) + M_PI;
+        return sph;
+    }
+
+    [Differentiable]
+    public float3 sph2Dir(float2 sph)
+    {
+        float3 p;
+        p.x = -cos(sph.y - M_PI) * sin(sph.x);
+        p.y = -sin(sph.y - M_PI) * sin(sph.x);
+        p.z = cos(sph.x);
+        return p;
+    }
+
     public struct SplatView : ISplatViewElement, IDifferentiable
     {
         public SplatViewGeom geom;
@@ -322,8 +341,8 @@ namespace MeshGSTrain
         public FlatSplatView toSOA()
         {
             FlatSplatView soa;
-            soa.setWords(0, geom.clipMean);
-            soa.setWords(2, geom.conic);
+            soa.setWords(0, geom.viewDir);
+            soa.setWords(3, geom.conic);
             [ForceUnroll]
             for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
                 soa.setWord(FLOATS_PER_SPLAT_VIEW_GEOM + i, channel.getWord(i));
@@ -332,8 +351,8 @@ namespace MeshGSTrain
         public static This fromSOA(FlatSplatView soa)
         {
             This splatView;
-            splatView.geom.clipMean = soa.getWords<2>(0);
-            splatView.geom.conic = soa.getWords<3>(2);
+            splatView.geom.viewDir = soa.getWords<3>(0);
+            splatView.geom.conic = soa.getWords<3>(3);
             [ForceUnroll]
             for (uint i = 0; i < FLOATS_PER_SPLAT_CHANNEL; ++i)
                 splatView.channel.setWord(i, soa.getWord(FLOATS_PER_SPLAT_VIEW_GEOM + i));
@@ -466,11 +485,6 @@ namespace MeshGSTrain
             quad.deltaView1 = float3(soa.units[0].w, soa.ext);
             return quad;
         }
-
-        public static float3 getCenterView(float2 clipMean, float4x4 camInvProjMat)
-        {
-            return normalize(mul(camInvProjMat, float4(clipMean, 0, 1)).xyz);
-        }
     }
 
     [Differentiable]
@@ -495,7 +509,7 @@ namespace MeshGSTrain
         float3 cov2d = GS3D::getGSPPCovariance2D(cov3d, splatViewDist, mul(splatViewDirMatT, camViewRotMat), 1.0);
 
         SplatView splatView;
-        splatView.geom.clipMean = splatClipPos.xy;
+        splatView.geom.viewDir = splatViewDir;
         splatView.geom.conic = GS3D::getConic(cov2d);
         splatView.channel = Trait::getSplatChannel(
             splat.geom, splat.attrib, splatView.geom, splatViewPos, splatClipPos, cov3d, cov2d, camViewMat, camProjMat, camNearZ, camFarZ
@@ -545,8 +559,7 @@ namespace MeshGSTrain
         no_diff float4x4 camInvProjMat
     )
     {
-        float3 splatViewDir = normalize(mul(camInvProjMat, float4(splatViewGeom.clipMean, 0, 1)).xyz);
-        float3x3 splatViewDirMatT = getAlignRotMatT(splatViewDir);
+        float3x3 splatViewDirMatT = getAlignRotMatT(splatViewGeom.viewDir);
         float2 planePos = GS3D::project(mul(splatViewDirMatT, fragViewDir), 1.0);
 
         float power = 0.5 * (splatViewGeom.conic.x * planePos.x * planePos.x + //

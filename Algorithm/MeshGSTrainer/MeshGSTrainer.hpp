@@ -102,7 +102,7 @@ struct MeshGSTrainSplatGeom
 static_assert(sizeof(MeshGSTrainSplatGeom) == MeshGSTrainSplatGeom::kFloatCount * sizeof(float));
 static_assert(alignof(MeshGSTrainSplatGeom) == sizeof(float));
 
-inline constexpr uint kMeshGSTrainSplatViewGeomFloatCount = 5;
+inline constexpr uint kMeshGSTrainSplatViewGeomFloatCount = 6;
 
 template<Concepts::MeshGSTrainTrait Trait_T>
 class MeshGSTrainer

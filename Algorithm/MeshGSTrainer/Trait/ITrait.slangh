@@ -1,7 +1,7 @@
 namespace MeshGSTrain
 {
 #define FLOATS_PER_SPLAT_GEOM 10
-#define FLOATS_PER_SPLAT_VIEW_GEOM 5
+#define FLOATS_PER_SPLAT_VIEW_GEOM 6
     public struct SplatGeom : IDifferentiable
     {
         public float4 rotate;
@@ -11,7 +11,7 @@ namespace MeshGSTrain
 
     public struct SplatViewGeom : IDifferentiable
     {
-        public float2 clipMean;
+        public float3 viewDir;
         public float3 conic;
     }
 
