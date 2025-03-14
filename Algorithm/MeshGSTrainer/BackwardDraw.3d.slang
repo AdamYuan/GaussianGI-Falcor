@@ -9,7 +9,7 @@ using namespace MeshGSTrain;
 SplatViewBuffer gSplatViews;
 SplatQuadBuffer gSplatQuads;
 StructuredBuffer<uint> gSplatViewSortPayloads;
-uniform float4x4 gCamProjMat, gCamInvProjMat;
+uniform float4x4 gCamProjMat;
 
 SplatTexture gDLossDCs_Ts;
 CoherentSplatTexture gMs_Ts;
@@ -101,7 +101,7 @@ void psMain(PSIn pIn)
     Trait::SplatChannel dL_dci = dL_dC.mul(Ti * alpha);                                // \dfrac{dL}{dc_i}
     float dL_dalpha = dL_dC.mul(Ti).mul(ci.sub(Mi)).sum() - TdL_dT * invOneMinusAlpha; // \dfrac{dL}{d\alpha_i}
     var dp = diffPair(pIn.splatView.geom);
-    bwd_diff(getAlpha)(dp, pIn.viewPos, gCamInvProjMat, dL_dalpha);
+    bwd_diff(getAlpha)(dp, pIn.viewPos, dL_dalpha);
 
     FlatSplatView dL_dsplatView = SplatView(dp.d, dL_dci).toSOA();
     if (dL_dsplatView.anyIsNanOrInf())

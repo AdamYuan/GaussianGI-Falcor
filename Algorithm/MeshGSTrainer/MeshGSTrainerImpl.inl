@@ -337,7 +337,6 @@ void MeshGSTrainer<Trait_T>::forward(
         resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
         var["gCamProjMat"] = camera.projMat;
-        var["gCamInvProjMat"] = math::inverse(camera.projMat);
 
         pRenderContext->drawIndirect(
             mpForwardDrawPass->getState().get(),
@@ -375,7 +374,6 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
         resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
         var["gCamProjMat"] = camera.projMat;
-        var["gCamInvProjMat"] = math::inverse(camera.projMat);
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
         resource.splatTmpTex.bindShaderData(var["gMs_Ts"]);

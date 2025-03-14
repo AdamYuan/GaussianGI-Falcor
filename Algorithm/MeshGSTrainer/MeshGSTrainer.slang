@@ -555,8 +555,7 @@ namespace MeshGSTrain
     [Differentiable]
     public float getAlpha(
         SplatViewGeom splatViewGeom,
-        no_diff float3 fragViewDir, // No need to normalize()
-        no_diff float4x4 camInvProjMat
+        no_diff float3 fragViewDir // No need to normalize()
     )
     {
         float3x3 splatViewDirMatT = getAlignRotMatT(splatViewGeom.viewDir);

@@ -6,7 +6,7 @@ using namespace MeshGSTrain;
 SplatViewBuffer gSplatViews;
 SplatQuadBuffer gSplatQuads;
 StructuredBuffer<uint> gSplatViewSortPayloads;
-uniform float4x4 gCamProjMat, gCamInvProjMat;
+uniform float4x4 gCamProjMat;
 
 CoherentSplatTexture gSplatRT;
 
