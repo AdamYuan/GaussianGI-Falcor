@@ -11,7 +11,7 @@
 #include <Scene/Camera/CameraController.h>
 #include <Core/Pass/FullScreenPass.h>
 #include "Scene/GMesh.hpp"
-#include "Algorithm/MeshGSTrainer/Trait/DepthAlbedoNormal.hpp"
+#include "Algorithm/MeshGSTrainer/Trait/DepthAlbedo.hpp"
 #include "Scene/GMeshGSTrainDataset.hpp"
 #include "Util/EnumUtil.hpp"
 
@@ -23,7 +23,7 @@ namespace GSGI
 enum class GaussianGITrainDrawType
 {
     kAlbedo,
-    kNormal,
+    // kNormal,
     kDepth,
     kT,
     GSGI_ENUM_COUNT
@@ -47,7 +47,7 @@ public:
     void resetTrainer();
 
 private:
-    using Trainer = MeshGSTrainer<MeshGSTrainDepthAlbedoNormalTrait>;
+    using Trainer = MeshGSTrainer<MeshGSTrainDepthAlbedoTrait>;
 
     static constexpr uint32_t kMaxSplatCount = 65536;
     struct

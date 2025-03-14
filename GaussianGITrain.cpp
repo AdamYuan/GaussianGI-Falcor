@@ -23,7 +23,7 @@ struct DrawTypeProperty
     const char* fieldName;
 };
 GSGI_ENUM_REGISTER(DrawType::kAlbedo, void, "Albedo", DrawTypeProperty, .fieldName = "channel.albedo");
-GSGI_ENUM_REGISTER(DrawType::kNormal, void, "Normal", DrawTypeProperty, .fieldName = "channel.normal * 0.5 + 0.5");
+// GSGI_ENUM_REGISTER(DrawType::kNormal, void, "Normal", DrawTypeProperty, .fieldName = "channel.normal * 0.5 + 0.5");
 GSGI_ENUM_REGISTER(DrawType::kDepth, void, "Depth", DrawTypeProperty, .fieldName = "channel.depth");
 GSGI_ENUM_REGISTER(DrawType::kT, void, "T", DrawTypeProperty, .fieldName = "T");
 
