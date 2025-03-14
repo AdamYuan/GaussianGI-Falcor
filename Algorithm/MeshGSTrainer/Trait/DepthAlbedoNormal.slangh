@@ -116,6 +116,9 @@ namespace MeshGSTrain
         }
 
         [Differentiable]
+        static T pow2<T : IFloat>(T x) { return x * x; }
+
+        [Differentiable]
         public static float loss(SplatChannel predict, float predictT, no_diff SplatChannel data, no_diff float dataT)
         {
             float dDepth = data.depth - predict.depth;
@@ -123,12 +126,14 @@ namespace MeshGSTrain
             float3 dNormal = data.normal - predict.normal;
             float dT = dataT - predictT;
             float lDepth = dDepth * dDepth;
+            lDepth *= 3.0;
             float lAlbedo = dAlbedo.x * dAlbedo.x + dAlbedo.y * dAlbedo.y + dAlbedo.z * dAlbedo.z;
-            lAlbedo *= 0.01;
+            lAlbedo *= 1.0;
             float lNormal = dNormal.x * dNormal.x + dNormal.y * dNormal.y + dNormal.z * dNormal.z;
-            lNormal *= 0.2;
+            lNormal *= 0.0;
             float lT = dT * dT;
-            return lDepth + lAlbedo + lNormal + lT;
+            float lUncover = pow2(max(-dT, 0)) + pow2(max(dDepth, 0));
+            return lDepth + lAlbedo + lNormal + lT + lUncover;
         }
     }
 }
