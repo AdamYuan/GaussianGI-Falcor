@@ -48,3 +48,11 @@ public float3 thermal(float x)
 {
     return sin(clamp(x, 0.0, 1.0) * 3.0 - float3(1, 2, 3)) * 0.5 + 0.5;
 }
+
+// Radix Tricks by Michael Herf
+// http://stereopsis.com/radix.html
+public uint float2CmpUint(float f)
+{
+    uint mask = -((int)(asuint(f) >> 31)) | 0x80000000;
+    return asuint(f) ^ mask;
+}

@@ -1,6 +1,7 @@
 #include "Utils/Math/MathConstants.slangh"
 #include "GaussianGI/Algorithm/Icosahedron.slangh"
 #include "GaussianGI/Algorithm/SphericalHarmonics.slangh"
+#include "GaussianGI/Algorithm/GS3DBound.slangh"
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.SGGX;
@@ -34,6 +35,21 @@ uniform uint gTick;
 
 groupshared float gSharedSH[SH_SIZE(SH_LEVEL) * 3];
 
+float getSplatTMin(Splat splat, float3 dir)
+{
+    return 0;
+
+    float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
+    dir = mul(transpose(splatRotMat), dir);
+    float3 det = dir / splat.geom.scale;
+    det *= det;
+    // float t = (GS3D_BOUND_SQRT_2LOG_100) / sqrt(det.x + det.y + det.z);
+    float t = 1.0 / sqrt(det.x + det.y + det.z);
+    if (isnan(t) || isinf(t))
+        return 0;
+    return t;
+}
+
 [numthreads(RAYS_PER_PROBE, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
 {
@@ -49,10 +65,10 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
     var randGen = UniformSampleGenerator(uint2(splatIdx, splatRayIdx), gTick);
 
     Ray ray;
-    ray.tMin = 0.0;
-    ray.tMax = FLT_MAX;
     ray.origin = splat.geom.mean;
     ray.dir = sample_sphere(sampleNext2D(randGen)); // PDF = 1 / 4PI
+    ray.tMin = getSplatTMin(splat, ray.dir);
+    ray.tMax = FLT_MAX;
 
     float3 radiance;
     bool error = false;

@@ -1,6 +1,7 @@
 import GaussianGI.Scene.GStaticScene;
 import Utils.Math.FormatConversion;
 import GaussianGI.Algorithm.GS3D;
+import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 
 using namespace GS3DIndLight;
@@ -12,14 +13,6 @@ RWStructuredBuffer<MiscSplatView> gSplatViews;
 RWStructuredBuffer<uint> gSplatViewDrawArgs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
-
-// Radix Tricks by Michael Herf
-// http://stereopsis.com/radix.html
-uint float2Uint(float f)
-{
-    uint mask = -((int)(asuint(f) >> 31)) | 0x80000000;
-    return asuint(f) ^ mask;
-}
 
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
@@ -57,6 +50,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     uint viewID;
     InterlockedAdd(gSplatViewDrawArgs[1], 1, viewID); // gSplatViewDrawArgs[1] is instanceCount
     gSplatViews[splatID] = view;
-    gSplatViewSortKeys[viewID] = float2Uint(viewPos.z);
+    gSplatViewSortKeys[viewID] = float2CmpUint(viewPos.z);
     gSplatViewSortPayloads[viewID] = splatID;
 }
