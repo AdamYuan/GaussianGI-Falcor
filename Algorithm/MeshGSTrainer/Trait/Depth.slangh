@@ -82,5 +82,12 @@ namespace MeshGSTrain
             float d = data.depth - predict.depth;
             return d * d;
         }
+
+        public static bool prune(SplatGeom splatGeom, SplatAttrib splatAttrib)
+        {
+            if (any(splatGeom.scale < 1e-4))
+                return true;
+            return false;
+        }
     }
 }

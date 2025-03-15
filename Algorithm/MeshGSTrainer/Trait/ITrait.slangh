@@ -59,5 +59,6 @@ namespace MeshGSTrain
         );
         [Differentiable]
         static float loss(SplatChannel predict, float predictT, no_diff SplatChannel data, no_diff float dataT);
+        static bool prune(SplatGeom splatGeom, SplatAttrib splatAttrib);
     }
 }
