@@ -1,3 +1,4 @@
+import GaussianGI.Algorithm.ShaderMisc;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.FrustumCull;
 import MeshGSTrainer;
@@ -16,14 +17,6 @@ RWStructuredBuffer<uint> gSplatViewSplatIDs;
 RWStructuredBuffer<uint> gSplatViewSortKeys;
 RWStructuredBuffer<uint> gSplatViewSortPayloads;
 RWSplatQuadBuffer gSplatQuads;
-
-// Radix Tricks by Michael Herf
-// http://stereopsis.com/radix.html
-uint float2Uint(float f)
-{
-    uint mask = -((int)(asuint(f) >> 31)) | 0x80000000;
-    return asuint(f) ^ mask;
-}
 
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
@@ -75,7 +68,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     InterlockedAdd(gSplatViewDrawArgs[1], 1, splatViewID);
     gSplatViewSplatIDs[splatViewID] = splatID;
     gSplatViewSortPayloads[splatViewID] = splatViewID;
-    gSplatViewSortKeys[splatViewID] = float2Uint(viewPos.z);
+    gSplatViewSortKeys[splatViewID] = float2CmpUint(viewPos.z);
     gSplatQuads.store(splatViewID, splatQuad);
     gSplatViews.store(splatViewID, splatView);
     // gDLossDSplatViews.store(splatViewID, (SplatView)0); // Clear DLoss
