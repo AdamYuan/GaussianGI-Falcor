@@ -62,7 +62,7 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
         .refineDesc =
             {
                 .growGradThreshold = 1e-6f,
-                .splitScaleThreshold = 0.05f,
+                .splitScaleThreshold = 0.01f,
             },
     };
     mTrainResource = Trainer::Resource::create(getDevice(), trainResourceDesc);
@@ -108,6 +108,20 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
 
     if (mpMesh)
     {
+        bool doRefine = mConfig.forceRefine;
+        if (mConfig.train)
+        {
+            doRefine = doRefine ||
+                       (mConfig.autoRefine && (mTrainState.iteration == 0 ||
+                                               mTrainState.iteration >= mTrainState.refineStats.iteration + mConfig.autoRefineIteration));
+        }
+
+        if (doRefine)
+        {
+            mTrainer.refine(mTrainState, pRenderContext, mTrainResource, mSorter, mSortResource);
+            mConfig.forceRefine = false;
+        }
+
         if (mConfig.train)
         {
             mTrainDataset.generate(pRenderContext, mTrainData, mTrainResource.desc.resolution, true);
@@ -118,12 +132,6 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
             mTrainData.camera = MeshGSTrainCamera::create(*mpCamera);
             mTrainDataset.generate(pRenderContext, mTrainData, mTrainResource.desc.resolution, false);
             mTrainer.inference(mTrainState, pRenderContext, mTrainResource, mTrainData.camera, mSorter, mSortResource);
-        }
-
-        if (mConfig.refine)
-        {
-            mTrainer.refine(mTrainState, pRenderContext, mTrainResource, mSorter, mSortResource);
-            mConfig.refine = false;
         }
     }
 
@@ -183,15 +191,18 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
 
     static uint32_t sSplatCount = mConfig.splatCount;
     w.var("Splat Count", sSplatCount, 1u, kMaxSplatCount);
-    if (w.button("Apply Splat Count") && mConfig.splatCount != sSplatCount)
+    if (w.button("Apply Splat Count"))
     {
         mConfig.splatCount = sSplatCount;
         resetTrainer();
     }
 
     w.checkbox("Train", mConfig.train);
-    if (w.button("Refine"))
-        mConfig.refine = true;
+    if (w.button("Force-Refine"))
+        mConfig.forceRefine = true;
+    w.checkbox("Auto-Refine", mConfig.autoRefine);
+    if (mConfig.autoRefine)
+        w.var("Auto-Refine Iteration", mConfig.autoRefineIteration, 1u);
     w.text(fmt::format("Splat Count: {}", mTrainState.splatCount));
     w.text(fmt::format("Iteration: {}", mTrainState.iteration));
     w.text(fmt::format("Batch: {}", mTrainState.batch));
