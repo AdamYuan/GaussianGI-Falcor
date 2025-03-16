@@ -353,7 +353,7 @@ void MeshGSTrainer<Trait_T>::refine(
         var["gKeepSplatIDs"] = resource.pSplatIDBuffer;
         var["gSplitScaleThreshold"] = mDesc.refineDesc.splitScaleThreshold;
         // Dispatch
-        mpRefinePass->execute(pRenderContext, actualSplatCount, 1, 1);
+        mpRefinePass->execute(pRenderContext, refineStats.desireKeepCount + refineStats.desireGrowCount, 1, 1);
     }
 
     // Swap splatBuf and tmpSplatBuf(splatDLossBuf)
