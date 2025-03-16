@@ -62,7 +62,7 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
         .refineDesc =
             {
                 .growGradThreshold = 1e-6f,
-                .splitScaleThreshold = 0.01f,
+                .splitScaleThreshold = 0.005f,
             },
     };
     mTrainResource = Trainer::Resource::create(getDevice(), trainResourceDesc);

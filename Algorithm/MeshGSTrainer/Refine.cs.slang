@@ -46,7 +46,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     float mainScale = scale[mainAxis]; // Dynamic indexing is not good, but we don't care
 
     if (mainScale > gSplitScaleThreshold)
-        srcSplat.geom.scale = scale * 0.5; // Reduce scale if split
+        srcSplat.geom.scale[mainAxis] = mainScale * 0.5; // Long-axis split
 
     float3 deltaMean = transpose(rotMat)[mainAxis] * mainScale;
 
