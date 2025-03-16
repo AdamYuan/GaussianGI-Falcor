@@ -54,6 +54,7 @@ private:
     {
         bool drawMeshData = false;
         bool train = false;
+        bool refine = false;
         uint32_t splatCount = kMaxSplatCount;
         GaussianGITrainDrawType drawType = GaussianGITrainDrawType::kAlbedo;
     } mConfig = {};

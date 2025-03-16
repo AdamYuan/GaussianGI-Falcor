@@ -225,6 +225,8 @@ target_sources(GaussianGITrain PRIVATE
         Algorithm/MeshGSTrainer/BackwardView.cs.slang
         Algorithm/MeshGSTrainer/BackwardCmd.cs.slang
         Algorithm/MeshGSTrainer/Optimize.cs.slang
+        Algorithm/MeshGSTrainer/RefineStat.cs.slang
+        Algorithm/MeshGSTrainer/Refine.cs.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slang
         Algorithm/MeshGSTrainer/MeshGSTrainer.slangh
         Algorithm/MeshGSTrainer/MeshGSTrainer.hpp

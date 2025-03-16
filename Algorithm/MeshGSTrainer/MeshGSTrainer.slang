@@ -487,6 +487,19 @@ namespace MeshGSTrain
         }
     }
 
+    public struct SplatAccumGrad
+    {
+        public float avgGrad;
+        public uint viewCount;
+
+        [mutating]
+        public void append(float grad)
+        {
+            avgGrad = (avgGrad * viewCount + grad) / float(viewCount + 1);
+            ++viewCount;
+        }
+    }
+
     [Differentiable]
     public SplatView splat2splatView(
         Splat splat,

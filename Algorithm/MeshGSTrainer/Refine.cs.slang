@@ -9,14 +9,14 @@ RWSplatBuffer gDstSplats;
 
 uniform uint gGrowCount, gActualGrowCount;
 StructuredBuffer<uint> gGrowSplatIDs;
-uniform uint gKeepCount;
+uniform uint gKeepCount, gActualKeepCount;
 StructuredBuffer<uint> gKeepSplatIDs;
+
+uniform float gSplitScaleThreshold;
 
 [numthreads(64, 1, 1)]
 void csMain(uint3 threadID: SV_DispatchThreadID)
 {
-    uint actualKeepCount = gKeepCount + gGrowCount - gActualGrowCount;
-
     uint srcSplatID;
     if (threadID.x < gKeepCount)
         srcSplatID = gKeepSplatIDs[threadID.x];
@@ -25,8 +25,8 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     else
         return;
 
-    bool shouldKeep = threadID.x < actualKeepCount;
-    uint dstSplatID = select(shouldKeep, threadID.x, actualKeepCount + (threadID.x - actualKeepCount) * 2);
+    bool shouldKeep = threadID.x < gActualKeepCount;
+    uint dstSplatID = select(shouldKeep, threadID.x, gActualKeepCount + (threadID.x - gActualKeepCount) * 2);
 
     var srcSplat = gSplats.load<Splat>(srcSplatID);
 
@@ -37,7 +37,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     }
 
     // Split or Clone
-
     gDstSplats.store(dstSplatID + 0, srcSplat);
     gDstSplats.store(dstSplatID + 1, srcSplat);
 }

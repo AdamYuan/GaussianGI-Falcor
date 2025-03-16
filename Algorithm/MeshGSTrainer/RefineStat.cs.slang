@@ -9,8 +9,7 @@ SplatBuffer gSplats;
 RWStructuredBuffer<uint> gGrowCount, gGrowSortKeys, gGrowSortPayloads;
 RWStructuredBuffer<uint> gKeepCount, gKeepSplatIDs;
 
-RWStructuredBuffer<float> gAccumGrads;
-RWStructuredBuffer<uint> gAccumViews;
+RWStructuredBuffer<SplatAccumGrad> gSplatAccumGrads;
 
 uniform float gGrowGradThreshold;
 
@@ -23,23 +22,19 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
 
     var splat = gSplats.load<Splat>(splatID);
 
-    float accumGrad = gAccumGrads[splatID];
-    uint accumView = gAccumViews[splatID];
-    float avgGrad = accumGrad / float(accumView);
-    // Clear accum buffers
-    gAccumGrads[splatID] = 0.0;
-    gAccumViews[splatID] = 0;
+    SplatAccumGrad accumGrad = gSplatAccumGrads[splatID];
+    gSplatAccumGrads[splatID] = (SplatAccumGrad)0;
 
     // Prune
     if (Trait::prune(splat.geom, splat.attrib))
         return;
 
-    if (accumView > 0 && avgGrad >= gGrowGradThreshold)
+    if (accumGrad.viewCount > 0 && accumGrad.avgGrad >= gGrowGradThreshold)
     {
         // Grow
         uint growID;
         InterlockedAdd(gGrowCount[0], 1u, growID);
-        gGrowSortKeys[growID] = float2CmpUint(avgGrad); // Small -> Large
+        gGrowSortKeys[growID] = float2CmpUint(accumGrad.avgGrad); // Small -> Large
         gGrowSortPayloads[growID] = splatID;
     }
     else

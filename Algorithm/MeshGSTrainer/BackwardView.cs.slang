@@ -9,6 +9,8 @@ SplatBuffer gSplats;
 RWSplatBuffer gDLossDSplats;
 StructuredBuffer<uint> gSplatViewSplatIDs;
 
+RWStructuredBuffer<SplatAccumGrad> gSplatAccumGrads;
+
 uniform Camera gCamera;
 
 #ifndef BATCH_SIZE
@@ -43,4 +45,12 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (BATCH_SIZE > 1)
         dL_dsplat_flat = dL_dsplat_flat.add(gDLossDSplats.load<FlatSplat>(splatID));
     gDLossDSplats.store(splatID, dL_dsplat_flat);
+
+    float posGrad = length(dp.d.geom.mean);
+    if (!isnan(posGrad) && !isinf(posGrad))
+    {
+        SplatAccumGrad accumGrad = gSplatAccumGrads[splatID];
+        accumGrad.append(posGrad);
+        gSplatAccumGrads[splatID] = accumGrad;
+    }
 }

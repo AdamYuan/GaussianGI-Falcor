@@ -39,9 +39,12 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
     mpCamera->setFarPlane(4.0f);
     mpCameraController = std::make_unique<FirstPersonCameraController>(mpCamera);
 
-    Trainer::Desc trainDesc = {
+    Trainer::ResourceDesc trainResourceDesc = {
         .maxSplatCount = kMaxSplatCount,
         .resolution = uint2{getConfig().windowDesc.width, getConfig().windowDesc.height},
+    };
+
+    Trainer::Desc trainDesc = {
         .batchSize = 1,
         .learnRate =
             Trainer::Splat{
@@ -56,8 +59,13 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
                         .albedo = float3{0.001f},
                     },
             },
+        .refineDesc =
+            {
+                .growGradThreshold = 1e-6f,
+                .splitScaleThreshold = 0.05f,
+            },
     };
-    mTrainResource = Trainer::Resource::create(getDevice(), trainDesc);
+    mTrainResource = Trainer::Resource::create(getDevice(), trainResourceDesc);
     mTrainer = Trainer(getDevice(), trainDesc);
 
     auto sortDesc = Trainer::getSortDesc();
@@ -80,6 +88,7 @@ void GaussianGITrain::resetTrainer()
 {
     GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(getRenderContext(), mTrainResource, mConfig.splatCount, 0.2f);
     mTrainState = mTrainer.resetState(mConfig.splatCount);
+    mTrainer.getRefineDesc().splatCountLimit = mConfig.splatCount;
 }
 
 void GaussianGITrain::onShutdown()
@@ -101,14 +110,20 @@ void GaussianGITrain::onFrameRender(RenderContext* pRenderContext, const ref<Fbo
     {
         if (mConfig.train)
         {
-            mTrainDataset.generate(pRenderContext, mTrainData, mTrainer.getDesc().resolution, true);
+            mTrainDataset.generate(pRenderContext, mTrainData, mTrainResource.desc.resolution, true);
             mTrainer.iterate(mTrainState, pRenderContext, mTrainResource, mTrainData, mSorter, mSortResource);
         }
         else
         {
             mTrainData.camera = MeshGSTrainCamera::create(*mpCamera);
-            mTrainDataset.generate(pRenderContext, mTrainData, mTrainer.getDesc().resolution, false);
+            mTrainDataset.generate(pRenderContext, mTrainData, mTrainResource.desc.resolution, false);
             mTrainer.inference(mTrainState, pRenderContext, mTrainResource, mTrainData.camera, mSorter, mSortResource);
+        }
+
+        if (mConfig.refine)
+        {
+            mTrainer.refine(mTrainState, pRenderContext, mTrainResource, mSorter, mSortResource);
+            mConfig.refine = false;
         }
     }
 
@@ -175,9 +190,15 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     }
 
     w.checkbox("Train", mConfig.train);
-    w.text(fmt::format("Splat Count: {}", mConfig.splatCount));
+    if (w.button("Refine"))
+        mConfig.refine = true;
+    w.text(fmt::format("Splat Count: {}", mTrainState.splatCount));
     w.text(fmt::format("Iteration: {}", mTrainState.iteration));
     w.text(fmt::format("Batch: {}", mTrainState.batch));
+    w.text(fmt::format("Refine Iter.: {}", mTrainState.refineStats.iteration));
+    w.text(fmt::format("Refine Keep Cnt.: {}", mTrainState.refineStats.actualKeepCount));
+    w.text(fmt::format("Refine Grow Cnt.: {}", mTrainState.refineStats.actualGrowCount));
+    w.text(fmt::format("Refine Prune Cnt.: {}", mTrainState.refineStats.pruneCount));
     w.var("Eye Extent", mTrainDataset.config.eyeExtent, 1.0f);
 }
 

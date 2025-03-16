@@ -84,11 +84,13 @@ bool isResourceCapable(uint elementCount, uint2 resolution, const auto& firstRes
 template<Concepts::MeshGSTrainTrait Trait_T>
 typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::create(
     const ref<Device>& pDevice,
-    uint splatCount,
-    uint2 resolution,
+    const ResourceDesc& desc,
     const SplatBufferData& splatInitData
 )
 {
+    auto resolution = desc.resolution;
+    auto splatCount = desc.maxSplatCount;
+
     DrawArguments drawArgs = {
         .VertexCountPerInstance = 1,
         .InstanceCount = 0,
@@ -102,6 +104,7 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
     };
     static_assert(sizeof(float16_t4) == sizeof(uint32_t) * 2); // For SplatViewAxis
     return Resource{
+        .desc = desc,
         // .meshRT = Trait_T::MeshRTTexture::create(pDevice, resolution),
         .splatTex = SplatTexture{pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess},
         .splatDLossTex = SplatTexture{pDevice, resolution, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess},
@@ -112,11 +115,11 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
         .splatViewBuf = createSplatViewBuffer(pDevice, splatCount),
         .splatViewDLossBuf = createSplatViewBuffer(pDevice, splatCount),
         .splatQuadBuf = SplatQuadBuffer{pDevice, splatCount, ResourceBindFlags::UnorderedAccess | ResourceBindFlags::ShaderResource},
-        .pSplatViewSplatIDBuffer =
+        .pSplatIDBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
-        .pSplatViewSortKeyBuffer =
+        .pSortKeyBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
-        .pSplatViewSortPayloadBuffer =
+        .pSortPayloadBuffer =
             createBuffer<sizeof(uint)>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
         .pSplatViewDrawArgBuffer = createBuffer<sizeof(DrawArguments)>(
             pDevice, //
@@ -130,6 +133,12 @@ typename MeshGSTrainer<Trait_T>::Resource MeshGSTrainer<Trait_T>::Resource::crea
             ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::IndirectArg,
             &dispatchArgs
         ),
+        .pSplatKeepCountBuffer =
+            createBuffer<sizeof(uint32_t)>(pDevice, 1, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
+        .pSplatGrowCountBuffer =
+            createBuffer<sizeof(uint32_t)>(pDevice, 1, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
+        .pSplatAccumGradBuffer =
+            createBuffer<sizeof(uint32_t) * 2>(pDevice, splatCount, ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess),
     };
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
@@ -175,8 +184,8 @@ bool MeshGSTrainer<Trait_T>::Resource::isCapable(uint splatCount, uint2 resoluti
                splatViewBuf,
                splatViewDLossBuf
            ) &&
-           isBufferCapable(splatCount, pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer) &&
-           isBufferCapable(1, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer);
+           isBufferCapable(splatCount, pSplatIDBuffer, pSortKeyBuffer, pSortPayloadBuffer, pSplatAccumGradBuffer) &&
+           isBufferCapable(1, pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer, pSplatKeepCountBuffer, pSplatGrowCountBuffer);
     // Don't need to check sortResource since it is checked in DeviceSorter
 }
 
@@ -197,6 +206,8 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& de
     mpBackwardViewPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/BackwardView.cs.slang", "csMain", defList);
     mpOptimizePass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Optimize.cs.slang", "csMain", defList);
     mDesc.learnRate.bindShaderData(mpOptimizePass->getRootVar()["gLearnRate"]);
+    mpRefineStatPass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/RefineStat.cs.slang", "csMain", defList);
+    mpRefinePass = ComputePass::create(pDevice, "GaussianGI/Algorithm/MeshGSTrainer/Refine.cs.slang", "csMain", defList);
 
     // Raster Passes
     ref<DepthStencilState> pSplatDepthState = []
@@ -227,9 +238,6 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& de
     mpForwardDrawPass->getState()->setVao(pPointVao);
     mpForwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
     mpForwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
-    mpForwardDrawPass->getState()->setViewport(
-        0, GraphicsState::Viewport{0.0f, 0.0f, float(mDesc.resolution.x), float(mDesc.resolution.y), 0.0f, 0.0f}
-    );
 
     mpBackwardDrawPass = RasterPass::create(
         pDevice,
@@ -247,9 +255,6 @@ MeshGSTrainer<Trait_T>::MeshGSTrainer(const ref<Device>& pDevice, const Desc& de
     mpBackwardDrawPass->getState()->setVao(pPointVao);
     mpBackwardDrawPass->getState()->setRasterizerState(pSplatRasterState);
     mpBackwardDrawPass->getState()->setDepthStencilState(pSplatDepthState);
-    mpBackwardDrawPass->getState()->setViewport(
-        0, GraphicsState::Viewport{0.0f, 0.0f, float(mDesc.resolution.x), float(mDesc.resolution.y), 0.0f, 0.0f}
-    );
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::iterate(
@@ -278,11 +283,96 @@ void MeshGSTrainer<Trait_T>::iterate(
 }
 
 template<Concepts::MeshGSTrainTrait Trait_T>
+void MeshGSTrainer<Trait_T>::refine(
+    MeshGSTrainState& state,
+    RenderContext* pRenderContext,
+    Resource& resource,
+    const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+    const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+) const
+{
+    { // Refinement Stats
+        auto [prog, var] = getShaderProgVar(mpRefineStatPass);
+        var["gSplatCount"] = state.splatCount;
+        resource.splatBuf.bindShaderData(var["gSplats"]);
+        var["gGrowCount"] = resource.pSplatGrowCountBuffer;
+        var["gGrowSortKeys"] = resource.pSortKeyBuffer;
+        var["gGrowSortPayloads"] = resource.pSortPayloadBuffer;
+        var["gKeepCount"] = resource.pSplatKeepCountBuffer;
+        var["gKeepSplatIDs"] = resource.pSplatIDBuffer;
+        var["gSplatAccumGrads"] = resource.pSplatAccumGradBuffer;
+        var["gGrowGradThreshold"] = mDesc.refineDesc.growGradThreshold;
+        // Reset counter (pRenderContext->updateBuffer)
+        resource.pSplatGrowCountBuffer->template setElement<uint32_t>(0, 0);
+        resource.pSplatKeepCountBuffer->template setElement<uint32_t>(0, 0);
+        // Dispatch
+        mpRefineStatPass->execute(pRenderContext, state.splatCount, 1, 1);
+    }
+
+    // Sort
+    sorter.dispatch(
+        pRenderContext, {resource.pSortKeyBuffer, resource.pSortPayloadBuffer}, resource.pSplatGrowCountBuffer, 0, sortResource
+    );
+
+    // Compute Refinement Stats
+    MeshGSTrainRefineStats refineStats{
+        .iteration = state.iteration,
+        .desireGrowCount = resource.pSplatGrowCountBuffer->template getElement<uint32_t>(0),
+        .desireKeepCount = resource.pSplatKeepCountBuffer->template getElement<uint32_t>(0),
+    };
+    refineStats.pruneCount = state.splatCount - refineStats.desireGrowCount - refineStats.desireKeepCount;
+    uint32_t splatCountLimit = math::max(state.splatCount, mDesc.refineDesc.splatCountLimit);
+    uint32_t desireSplatCount = refineStats.desireKeepCount + refineStats.desireGrowCount * 2u;
+    if (desireSplatCount > splatCountLimit)
+    {
+        uint32_t x = desireSplatCount - splatCountLimit;
+        FALCOR_CHECK(x <= refineStats.desireGrowCount, "");
+        refineStats.actualKeepCount = refineStats.desireKeepCount + x;
+        refineStats.actualGrowCount = refineStats.desireGrowCount - x;
+    }
+    else
+    {
+        refineStats.actualKeepCount = refineStats.desireKeepCount;
+        refineStats.actualGrowCount = refineStats.desireGrowCount;
+    }
+    uint32_t actualSplatCount = refineStats.actualKeepCount + refineStats.actualGrowCount * 2u;
+    FALCOR_CHECK(actualSplatCount <= splatCountLimit, "");
+
+    { // Refinement
+        auto [prog, var] = getShaderProgVar(mpRefinePass);
+        var["gSplatCount"] = state.splatCount;
+        resource.splatBuf.bindShaderData(var["gSplats"]);
+        resource.splatDLossBuf.bindShaderData(var["gDstSplats"]);
+        var["gGrowCount"] = refineStats.desireGrowCount;
+        var["gActualGrowCount"] = refineStats.actualGrowCount;
+        var["gGrowSplatIDs"] = resource.pSortPayloadBuffer;
+        var["gKeepCount"] = refineStats.desireKeepCount;
+        var["gActualKeepCount"] = refineStats.actualKeepCount;
+        var["gKeepSplatIDs"] = resource.pSplatIDBuffer;
+        var["gSplitScaleThreshold"] = mDesc.refineDesc.splitScaleThreshold;
+        // Dispatch
+        mpRefinePass->execute(pRenderContext, state.splatCount, 1, 1);
+    }
+
+    // Swap splatBuf and tmpSplatBuf(splatDLossBuf)
+    std::swap(resource.splatBuf, resource.splatDLossBuf);
+    // Update state
+    state.splatCount = actualSplatCount;
+    state.refineStats = refineStats;
+    // Cleanup unfinished batch
+    if (state.iteration % mDesc.batchSize != 0)
+        state.iteration = (state.iteration / mDesc.batchSize) * mDesc.batchSize;
+    // clear loss gradients
+    resource.splatDLossBuf.clearUAV(pRenderContext);
+}
+
+template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::reset(RenderContext* pRenderContext, const Resource& resource) const
 {
     resource.splatDLossBuf.clearUAV(pRenderContext);
     resource.splatViewDLossBuf.clearUAV(pRenderContext);
     resource.splatAdamBuf.clearUAV(pRenderContext);
+    pRenderContext->clearUAV(resource.pSplatAccumGradBuffer->getUAV().get(), uint4{});
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::forward(
@@ -294,6 +384,10 @@ void MeshGSTrainer<Trait_T>::forward(
     const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
 ) const
 {
+    mpForwardDrawPass->getState()->setViewport(
+        0, GraphicsState::Viewport{0.0f, 0.0f, float(resource.desc.resolution.x), float(resource.desc.resolution.y), 0.0f, 0.0f}
+    );
+
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::forward");
     {
         FALCOR_PROFILE(pRenderContext, "view");
@@ -305,9 +399,9 @@ void MeshGSTrainer<Trait_T>::forward(
         var["gSplatViewDrawArgs"] = resource.pSplatViewDrawArgBuffer;
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         // resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
-        var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
-        var["gSplatViewSortKeys"] = resource.pSplatViewSortKeyBuffer;
-        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewSplatIDs"] = resource.pSplatIDBuffer;
+        var["gSplatViewSortKeys"] = resource.pSortKeyBuffer;
+        var["gSplatViewSortPayloads"] = resource.pSortPayloadBuffer;
         resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
         // Reset counter (pRenderContext->updateBuffer)
         static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint));
@@ -319,7 +413,7 @@ void MeshGSTrainer<Trait_T>::forward(
         FALCOR_PROFILE(pRenderContext, "sortView");
         sorter.dispatch(
             pRenderContext,
-            {resource.pSplatViewSortKeyBuffer, resource.pSplatViewSortPayloadBuffer},
+            {resource.pSortKeyBuffer, resource.pSortPayloadBuffer},
             resource.pSplatViewDrawArgBuffer,
             offsetof(DrawArguments, InstanceCount),
             sortResource
@@ -335,7 +429,7 @@ void MeshGSTrainer<Trait_T>::forward(
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         resource.splatTex.bindShaderData(var["gSplatRT"]);
         resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
-        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewSortPayloads"] = resource.pSortPayloadBuffer;
         var["gCamProjMat"] = camera.projMat;
 
         pRenderContext->drawIndirect(
@@ -355,16 +449,20 @@ void MeshGSTrainer<Trait_T>::loss(RenderContext* pRenderContext, const Resource&
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::loss");
 
     auto [prog, var] = getShaderProgVar(mpLossPass);
-    var["gResolution"] = uint2(mDesc.resolution);
+    var["gResolution"] = uint2(resource.desc.resolution);
     resource.splatTex.bindShaderData(var["gSplatRT"]);
     data.meshRT.bindShaderData(var["gMeshRT"]);
     resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
     resource.splatTmpTex.bindShaderData(var["gMs_Ts"]);
-    mpLossPass->execute(pRenderContext, mDesc.resolution.x, mDesc.resolution.y, 1);
+    mpLossPass->execute(pRenderContext, resource.desc.resolution.x, resource.desc.resolution.y, 1);
 }
 template<Concepts::MeshGSTrainTrait Trait_T>
 void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resource& resource, const MeshGSTrainCamera& camera) const
 {
+    mpBackwardDrawPass->getState()->setViewport(
+        0, GraphicsState::Viewport{0.0f, 0.0f, float(resource.desc.resolution.x), float(resource.desc.resolution.y), 0.0f, 0.0f}
+    );
+
     FALCOR_PROFILE(pRenderContext, "MeshGSTrainer::backward");
     {
         FALCOR_PROFILE(pRenderContext, "draw");
@@ -372,7 +470,7 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
         auto [prog, var] = getShaderProgVar(mpBackwardDrawPass);
         resource.splatViewBuf.bindShaderData(var["gSplatViews"]);
         resource.splatQuadBuf.bindShaderData(var["gSplatQuads"]);
-        var["gSplatViewSortPayloads"] = resource.pSplatViewSortPayloadBuffer;
+        var["gSplatViewSortPayloads"] = resource.pSortPayloadBuffer;
         var["gCamProjMat"] = camera.projMat;
         resource.splatDLossTex.bindShaderData(var["gDLossDCs_Ts"]);
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
@@ -406,7 +504,8 @@ void MeshGSTrainer<Trait_T>::backward(RenderContext* pRenderContext, const Resou
         resource.splatViewDLossBuf.bindShaderData(var["gDLossDSplatViews"]);
         resource.splatBuf.bindShaderData(var["gSplats"]);
         resource.splatDLossBuf.bindShaderData(var["gDLossDSplats"]);
-        var["gSplatViewSplatIDs"] = resource.pSplatViewSplatIDBuffer;
+        var["gSplatViewSplatIDs"] = resource.pSplatIDBuffer;
+        var["gSplatAccumGrads"] = resource.pSplatAccumGradBuffer;
 
         mpBackwardViewPass->executeIndirect(pRenderContext, resource.pSplatViewDispatchArgBuffer.get());
     }

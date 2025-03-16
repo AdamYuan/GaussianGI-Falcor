@@ -55,11 +55,6 @@ concept MeshGSTrainTrait = requires {
 };
 
 } // namespace Concepts
-struct MeshGSTrainState
-{
-    uint iteration = 0, batch = 0, splatCount = 0;
-    float adamBeta1T = 1.0f, adamBeta2T = 1.0f;
-};
 
 struct MeshGSTrainCamera
 {
@@ -103,6 +98,34 @@ static_assert(sizeof(MeshGSTrainSplatGeom) == MeshGSTrainSplatGeom::kFloatCount 
 static_assert(alignof(MeshGSTrainSplatGeom) == sizeof(float));
 
 inline constexpr uint kMeshGSTrainSplatViewGeomFloatCount = 6;
+
+struct MeshGSTrainResourceDesc
+{
+    uint32_t maxSplatCount{};
+    uint2 resolution{};
+};
+
+struct MeshGSTrainRefineDesc
+{
+    uint32_t splatCountLimit{};
+    float growGradThreshold = 0.0f;
+    float splitScaleThreshold = 0.1f;
+};
+
+struct MeshGSTrainRefineStats
+{
+    uint32_t iteration;
+    uint32_t desireGrowCount, actualGrowCount;
+    uint32_t desireKeepCount, actualKeepCount;
+    uint32_t pruneCount;
+};
+
+struct MeshGSTrainState
+{
+    uint iteration = 0, batch = 0, splatCount = 0;
+    float adamBeta1T = 1.0f, adamBeta2T = 1.0f;
+    MeshGSTrainRefineStats refineStats{};
+};
 
 template<Concepts::MeshGSTrainTrait Trait_T>
 class MeshGSTrainer
@@ -152,33 +175,35 @@ public:
 
     struct Desc
     {
-        uint maxSplatCount{};
-        uint2 resolution{};
         uint batchSize{};
         Splat learnRate;
+        MeshGSTrainRefineDesc refineDesc;
     };
+
+    using ResourceDesc = MeshGSTrainResourceDesc;
 
     struct Resource
     {
+        ResourceDesc desc;
+
         // typename Derived_T::MeshRTTexture meshRT;
         SplatTexture splatTex, splatDLossTex, splatTmpTex;
         SplatBuffer splatBuf, splatDLossBuf;
         SplatAdamBuffer splatAdamBuf;
         SplatViewBuffer splatViewBuf, splatViewDLossBuf;
         SplatQuadBuffer splatQuadBuf;
-        ref<Buffer> pSplatViewSplatIDBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
+        ref<Buffer> pSplatIDBuffer, pSortKeyBuffer, pSortPayloadBuffer;
         ref<Buffer> pSplatViewDrawArgBuffer, pSplatViewDispatchArgBuffer;
+        // Refinement buffers
+        ref<Buffer> pSplatKeepCountBuffer, pSplatGrowCountBuffer;
+        ref<Buffer> pSplatAccumGradBuffer;
 
-        static Resource create(const ref<Device>& pDevice, uint splatCount, uint2 resolution, const SplatBufferData& splatInitData = {});
-        static Resource create(const ref<Device>& pDevice, const Desc& desc, const SplatBufferData& splatInitData = {})
-        {
-            return create(pDevice, desc.maxSplatCount, desc.resolution, splatInitData);
-        }
+        static Resource create(const ref<Device>& pDevice, const ResourceDesc& desc, const SplatBufferData& splatInitData = {});
         static SplatBuffer createSplatBuffer(const ref<Device>& pDevice, uint splatCount, const SplatBufferData& splatInitData = {});
         static SplatAdamBuffer createSplatAdamBuffer(const ref<Device>& pDevice, uint splatCount);
         static SplatViewBuffer createSplatViewBuffer(const ref<Device>& pDevice, uint splatViewCount);
         bool isCapable(uint splatCount, uint2 resolution) const;
-        bool isCapable(const Desc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
+        bool isCapable(const ResourceDesc& desc) const { return isCapable(desc.maxSplatCount, desc.resolution); }
     };
 
     struct Data
@@ -190,6 +215,7 @@ public:
 private:
     Desc mDesc{};
     ref<ComputePass> mpForwardViewPass, mpBackwardViewPass, mpBackwardCmdPass, mpOptimizePass, mpLossPass;
+    ref<ComputePass> mpRefineStatPass, mpRefinePass;
     ref<RasterPass> mpForwardDrawPass, mpBackwardDrawPass;
 
     void reset(RenderContext* pRenderContext, const Resource& resource) const;
@@ -212,17 +238,24 @@ public:
 
     const auto& getDesc() const { return mDesc; }
 
-    MeshGSTrainState resetState(uint splatCount) const
-    {
-        FALCOR_CHECK(splatCount <= mDesc.maxSplatCount, "splatCount must not be greater than mDesc.maxSplatCount");
-        return MeshGSTrainState{.splatCount = splatCount};
-    }
+    const auto& getRefineDesc() const { return mDesc.refineDesc; }
+    auto& getRefineDesc() { return mDesc.refineDesc; }
+
+    MeshGSTrainState resetState(uint splatCount) const { return MeshGSTrainState{.splatCount = splatCount}; }
 
     void iterate(
         MeshGSTrainState& state,
         RenderContext* pRenderContext,
         const Resource& resource,
         const Data& data,
+        const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
+        const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
+    ) const;
+
+    void refine(
+        MeshGSTrainState& state,
+        RenderContext* pRenderContext,
+        Resource& resource,
         const DeviceSorter<DeviceSortDispatchType::kIndirect>& sorter,
         const DeviceSortResource<DeviceSortDispatchType::kIndirect>& sortResource
     ) const;
