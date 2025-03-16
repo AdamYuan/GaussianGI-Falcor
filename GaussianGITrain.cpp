@@ -86,7 +86,9 @@ void GaussianGITrain::onLoad(RenderContext* pRenderContext)
 
 void GaussianGITrain::resetTrainer()
 {
-    GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(getRenderContext(), mTrainResource, mConfig.splatCount, 0.2f);
+    GMeshGSTrainSplatInit<Trainer::Trait>{.pMesh = mpMesh}.initialize(
+        getRenderContext(), mTrainResource, mConfig.splatCount, mConfig.splatInitScale
+    );
     mTrainState = mTrainer.resetState(mConfig.splatCount);
     mTrainer.getRefineDesc().splatCountLimit = mConfig.splatCount;
 }
@@ -186,31 +188,41 @@ void GaussianGITrain::onGuiRender(Gui* pGui)
     if (auto g = w.group("Camera"))
         mpCamera->renderUI(g);
 
-    w.checkbox("Draw Mesh", mConfig.drawMeshData);
-    enumDropdown(w, "Draw Type", mConfig.drawType);
-
-    static uint32_t sSplatCount = mConfig.splatCount;
-    w.var("Splat Count", sSplatCount, 1u, kMaxSplatCount);
-    if (w.button("Apply Splat Count"))
+    if (auto g = w.group("Visualizer", true))
     {
-        mConfig.splatCount = sSplatCount;
-        resetTrainer();
+        g.checkbox("Draw Mesh", mConfig.drawMeshData);
+        enumDropdown(g, "Draw Type", mConfig.drawType);
     }
 
-    w.checkbox("Train", mConfig.train);
-    if (w.button("Force-Refine"))
-        mConfig.forceRefine = true;
-    w.checkbox("Auto-Refine", mConfig.autoRefine);
-    if (mConfig.autoRefine)
-        w.var("Auto-Refine Iteration", mConfig.autoRefineIteration, 1u);
-    w.text(fmt::format("Splat Count: {}", mTrainState.splatCount));
-    w.text(fmt::format("Iteration: {}", mTrainState.iteration));
-    w.text(fmt::format("Batch: {}", mTrainState.batch));
-    w.text(fmt::format("Refine Iter.: {}", mTrainState.refineStats.iteration));
-    w.text(fmt::format("Refine Keep Cnt.: {}", mTrainState.refineStats.actualKeepCount));
-    w.text(fmt::format("Refine Grow Cnt.: {}", mTrainState.refineStats.actualGrowCount));
-    w.text(fmt::format("Refine Prune Cnt.: {}", mTrainState.refineStats.pruneCount));
-    w.var("Eye Extent", mTrainDataset.config.eyeExtent, 1.0f);
+    if (auto g = w.group("Initializer", true))
+    {
+        static uint32_t sSplatCount = mConfig.splatCount;
+        g.var("Splat Count", sSplatCount, 1u, kMaxSplatCount);
+        g.var("Init Scale Coef.", mConfig.splatInitScale, 0.0f, 1.0f);
+        if (g.button("Reset"))
+        {
+            mConfig.splatCount = sSplatCount;
+            resetTrainer();
+        }
+    }
+
+    if (auto g = w.group("Trainer", true))
+    {
+        g.checkbox("Train", mConfig.train);
+        if (g.button("Force-Refine"))
+            mConfig.forceRefine = true;
+        g.checkbox("Auto-Refine", mConfig.autoRefine);
+        if (mConfig.autoRefine)
+            g.var("Auto-Refine Iteration", mConfig.autoRefineIteration, 1u);
+        g.text(fmt::format("Splat Count: {}", mTrainState.splatCount));
+        g.text(fmt::format("Iteration: {}", mTrainState.iteration));
+        g.text(fmt::format("Batch: {}", mTrainState.batch));
+        g.text(fmt::format("Refine Iter.: {}", mTrainState.refineStats.iteration));
+        g.text(fmt::format("Refine Keep Cnt.: {}", mTrainState.refineStats.actualKeepCount));
+        g.text(fmt::format("Refine Grow Cnt.: {}", mTrainState.refineStats.actualGrowCount));
+        g.text(fmt::format("Refine Prune Cnt.: {}", mTrainState.refineStats.pruneCount));
+        g.var("Eye Extent", mTrainDataset.config.eyeExtent, 1.0f);
+    }
 }
 
 bool GaussianGITrain::onKeyEvent(const KeyboardEvent& keyEvent)

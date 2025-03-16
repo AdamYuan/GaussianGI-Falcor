@@ -54,6 +54,7 @@ private:
     {
         bool drawMeshData = false;
         bool train = false;
+        float splatInitScale = 0.2f;
         uint32_t splatCount = kMaxSplatCount;
         bool forceRefine = false, autoRefine = true;
         uint32_t autoRefineIteration = 1000;
