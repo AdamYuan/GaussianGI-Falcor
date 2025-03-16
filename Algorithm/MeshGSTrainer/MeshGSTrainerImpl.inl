@@ -301,7 +301,10 @@ void MeshGSTrainer<Trait_T>::refine(
         var["gKeepCount"] = resource.pSplatKeepCountBuffer;
         var["gKeepSplatIDs"] = resource.pSplatIDBuffer;
         var["gSplatAccumGrads"] = resource.pSplatAccumGradBuffer;
-        var["gGrowGradThreshold"] = mDesc.refineDesc.growGradThreshold;
+        if (state.iteration == 0) // Disable grow if iteration == 0
+            var["gGrowGradThreshold"] = std::numeric_limits<float>::infinity();
+        else
+            var["gGrowGradThreshold"] = mDesc.refineDesc.growGradThreshold;
         // Reset counter (pRenderContext->updateBuffer)
         resource.pSplatGrowCountBuffer->template setElement<uint32_t>(0, 0);
         resource.pSplatKeepCountBuffer->template setElement<uint32_t>(0, 0);
