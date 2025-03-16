@@ -113,7 +113,7 @@ namespace MeshGSTrain
 
         public static bool prune(SplatGeom splatGeom, SplatAttrib splatAttrib)
         {
-            if (any(abs(splatGeom.scale) < 1e-4))
+            if (any(abs(splatGeom.scale) < 1e-4) || all(abs(splatGeom.scale) < 1e-3))
                 return true;
             if (all(splatAttrib.albedo < 1.0 / 255.0))
                 return true;
