@@ -29,7 +29,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID)
     if (Trait::prune(splat.geom, splat.attrib))
         return;
 
-    if (accumGrad.viewCount > 0 && accumGrad.avgGrad >= gGrowGradThreshold)
+    if (accumGrad.viewCount > 0 && accumGrad.avgGrad > gGrowGradThreshold)
     {
         // Grow
         uint growID;
