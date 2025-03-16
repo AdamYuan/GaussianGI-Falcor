@@ -3,7 +3,6 @@ import GaussianGI.Algorithm.GS3D;
 
 using namespace MeshGSTrain;
 
-uniform uint gSplatCount;
 SplatBuffer gSplats;
 
 RWSplatBuffer gDstSplats;
