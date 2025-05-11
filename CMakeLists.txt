@@ -111,6 +111,12 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/PathTraced/PTIndLight.cpp
         Renderer/IndLight/PathTraced/PTIndLight.cs.slang
 
+        Renderer/IndLight/DDGI/DDGIIndLight.hpp
+        Renderer/IndLight/DDGI/DDGIIndLight.cpp
+        Renderer/IndLight/DDGI/Screen.cs.slang
+        Renderer/IndLight/DDGI/Probe.cs.slang
+        Renderer/IndLight/DDGI/Grid.slang
+
         Renderer/IndLight/GS3D/GS3DIndLight.hpp
         Renderer/IndLight/GS3D/GS3DIndLight.cpp
         Renderer/IndLight/GS3D/GS3DIndLight.cs.slang
