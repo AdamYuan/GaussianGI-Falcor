@@ -13,6 +13,10 @@ import Utils.Sampling.TinyUniformSampleGenerator;
 import Utils.Sampling.UniformSampleGenerator;
 import Utils.Math.MathHelpers;
 
+#ifndef VNDF_SAMPLE
+#define VNDF_SAMPLE 1
+#endif
+
 using namespace GS3DIndLight;
 
 uniform InstancedSplatBuffer gSplats;
@@ -97,7 +101,11 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         float2x3 hitSplatCov3D = GS3D::getCovariance3D(hitSplatRotMat, hitSplat.geom.scale);
         float hitAlpha = GS3D::getRayAlpha(ray.origin, w_i_rotMatT, hitSplatCov3D, hitSplat.geom.mean);
 
+#if VNDF_SAMPLE
+        float3 hitNormal = SGGX::VNDFSampler::fromSplat(hitSplatRotMat, hitSplat.geom.scale, w_i_rotMatT).sample(sampleNext2D(randGen));
+#else
         float3 hitNormal = SGGX::getSplatNormal(hitSplatRotMat, hitSplat.geom.scale, w_i_rotMatT);
+#endif
         SH<float3, SH_LEVEL> hitProbe = (SH<float3, SH_LEVEL>)0;
         if (gTick > 0)
             hitProbe = gPrevSplatProbes[hitSplatIdx];

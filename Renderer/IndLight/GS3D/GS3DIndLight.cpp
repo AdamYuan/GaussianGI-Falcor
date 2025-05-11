@@ -486,6 +486,7 @@ void GS3DIndLight::draw(
         var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
         var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
         var["gTick"] = mDrawResource.probeTick;
+        prog->addDefine("VNDF_SAMPLE", mConfig.vndfSample ? "1" : "0");
 
         mDrawResource.pProbePass->execute(pRenderContext, mInstancedSplatBuffer.splatCount * kRaysPerProbe, 1, 1);
     }
@@ -593,6 +594,7 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
     widget.checkbox("Use Stencil", mConfig.useStencil);
+    widget.checkbox("VNDF Sampling", mConfig.vndfSample);
 
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);

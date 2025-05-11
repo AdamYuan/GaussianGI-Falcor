@@ -49,6 +49,7 @@ private:
     struct Config
     {
         bool useTracedShadow = true;
+        bool vndfSample = true;
         bool useStencil = false;
     } mConfig = {}, mPrevConfig = {};
 
