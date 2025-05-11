@@ -27,8 +27,8 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
     var hitInfo = gGVBuffer.LoadHitInfo(threadID);
     var hitPoint = gGStaticScene.getHitPoint(hitInfo);
 
-    float3 albedo = select(hitInfo.isHit, gGVBuffer.LoadAlbedo(threadID), 1);
-    float3 clampedNormal = hitPoint.normal * 0.5 + 0.5;
+    float3 albedo = select(hitInfo.isHit, gGVBuffer.LoadAlbedo(threadID), 0);
+    float3 clampedNormal = select(hitInfo.isHit, hitPoint.normal * 0.5 + 0.5, 0);
     float shadow = select(hitInfo.isHit, gGShadow.evaluate(gGStaticScene, hitPoint), 0);
     float3 direct = select(
         hitInfo.isHit, M_1_PI * gGStaticScene.lighting.evaluateSunIrradiance(hitPoint.normal, shadow), gGStaticScene.lighting.skyRadiance

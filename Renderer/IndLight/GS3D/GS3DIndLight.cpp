@@ -167,7 +167,7 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
             return getDevice()->createTexture2D(
                 width,
                 height,
-                ResourceFormat::R32Uint,
+                ResourceFormat::RG32Uint,
                 1,
                 1,
                 nullptr,
@@ -523,6 +523,7 @@ void GS3DIndLight::draw(
     } */
 
     // Z-Normal Pass
+    if (mConfig.useZNormal)
     {
         FALCOR_PROFILE(pRenderContext, "zNormal");
         auto [prog, var] = getShaderProgVar(mDrawResource.pZNormalPass);
@@ -547,6 +548,7 @@ void GS3DIndLight::draw(
         var["gZNormals"] = mDrawResource.pZNormalTexture;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
         setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
+        prog->addDefine("USE_Z_NORMAL", mConfig.useZNormal ? "1" : "0");
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
         pRenderContext->drawIndirect(
@@ -596,6 +598,7 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
     widget.checkbox("Use Stencil", mConfig.useStencil);
+    widget.checkbox("Use Z-Normal", mConfig.useZNormal);
     widget.checkbox("VNDF Sampling", mConfig.vndfSample);
     enumDropdown(widget, "Primitive Type", mConfig.primitiveType);
 

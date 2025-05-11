@@ -20,11 +20,13 @@ RWStructuredBuffer<uint> gSplatIDs;
 RWBuffer<float> gSplatShadows;
 uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
-Texture2D<uint> gZNormals;
+Texture2D<uint2> gZNormals;
 
 StructuredBuffer<SH9<float3>> gSplatProbes;
 
+#ifndef USE_Z_NORMAL
 #define USE_Z_NORMAL 1
+#endif
 
 struct PSIn
 {
@@ -81,21 +83,10 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
     output.RestartStrip();
 }
 
-// [earlydepthstencil]
+[earlydepthstencil]
 float4 psMain(PSIn pIn)
 {
     uint2 coord = uint2(pIn.clipPos.xy);
-
-    // TODO: Replace this with stencil test
-    /* #if USE_Z_NORMAL
-        uint zNormal = gZNormals[coord];
-        if (zNormal == -1)
-            discard;
-    #else
-        var hitInfo = gGVBuffer.LoadHitInfo(coord);
-        if (!hitInfo.isHit)
-            discard;
-    #endif */
 
 #if GS_PRIMITIVE_IS_RAY
     float alpha = GSPrimitive::getAlpha(gGStaticScene.camera, uint2(gResolution), uint2(pIn.clipPos.xy), pIn.splatCov3D, pIn.splatMean);
@@ -109,9 +100,9 @@ float4 psMain(PSIn pIn)
     float3 normal, position;
 
 #if USE_Z_NORMAL
-    uint zNormal = gZNormals[coord];
-    normal = oct_to_ndir_unorm(unpackUnorm2x8(zNormal >> 16u));
-    float z = unpackUnorm16(zNormal & 0xFFFFu);
+    uint2 zNormal = gZNormals[coord];
+    normal = oct_to_ndir_unorm(unpackUnorm2x16(zNormal.y));
+    float z = asfloat(zNormal.x);
     float4 invClip = float4((pIn.clipPos.xy / gResolution), z, 1.0);
     invClip.xy = invClip.xy * 2.0 - 1.0;
     invClip.y = -invClip.y;

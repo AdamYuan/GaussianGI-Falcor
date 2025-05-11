@@ -51,6 +51,7 @@ private:
         bool useTracedShadow = true;
         bool vndfSample = true;
         bool useStencil = false;
+        bool useZNormal = true;
         GS3DPrimitiveType primitiveType = GS3DPrimitiveType::kGSPP;
     } mConfig = {}, mPrevConfig = {};
 

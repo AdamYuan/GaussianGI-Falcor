@@ -5,7 +5,7 @@ import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.GVBuffer;
 
 uniform GVBuffer gGVBuffer;
-RWTexture2D<uint> gZNormals;
+RWTexture2D<uint2> gZNormals;
 
 #define GROUP_DIM 8
 
@@ -24,10 +24,10 @@ void csMain(uint3 groupThreadID: SV_GroupThreadID, uint3 groupID: SV_GroupID)
         var hitPoint = gGStaticScene.getHitPoint(hitInfo);
         float4 clip = mul(gGStaticScene.camera.getViewProj(), float4(hitPoint.position, 1));
         float z = clip.z / clip.w;
-        gZNormals[coord] = packUnorm16(z) | packUnorm2x8(ndir_to_oct_unorm(hitPoint.normal)) << 16u;
+        gZNormals[coord] = uint2(asuint(z), packUnorm2x16(ndir_to_oct_unorm(hitPoint.normal)));
     }
-    else
+    /* else
     {
         gZNormals[coord] = -1;
-    }
+    } */
 }
