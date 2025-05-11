@@ -631,6 +631,8 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);
 
+    widget.text(fmt::format("Splat Count: {}", mInstancedSplatBuffer.splatCount));
+
     /* auto result = MeshClosestPoint::query(
         GMeshView{pStaticScene->getMeshes()[0]}, meshBvh, pStaticScene->getScene()->getCamera()->getPosition(), 1.0f
     );
