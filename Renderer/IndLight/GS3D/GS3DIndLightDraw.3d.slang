@@ -28,6 +28,10 @@ StructuredBuffer<SH9<float3>> gSplatProbes;
 #define USE_Z_NORMAL 1
 #endif
 
+#ifndef USE_DEPTH_GSPP
+#define USE_DEPTH_GSPP 1
+#endif
+
 struct PSIn
 {
     linear float2 quadPos;
@@ -53,18 +57,30 @@ uint vsMain(uint instanceID: SV_InstanceID)
 [maxvertexcount(4)]
 void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 {
+#if USE_DEPTH_GSPP
+    uint splatID = gSplatIDs[gSplats.splatCount - 1u - gIn[0]];
+#else
     uint splatID = gSplatIDs[gIn[0]];
+#endif
     var splat = gSplats.load(splatID);
-
-    GSPrimitive gsPrim = GSPrimitive::create(splat.geom, gGStaticScene.camera, gResolution);
+    var splatGeom = splat.geom;
 
     PSIn o;
+    o.splatMaxDist = max(splat.geom.scale.x, max(splat.geom.scale.y, splat.geom.scale.z)) * BOUND_FACTOR;
+
+#if USE_DEPTH_GSPP
+    float3 splatCamMean = splatGeom.mean - gGStaticScene.camera.getPosition();
+    float splatCamDist = length(splatCamMean);
+    GSPPPrimitive gsPrim = GSPPPrimitive::create(splatGeom, gGStaticScene.camera, gResolution, splatCamDist - o.splatMaxDist);
+#else
+    GSPrimitive gsPrim = GSPrimitive::create(splatGeom, gGStaticScene.camera, gResolution);
+#endif
+
     o.splatMean = splat.geom.mean;
     // o.splatScale = float16_t3(splat.geom.scale);
     // o.albedo = float16_t3(splat.attrib.albedo);
     // o.shadow = float16_t(gSplatShadows[splatID]);
     o.probe = shConvolve(gSplatProbes[splatID], shDiffuseLobe<2>());
-    o.splatMaxDist = max(splat.geom.scale.x, max(splat.geom.scale.y, splat.geom.scale.z)) * BOUND_FACTOR;
     /* [ForceUnroll]
     for (uint i = 0; i < 9; ++i)
         o.probe.data[i] = float16_t3(1.0); */

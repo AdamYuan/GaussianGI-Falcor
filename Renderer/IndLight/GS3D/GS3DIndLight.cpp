@@ -89,40 +89,6 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
         mDrawResource.pDrawPass->getState()->setBlendState(BlendState::create(splatBlendDesc));
     }
 
-    if (mConfig.useStencil)
-    {
-        static ref<DepthStencilState> sDepthStencilState = []
-        {
-            DepthStencilState::Desc splatDSDesc;
-            splatDSDesc.setDepthEnabled(false);
-            splatDSDesc.setDepthWriteMask(false);
-            splatDSDesc.setStencilEnabled(true);
-            splatDSDesc.setStencilRef(1);
-            splatDSDesc.setStencilFunc(DepthStencilState::Face::FrontAndBack, ComparisonFunc::Equal);
-            splatDSDesc.setStencilOp(
-                DepthStencilState::Face::FrontAndBack,
-                DepthStencilState::StencilOp::Keep,
-                DepthStencilState::StencilOp::Keep,
-                DepthStencilState::StencilOp::Keep
-            );
-            splatDSDesc.setStencilReadMask(0xFF);
-            splatDSDesc.setStencilWriteMask(0);
-            return DepthStencilState::create(splatDSDesc);
-        }();
-        mDrawResource.pDrawPass->getState()->setDepthStencilState(sDepthStencilState);
-    }
-    else
-    {
-        static ref<DepthStencilState> sDepthStencilState = []
-        {
-            DepthStencilState::Desc splatDepthDesc;
-            splatDepthDesc.setDepthEnabled(false);
-            splatDepthDesc.setDepthWriteMask(false);
-            return DepthStencilState::create(splatDepthDesc);
-        }();
-        mDrawResource.pDrawPass->getState()->setDepthStencilState(sDepthStencilState);
-    }
-
     if (!mDrawResource.pBlendPass)
         mDrawResource.pBlendPass =
             ComputePass::create(getDevice(), "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightBlend.cs.slang", "csMain");
@@ -154,6 +120,13 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
             MemoryType::DeviceLocal,
             &splatDrawArgs
         );
+        mDrawResource.pDepthGSPPSplatDrawArgBuffer = getDevice()->createStructuredBuffer(
+            sizeof(DrawArguments),
+            1,
+            ResourceBindFlags::ShaderResource | ResourceBindFlags::UnorderedAccess | ResourceBindFlags::IndirectArg,
+            MemoryType::DeviceLocal,
+            &splatDrawArgs
+        );
         static_assert(sizeof(DrawArguments) == 4 * sizeof(uint32_t));
     }
 
@@ -179,10 +152,36 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     updateTextureSize(
         mDrawResource.pSplatFbo,
         resolution,
-        [&](uint width, uint height)
-        { return Fbo::create(getDevice(), {pIndirectTexture}, mConfig.useStencil ? args.pVBuffer->getDepthStencilTexture() : nullptr); },
-        mConfig.useStencil != mPrevConfig.useStencil
+        [&](uint width, uint height) { return Fbo::create(getDevice(), {pIndirectTexture}, args.pVBuffer->getDepthStencilTexture()); }
     );
+}
+
+ref<DepthStencilState> GS3DIndLight::getDepthStencilState(bool stencilTest, bool depthTest)
+{
+    static ref<DepthStencilState> pCached[4]{};
+    uint32_t cacheID = uint32_t(stencilTest) << 1u | uint32_t(depthTest);
+    if (pCached[cacheID] == nullptr)
+    {
+        DepthStencilState::Desc splatDSDesc;
+        splatDSDesc.setDepthEnabled(depthTest);
+        splatDSDesc.setDepthWriteMask(false);
+        splatDSDesc.setStencilEnabled(stencilTest);
+        if (stencilTest)
+        {
+            splatDSDesc.setStencilRef(1);
+            splatDSDesc.setStencilFunc(DepthStencilState::Face::FrontAndBack, ComparisonFunc::Equal);
+            splatDSDesc.setStencilOp(
+                DepthStencilState::Face::FrontAndBack,
+                DepthStencilState::StencilOp::Keep,
+                DepthStencilState::StencilOp::Keep,
+                DepthStencilState::StencilOp::Keep
+            );
+            splatDSDesc.setStencilReadMask(0xFF);
+            splatDSDesc.setStencilWriteMask(0);
+        }
+        pCached[cacheID] = DepthStencilState::create(splatDSDesc);
+    }
+    return pCached[cacheID];
 }
 
 void GS3DIndLight::preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats)
@@ -494,6 +493,8 @@ void GS3DIndLight::draw(
     // Reset
     static_assert(offsetof(DrawArguments, InstanceCount) == sizeof(uint32_t));
     mDrawResource.pSplatDrawArgBuffer->setElement<uint32_t>(offsetof(DrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
+    if (mConfig.useDepthGSPP)
+        mDrawResource.pDepthGSPPSplatDrawArgBuffer->setElement<uint32_t>(offsetof(DrawArguments, InstanceCount) / sizeof(uint32_t), 0u);
 
     // Splat Cull Pass
     {
@@ -504,8 +505,10 @@ void GS3DIndLight::draw(
         var["gResolution"] = resolutionFloat;
 
         var["gSplatDrawArgs"] = mDrawResource.pSplatDrawArgBuffer;
+        var["gDepthGSPPSplatDrawArgs"] = mDrawResource.pDepthGSPPSplatDrawArgBuffer;
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
         setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
+        prog->addDefine("USE_DEPTH_GSPP", mConfig.useDepthGSPP ? "1" : "0");
 
         mDrawResource.pCullPass->execute(pRenderContext, mInstancedSplatBuffer.splatCount, 1, 1);
     }
@@ -547,10 +550,15 @@ void GS3DIndLight::draw(
         var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
         var["gZNormals"] = mDrawResource.pZNormalTexture;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
-        setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
+        if (mConfig.useDepthGSPP)
+            setGS3DPrimitiveTypeDefine(prog, GS3DPrimitiveType::kGSPP);
+        else
+            setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
         prog->addDefine("USE_Z_NORMAL", mConfig.useZNormal ? "1" : "0");
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
+        mDrawResource.pDrawPass->getState()->setDepthStencilState(getDepthStencilState(mConfig.useStencil, false));
+        prog->addDefine("USE_DEPTH_GSPP", "0");
         pRenderContext->drawIndirect(
             mDrawResource.pDrawPass->getState().get(),
             mDrawResource.pDrawPass->getVars().get(),
@@ -560,6 +568,22 @@ void GS3DIndLight::draw(
             nullptr,
             0
         );
+
+        if (mConfig.useDepthGSPP)
+        {
+            FALCOR_PROFILE(pRenderContext, "draw depth GS++");
+            mDrawResource.pDrawPass->getState()->setDepthStencilState(getDepthStencilState(mConfig.useStencil, true));
+            prog->addDefine("USE_DEPTH_GSPP", "1");
+            pRenderContext->drawIndirect(
+                mDrawResource.pDrawPass->getState().get(),
+                mDrawResource.pDrawPass->getVars().get(),
+                1,
+                mDrawResource.pDepthGSPPSplatDrawArgBuffer.get(),
+                0,
+                nullptr,
+                0
+            );
+        }
     }
 
     // OIT Blend Pass
@@ -598,9 +622,11 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
     widget.checkbox("Use Stencil", mConfig.useStencil);
+    widget.checkbox("Use DepthGS++", mConfig.useDepthGSPP);
     widget.checkbox("Use Z-Normal", mConfig.useZNormal);
     widget.checkbox("VNDF Sampling", mConfig.vndfSample);
-    enumDropdown(widget, "Primitive Type", mConfig.primitiveType);
+    if (!mConfig.useDepthGSPP)
+        enumDropdown(widget, "Primitive Type", mConfig.primitiveType);
 
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);

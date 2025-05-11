@@ -58,7 +58,7 @@ public namespace GS3DIndLight
     {
         float4 centerClip, deltaClip0, deltaClip1;
 
-        public static GSPPPrimitive create(SplatGeom splatGeom, Camera camera, float2 resolution)
+        public static GSPPPrimitive create(SplatGeom splatGeom, Camera camera, float2 resolution, float quadDist = 1.0)
         {
             float3x3 splatRotMat = GS3D::getQuatMatrix(splatGeom.rotate);
             float3x3 splatRotMatT = transpose(splatRotMat);
@@ -78,10 +78,10 @@ public namespace GS3DIndLight
             float3x3 splatVDMatT = float3x3(splatViewSideDir, cross(splatViewDir, splatViewSideDir), splatViewDir);
             float3x3 splatVDMat = transpose(splatVDMatT);
 
-            float3 splatCov2D = GS3D::getGSPPCovariance2D(splatCov3D, splatCamDist, splatVDMatT, 1.0);
+            float3 splatCov2D = GS3D::getGSPPCovariance2D(splatCov3D, splatCamDist / quadDist, splatVDMatT, 1.0);
             GS3D::Eigen<2> eigen2D = GS3D::decomposeCovariance2D(splatCov2D);
 
-            float4 centerClip = mul(camera.data.projMatNoJitter, float4(mul(float3x3(camera.data.viewMat), splatViewDir), 1.0));
+            float4 centerClip = mul(camera.data.projMatNoJitter, float4(mul(float3x3(camera.data.viewMat), splatViewDir * quadDist), 1.0));
             float2 deltaQuad0 = eigen2D.eigen[0] * sqrt(eigen2D.lambda[0]) * BOUND_FACTOR;
             float2 deltaQuad1 = eigen2D.eigen[1] * sqrt(eigen2D.lambda[1]) * BOUND_FACTOR;
             float4 deltaClip0 =

@@ -40,7 +40,7 @@ private:
         // ref<Buffer> pSplatViewBuffer, pSplatViewSortKeyBuffer, pSplatViewSortPayloadBuffer;
         ref<Buffer> pSplatIDBuffer, pSplatShadowBuffer;
         ref<Buffer> pSrcSplatProbeBuffer, pDstSplatProbeBuffer;
-        ref<Buffer> pSplatDrawArgBuffer;
+        ref<Buffer> pSplatDrawArgBuffer, pDepthGSPPSplatDrawArgBuffer;
         ref<Texture> pZNormalTexture;
         ref<Fbo> pSplatFbo;
         uint32_t probeTick{};
@@ -51,6 +51,7 @@ private:
         bool useTracedShadow = true;
         bool vndfSample = true;
         bool useStencil = false;
+        bool useDepthGSPP = false;
         bool useZNormal = true;
         GS3DPrimitiveType primitiveType = GS3DPrimitiveType::kGSPP;
     } mConfig = {}, mPrevConfig = {};
@@ -58,6 +59,7 @@ private:
     float3 mPrevTracedShadowDirection{};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
+    static ref<DepthStencilState> getDepthStencilState(bool stencilTest, bool depthTest);
     static void preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats);
     void onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
 
