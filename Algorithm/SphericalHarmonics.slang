@@ -29,6 +29,24 @@ public SH<T, L_V> shConvolve<T : IFloat, let L_V : uint>(SH<T, L_V> lSh, SH<floa
     return lSh;
 }
 
+public SH<float3, L_V> shToFloat32<let L_V : uint>(SH<float16_t3, L_V> sh)
+{
+    SH<float3, L_V> dstSh;
+    [ForceUnroll]
+    for (uint i = 0; i < SH_SIZE(L_V); ++i)
+        dstSh.data[i] = float3(sh.data[i]);
+    return dstSh;
+}
+
+public SH<float16_t3, L_V> shToFloat16<let L_V : uint>(SH<float3, L_V> sh)
+{
+    SH<float16_t3, L_V> dstSh;
+    [ForceUnroll]
+    for (uint i = 0; i < SH_SIZE(L_V); ++i)
+        dstSh.data[i] = float16_t3(sh.data[i]);
+    return dstSh;
+}
+
 public SH<float, L_V> shBasis<let L_V : uint>(float3 p)
 {
     // Evaluate SH basis

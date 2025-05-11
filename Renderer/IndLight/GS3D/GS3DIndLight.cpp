@@ -99,7 +99,7 @@ void GS3DIndLight::updateDrawResource(const GIndLightDrawArgs& args, const ref<T
     {
         mDrawResource.pSplatIDBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), mInstancedSplatBuffer.splatCount);
         mDrawResource.pSplatShadowBuffer = getDevice()->createTypedBuffer(ResourceFormat::R8Unorm, mInstancedSplatBuffer.splatCount);
-        static constexpr std::size_t kProbeSize = 9 * sizeof(float3);
+        static constexpr std::size_t kProbeSize = 9 * sizeof(float16_t3);
         mDrawResource.pSrcSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
         mDrawResource.pDstSplatProbeBuffer = getDevice()->createStructuredBuffer(kProbeSize, mInstancedSplatBuffer.splatCount);
         mDrawResource.probeTick = 0;

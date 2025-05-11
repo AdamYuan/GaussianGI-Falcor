@@ -12,7 +12,7 @@ using namespace GS3DIndLight;
 #define COLOR_VAR_NAME albedo
 #endif
 
-public float3 getGS3DMiscColor(Splat splat, float shadow, SH<float3, 2> probe)
+public float3 getGS3DMiscColor(Splat splat, float shadow, SH9<float16_t3> probe)
 {
     float3x3 splatRotMat = GS3D::getQuatMatrix(splat.geom.rotate);
     float3 normal = SGGX::getSplatNormal(

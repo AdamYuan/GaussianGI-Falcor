@@ -14,7 +14,7 @@ RaytracingAccelerationStructure gSplatAccel;
 RWTexture2D<unorm float4> gColor;
 
 Buffer<float> gSplatShadows;
-StructuredBuffer<SH<float3, 2>> gSplatProbes;
+StructuredBuffer<SH9<float16_t3>> gSplatProbes;
 
 struct RayData
 {

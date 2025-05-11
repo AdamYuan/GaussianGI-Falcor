@@ -22,7 +22,7 @@ uniform float2 gResolution;
 uniform GVBuffer gGVBuffer;
 Texture2D<uint2> gZNormals;
 
-StructuredBuffer<SH9<float3>> gSplatProbes;
+StructuredBuffer<SH9<float16_t3>> gSplatProbes;
 
 #ifndef USE_Z_NORMAL
 #define USE_Z_NORMAL 1
@@ -45,7 +45,7 @@ struct PSIn
     // nointerpolation float16_t3 albedo;
     // nointerpolation float16_t shadow;
     // nointerpolation float16_t3 normal;
-    nointerpolation SH9<float3> probe;
+    nointerpolation SH9<float16_t3> probe;
     linear float4 clipPos : SV_Position;
 }
 

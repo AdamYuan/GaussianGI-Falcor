@@ -24,8 +24,8 @@ uniform InstancedSplatBuffer gSplats;
 #define SH_LEVEL 2
 
 RWBuffer<float> gSplatShadows;
-StructuredBuffer<SH<float3, SH_LEVEL>> gPrevSplatProbes;
-RWStructuredBuffer<SH<float3, SH_LEVEL>> gSplatProbes;
+StructuredBuffer<SH<float16_t3, SH_LEVEL>> gPrevSplatProbes;
+RWStructuredBuffer<SH<float16_t3, SH_LEVEL>> gSplatProbes;
 
 RaytracingAccelerationStructure gSplatAccel;
 
@@ -108,7 +108,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
 #endif
         SH<float3, SH_LEVEL> hitProbe = (SH<float3, SH_LEVEL>)0;
         if (gTick > 0)
-            hitProbe = gPrevSplatProbes[hitSplatIdx];
+            hitProbe = shToFloat32(gPrevSplatProbes[hitSplatIdx]);
 
         float3 hitRadiance = float3(0);
         hitRadiance += max((float3)shDiffuse(hitProbe, shBasis<SH_LEVEL>(hitNormal)), 0.0);
@@ -165,7 +165,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
         {}
         else
         {
-            SH<float3, SH_LEVEL> prevSh = gPrevSplatProbes[splatIdx];
+            SH<float3, SH_LEVEL> prevSh = shToFloat32(gPrevSplatProbes[splatIdx]);
             [ForceUnroll]
             for (uint i = 0; i < SH_SIZE(SH_LEVEL); ++i)
                 sh.data[i] = lerp(sh.data[i], (float3)prevSh.data[i], 0.98);
@@ -178,6 +178,6 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
                 sh.data[i] = float3(0, 1, 1);
         } */
 
-        gSplatProbes[splatIdx] = sh;
+        gSplatProbes[splatIdx] = shToFloat16(sh);
     }
 }

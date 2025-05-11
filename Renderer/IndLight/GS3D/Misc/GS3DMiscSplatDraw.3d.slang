@@ -13,7 +13,7 @@ StructuredBuffer<uint> gSplatViewSortPayloads;
 uniform float2 gResolution;
 
 Buffer<float> gSplatShadows;
-StructuredBuffer<SH<float3, 2>> gSplatProbes;
+StructuredBuffer<SH9<float16_t3>> gSplatProbes;
 
 struct PSIn
 {

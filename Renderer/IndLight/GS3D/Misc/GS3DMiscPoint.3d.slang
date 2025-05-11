@@ -14,7 +14,7 @@ uniform InstancedSplatBuffer gSplats;
 uniform uint gSplatCount;
 
 Buffer<float> gSplatShadows;
-StructuredBuffer<SH<float3, 2>> gSplatProbes;
+StructuredBuffer<SH9<float3>> gSplatProbes;
 
 struct PSIn
 {
