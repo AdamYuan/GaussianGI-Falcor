@@ -134,6 +134,9 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GS3D/Misc/GS3DMiscSplatView.cs.slang
         Renderer/IndLight/GS3D/Misc/GS3DMiscSplatDraw.3d.slang
         Renderer/IndLight/GS3D/Misc/GS3DMiscTraceSplat.rt.slang
+        Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.slangh
+        Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.slang
+        Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.hpp
 )
 target_link_libraries(GaussianGI PRIVATE assimp tbb)
 target_copy_shaders(GaussianGI GaussianGI)

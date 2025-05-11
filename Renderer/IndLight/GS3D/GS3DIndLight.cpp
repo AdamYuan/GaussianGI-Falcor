@@ -505,6 +505,7 @@ void GS3DIndLight::draw(
 
         var["gSplatDrawArgs"] = mDrawResource.pSplatDrawArgBuffer;
         var["gSplatIDs"] = mDrawResource.pSplatIDBuffer;
+        setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
 
         mDrawResource.pCullPass->execute(pRenderContext, mInstancedSplatBuffer.splatCount, 1, 1);
     }
@@ -545,6 +546,7 @@ void GS3DIndLight::draw(
         var["gSplatProbes"] = mDrawResource.pDstSplatProbeBuffer;
         var["gZNormals"] = mDrawResource.pZNormalTexture;
         args.pVBuffer->bindShaderData(var["gGVBuffer"]);
+        setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
 
         mDrawResource.pDrawPass->getState()->setFbo(mDrawResource.pSplatFbo);
         pRenderContext->drawIndirect(
@@ -595,6 +597,7 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
     widget.checkbox("Use Stencil", mConfig.useStencil);
     widget.checkbox("VNDF Sampling", mConfig.vndfSample);
+    enumDropdown(widget, "Primitive Type", mConfig.primitiveType);
 
     if (auto g = widget.group("Misc", true))
         mpMiscRenderer->renderUI(g);

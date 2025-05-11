@@ -1,0 +1,28 @@
+#pragma once
+
+import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplatPrimitive;
+
+#include "GaussianGI/Algorithm/GS3DBound.slangh"
+#define BOUND_FACTOR GS3D_BOUND_SQRT_2LOG_255
+
+#define GS_PRIMITIVE_TYPE_NAIVE 0
+#define GS_PRIMITIVE_TYPE_GSPP 1
+#define GS_PRIMITIVE_TYPE_RAY 2
+
+#ifndef GS_PRIMITIVE_TYPE
+#define GS_PRIMITIVE_TYPE GS_PRIMITIVE_TYPE_GSPP
+#endif
+
+#if GS_PRIMITIVE_TYPE == GS_PRIMITIVE_TYPE_RAY
+#define GS_PRIMITIVE_IS_RAY 1
+#else
+#define GS_PRIMITIVE_IS_RAY 0
+#endif
+
+#if GS_PRIMITIVE_TYPE == GS_PRIMITIVE_TYPE_NAIVE
+typealias GSPrimitive = GS3DIndLight::NaiveGSPrimitive;
+#elif GS_PRIMITIVE_TYPE == GS_PRIMITIVE_TYPE_GSPP
+typealias GSPrimitive = GS3DIndLight::GSPPPrimitive;
+#else
+typealias GSPrimitive = GS3DIndLight::GSRayPrimitive;
+#endif

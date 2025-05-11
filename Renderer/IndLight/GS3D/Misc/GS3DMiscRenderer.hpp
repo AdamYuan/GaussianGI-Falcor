@@ -11,6 +11,7 @@
 #include "../../../../Scene/GStaticScene.hpp"
 #include "../../../../Algorithm/DeviceSort/DeviceSorter.hpp"
 #include "../GS3DIndLightSplat.hpp"
+#include "../GS3DIndLightSplatPrimitive.hpp"
 
 using namespace Falcor;
 
@@ -69,7 +70,7 @@ private:
     // Splat
     ref<ComputePass> mpSplatViewPass;
     ref<RasterPass> mpSplatDrawPass;
-    ref<Buffer> mpSplatViewBuffer, mpSplatViewSortKeyBuffer, mpSplatViewSortPayloadBuffer;
+    ref<Buffer> mpSplatViewSortKeyBuffer, mpSplatViewSortPayloadBuffer;
     ref<Buffer> mpSplatViewDrawArgBuffer;
     DeviceSorter<DeviceSortDispatchType::kIndirect> mSplatViewSorter;
     DeviceSortResource<DeviceSortDispatchType::kIndirect> mSplatViewSortResource;
@@ -86,7 +87,7 @@ private:
     {
         GS3DMiscType type = GS3DMiscType::kSplat;
         GS3DMiscColorType colorType = GS3DMiscColorType::kRadiance;
-        float splatOpacity = 1.0f;
+        GS3DPrimitiveType primitiveType = GS3DPrimitiveType::kGSPP;
     } mConfig = {};
 
     void drawPoints(RenderContext* pRenderContext, const ref<Fbo>& pTargetFbo, const DrawArgs& args);

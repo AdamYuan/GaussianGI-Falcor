@@ -43,3 +43,19 @@ public bool cullQuadClip(Array<float4, 4> vertexClips)
 
     return false;
 }
+
+public bool cullQuadClip(float4 centerClip, float4 deltaClip1, float4 deltaClip2)
+{
+    return cullQuadClip( {
+        centerClip - deltaClip1 - deltaClip2, //
+        centerClip - deltaClip1 + deltaClip2, //
+        centerClip + deltaClip1 + deltaClip2, //
+        centerClip + deltaClip1 - deltaClip2, //
+    });
+}
+
+public bool cullQuadClip(float2 centerClip, float2 deltaClip1, float2 deltaClip2)
+{
+    // Not optimized
+    return cullQuadClip(float4(centerClip, 0.5, 1), float4(deltaClip1, 0.5, 1), float4(deltaClip2, 0.5, 1));
+}

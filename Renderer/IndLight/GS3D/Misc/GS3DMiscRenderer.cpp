@@ -99,9 +99,8 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
     }
     uint splatViewCount = args.instancedSplatBuffer.splatCount;
     FALCOR_CHECK(splatViewCount != 0, "");
-    if (!mpSplatViewBuffer || splatViewCount != mpSplatViewBuffer->getElementCount())
+    if (!mpSplatViewSortKeyBuffer || splatViewCount != mpSplatViewSortKeyBuffer->getElementCount())
     {
-        mpSplatViewBuffer = getDevice()->createStructuredBuffer(sizeof(GS3DIndLightMiscSplatView), splatViewCount);
         mpSplatViewSortKeyBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), splatViewCount);
         mpSplatViewSortPayloadBuffer = getDevice()->createStructuredBuffer(sizeof(uint32_t), splatViewCount);
         mSplatViewSortResource =
@@ -124,10 +123,10 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
         args.instancedSplatBuffer.bindShaderData(var["gSplats"]);
         var["gResolution"] = resolutionFloat;
 
-        var["gSplatViews"] = mpSplatViewBuffer;
         var["gSplatViewDrawArgs"] = mpSplatViewDrawArgBuffer;
         var["gSplatViewSortKeys"] = mpSplatViewSortKeyBuffer;
         var["gSplatViewSortPayloads"] = mpSplatViewSortPayloadBuffer;
+        setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
 
         mpSplatViewPass->execute(pRenderContext, splatViewCount, 1, 1);
     }
@@ -150,15 +149,11 @@ void GS3DMiscRenderer::drawSplats(RenderContext* pRenderContext, const ref<Fbo>&
         auto [prog, var] = getShaderProgVar(mpSplatDrawPass);
         args.pStaticScene->bindRootShaderData(var);
         args.instancedSplatBuffer.bindShaderData(var["gSplats"]);
-        var["gSplatViews"] = mpSplatViewBuffer;
         var["gSplatViewSortPayloads"] = mpSplatViewSortPayloadBuffer;
         var["gResolution"] = resolutionFloat;
-        float alpha = mConfig.splatOpacity;
-        float d = math::sqrt(math::log(math::max(255.0f * alpha, 1.0f)));
-        var["gAlpha"] = alpha;
-        var["gD"] = d;
         var["gSplatShadows"] = args.pSplatShadowBuffer;
         var["gSplatProbes"] = args.pSplatProbeBuffer;
+        setGS3DPrimitiveTypeDefine(prog, mConfig.primitiveType);
         enumVisit(
             mConfig.colorType, [&]<typename EnumInfo_T>(EnumInfo_T) { prog->addDefine("COLOR_VAR_NAME", EnumInfo_T::kProperty.varName); }
         );
@@ -245,9 +240,7 @@ void GS3DMiscRenderer::renderUIImpl(Gui::Widgets& widget)
     enumDropdown(widget, "Type", mConfig.type);
     enumDropdown(widget, "Color Type", mConfig.colorType);
     if (mConfig.type == GS3DMiscType::kSplat)
-    {
-        widget.var("Splat Opacity", mConfig.splatOpacity, 0.0f, 1.0f);
-    }
+        enumDropdown(widget, "Primitive Type", mConfig.primitiveType);
 }
 
 } // namespace GSGI

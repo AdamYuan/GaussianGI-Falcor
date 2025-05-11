@@ -44,24 +44,6 @@ struct GS3DIndLightPackedSplatAttrib
 };
 static_assert(sizeof(GS3DIndLightPackedSplatAttrib) == sizeof(uint32_t));
 
-struct GS3DIndLightSplatView
-{
-    float16_t2 axis0, axis1;
-    float16_t2 clipXY;
-    uint padding;
-};
-
-static_assert(sizeof(GS3DIndLightSplatView) == 4 * sizeof(uint32_t));
-
-struct GS3DIndLightMiscSplatView
-{
-    float16_t2 axis0, axis1;
-    float16_t2 clipXY;
-    uint padding;
-};
-
-static_assert(sizeof(GS3DIndLightMiscSplatView) == 4 * sizeof(uint32_t));
-
 struct GS3DIndLightInstanceDesc
 {
     uint firstSplatIdx;

@@ -59,20 +59,6 @@ public namespace GS3DIndLight
         }
     }
 
-    public struct SplatView
-    {
-        public float16_t2 axis0, axis1;
-        public float16_t2 clipXY;
-        uint padding;
-    }
-
-    public struct MiscSplatView
-    {
-        public float16_t2 axis0, axis1;
-        public float16_t2 clipXY;
-        uint padding;
-    }
-
     public struct InstanceDesc
     {
         public uint firstSplatIdx;
