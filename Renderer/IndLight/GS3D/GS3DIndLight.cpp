@@ -258,7 +258,7 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
             for (auto& vertex : vertices)
             {
                 vertex /= Icosahedron::kFaceDist;
-                vertex *= float3(splat.scale) * GS3DBound::kSqrt2Log100;
+                vertex *= float3(splat.scale) * GS3DBound::kSqrt2Log10;
                 vertex = math::mul(splatRotMat, vertex);
                 vertex += splat.mean;
             }
@@ -425,7 +425,10 @@ GS3DIndLight::GS3DIndLight(const ref<GScene>& pScene) : GSceneObject(pScene)
 void GS3DIndLight::updateImpl(bool isSceneChanged, RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
     if (isSceneChanged)
+    {
         onSceneChanged(pRenderContext, pStaticScene);
+        mRunShadowPass = true;
+    }
 }
 
 void GS3DIndLight::draw(
@@ -446,7 +449,10 @@ void GS3DIndLight::draw(
     {
         bool runPass = !mPrevConfig.useTracedShadow;
         runPass = runPass || math::any(mPrevTracedShadowDirection != pStaticScene->getLighting()->getData().direction);
+        runPass = runPass || mRunShadowPass;
         mPrevTracedShadowDirection = pStaticScene->getLighting()->getData().direction;
+
+        mRunShadowPass = false;
 
         if (runPass)
         {

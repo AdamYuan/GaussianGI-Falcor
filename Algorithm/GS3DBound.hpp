@@ -18,6 +18,7 @@ struct GS3DBound
     static constexpr float kSqrtLog255 = 2.3539888583335364f;
     static constexpr float kSqrt2Log100 = 3.034854258770293f;
     static constexpr float kSqrtLog100 = 2.145966026289347f;
+    static constexpr float kSqrt2Log10 = 2.145966026289347f;
 };
 
 } // namespace GSGI

@@ -73,8 +73,9 @@ void gsMain(point uint gIn[1], inout TriangleStream<PSIn> output)
 void psMain(PSIn pIn)
 {
     float alpha = getAlpha(pIn.quadPos);
+    bool cullingFlag = alpha < kAlphaThreshold || IsHelperLane();
 
-    if (QuadAll(alpha < kAlphaThreshold)) // All invocations in a quad should be discard, then discard
+    if (QuadAll(cullingFlag)) // All invocations in a quad should be discard, then discard
         discard;
 
     uint2 coord = uint2(pIn.clipPos.xy);
@@ -104,26 +105,34 @@ void psMain(PSIn pIn)
     bwd_diff(getAlpha)(dp, pIn.viewPos, dL_dalpha);
 
     FlatSplatView dL_dsplatView = SplatView(dp.d, dL_dci).toSOA();
-    if (dL_dsplatView.anyIsNanOrInf())
-        dL_dsplatView = (FlatSplatView)0;
 
-    bool callAtomicAdd;
+    bool reduceFlag = !cullingFlag;
+    if (dL_dsplatView.anyIsNanOrInf())
+    {
+        dL_dsplatView = (FlatSplatView)0;
+        reduceFlag = false;
+    }
+
+    // HLSL sucks. Fuck HLSL. HLSL <<<<<<<<< GLSL
+    WaveMask reduceMask = WaveActiveBallot(reduceFlag).x;
+    uint waveLaneIdx = WaveGetLaneIndex();
+
     [branch]
-    if (WaveActiveAllEqual(pIn.splatViewID))
+    if (WaveActiveAllEqual(pIn.splatViewID) && countbits(reduceMask) >= 16)
     {
         // Wave reduction
-        callAtomicAdd = WaveIsFirstLane();
         dL_dsplatView = dL_dsplatView.waveActiveSum();
     }
     else
     {
         // Quad reduction
-        uint waveLaneIdx = WaveGetLaneIndex();
-        callAtomicAdd = waveLaneIdx == QuadReadLaneAt(waveLaneIdx, 0);
         dL_dsplatView = dL_dsplatView.quadSum();
+        reduceMask &= (1 << waveLaneIdx);
+        reduceMask |= QuadReadAcrossX(reduceMask);
+        reduceMask |= QuadReadAcrossY(reduceMask);
     }
 
-    if (callAtomicAdd)
+    if (waveLaneIdx == firstbitlow(reduceMask))
         gDLossDSplatViews.atomicAdd(pIn.splatViewID, dL_dsplatView);
 }
 

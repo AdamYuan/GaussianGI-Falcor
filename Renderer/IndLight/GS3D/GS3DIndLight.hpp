@@ -50,13 +50,14 @@ private:
     {
         bool useTracedShadow = true;
         bool vndfSample = true;
-        bool useStencil = false;
-        bool useDepthGSPP = false;
+        bool useStencil = true;
+        bool useDepthGSPP = true;
         bool useZNormal = true;
         GS3DPrimitiveType primitiveType = GS3DPrimitiveType::kGSPP;
     } mConfig = {}, mPrevConfig = {};
 
     float3 mPrevTracedShadowDirection{};
+    bool mRunShadowPass{};
 
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
     static ref<DepthStencilState> getDepthStencilState(bool stencilTest, bool depthTest);
