@@ -1,5 +1,5 @@
 #include "Utils/Math/MathConstants.slangh"
-#include "GaussianGI/Algorithm/Icosahedron.slangh"
+#include "GaussianGI/Renderer/IndLight/GS3D/GS3DAccelStructPrimitive.slangh"
 #include "GaussianGI/Algorithm/SphericalHarmonics.slangh"
 #include "GaussianGI/Algorithm/GS3DBound.slangh"
 import GaussianGI.Scene.GStaticScene;
@@ -47,8 +47,8 @@ float getSplatTMin(Splat splat, float3 dir)
     dir = mul(transpose(splatRotMat), dir);
     float3 det = dir / splat.geom.scale;
     det *= det;
-    // float t = (GS3D_BOUND_SQRT_2LOG_100) / sqrt(det.x + det.y + det.z);
-    float t = 1.0 / sqrt(det.x + det.y + det.z);
+    float t = (GS3D_BOUND_SQRT_2LOG_100) / sqrt(det.x + det.y + det.z);
+    // float t = 1.0 / sqrt(det.x + det.y + det.z);
     if (isnan(t) || isinf(t))
         return 0;
     return t;
@@ -69,15 +69,15 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
     var randGen = UniformSampleGenerator(uint2(splatIdx, splatRayIdx), gTick);
 
     Ray ray;
-    ray.origin = splat.geom.mean;
     ray.dir = sample_sphere(sampleNext2D(randGen)); // PDF = 1 / 4PI
+    ray.origin = splat.geom.mean;
     ray.tMin = getSplatTMin(splat, ray.dir);
     ray.tMax = FLT_MAX;
 
     float3 radiance;
     bool error = false;
 
-    RayQuery<RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES> rayQuery;
+    RayQuery<RAY_FLAG_FORCE_OPAQUE | AS_PRIM_CULL_FLAG> rayQuery;
 
     rayQuery.TraceRayInline(gSplatAccel, RAY_FLAG_NONE, 0xFF, ray.toRayDesc());
 
@@ -87,7 +87,7 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
     if (rayQuery.CommittedStatus() == COMMITTED_TRIANGLE_HIT)
     {
         uint hitInstanceIdx = rayQuery.CommittedInstanceIndex();
-        uint meshSplatOfst = rayQuery.CommittedPrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
+        uint meshSplatOfst = rayQuery.CommittedPrimitiveIndex() / AS_PRIM_TRIANGLE_COUNT;
         uint hitMeshSplatIdx = rayQuery.CommittedInstanceID() + meshSplatOfst;
         uint hitSplatIdx = gSplats.loadInstanceDesc(hitInstanceIdx).firstSplatIdx + meshSplatOfst;
 
@@ -171,12 +171,12 @@ void csMain(uint3 threadID: SV_DispatchThreadID, uint3 groupThreadID: SV_GroupTh
                 sh.data[i] = lerp(sh.data[i], (float3)prevSh.data[i], 0.98);
         }
 
-        /* if (error)
+        if (error)
         {
             [ForceUnroll]
             for (uint i = 0; i < SH_SIZE(SH_LEVEL); ++i)
                 sh.data[i] = float3(0, 1, 1);
-        } */
+        }
 
         gSplatProbes[splatIdx] = shToFloat16(sh);
     }

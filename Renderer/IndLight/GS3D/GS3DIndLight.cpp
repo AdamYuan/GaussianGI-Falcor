@@ -9,6 +9,7 @@
 #include "../../../Algorithm/GS3DBound.hpp"
 #include "../../../Algorithm/MeshVHBVH.hpp"
 #include "../../../Algorithm/Icosahedron.hpp"
+#include "../../../Algorithm/Octahedron.hpp"
 #include "../../../Util/BLASUtil.hpp"
 #include "../../../Util/ShaderUtil.hpp"
 #include "../../../Util/TextureUtil.hpp"
@@ -202,12 +203,13 @@ void GS3DIndLight::preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSpla
     );
 }
 
+template<typename AccelStructPrim_T>
 void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene)
 {
     std::vector<GS3DIndLightPackedSplatGeom> splatGeoms;
     std::vector<GS3DIndLightPackedSplatAttrib> splatAttribs;
-    std::vector<std::array<float3, Icosahedron::kVertexCount>> splatIcosahedronVertices;
-    std::vector<std::array<uint3, Icosahedron::kTriangleCount>> splatIcosahedronIndices;
+    std::vector<std::array<float3, AccelStructPrim_T::kVertexCount>> splatASPrimVertices;
+    std::vector<std::array<uint3, AccelStructPrim_T::kTriangleCount>> splatASPrimIndices;
 
     std::vector<uint32_t> firstMeshSplatIdxs;
     firstMeshSplatIdxs.reserve(pStaticScene->getMeshCount());
@@ -247,31 +249,25 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
             const auto& splat = meshSplats[meshSplatID];
 
             float3x3 splatRotMat = math::matrixFromQuat(splat.rotate);
-            /* if (math::determinant(splatRotMat) < 0)
-            {
-                splatRotMat[0] = -splatRotMat[0];
-                splatRotMat[1] = -splatRotMat[1];
-                splatRotMat[2] = -splatRotMat[2];
-            } */
 
-            std::array<float3, Icosahedron::kVertexCount> vertices = Icosahedron::kVertices;
+            std::array<float3, AccelStructPrim_T::kVertexCount> vertices = AccelStructPrim_T::kVertices;
             for (auto& vertex : vertices)
             {
-                vertex /= Icosahedron::kFaceDist;
+                vertex /= AccelStructPrim_T::kFaceDist;
                 vertex *= float3(splat.scale) * GS3DBound::kSqrt2Log10;
                 vertex = math::mul(splatRotMat, vertex);
                 vertex += splat.mean;
             }
-            std::array<uint3, Icosahedron::kTriangleCount> indices = Icosahedron::kTriangles;
-            for (uint32_t indexOffset = meshSplatID * Icosahedron::kVertexCount; auto& index : indices)
+            std::array<uint3, AccelStructPrim_T::kTriangleCount> indices = AccelStructPrim_T::kTriangles;
+            for (uint32_t indexOffset = meshSplatID * AccelStructPrim_T::kVertexCount; auto& index : indices)
             {
                 index.x += indexOffset;
                 index.y += indexOffset;
                 index.z += indexOffset;
             }
 
-            splatIcosahedronVertices.push_back(vertices);
-            splatIcosahedronIndices.push_back(indices);
+            splatASPrimVertices.push_back(vertices);
+            splatASPrimIndices.push_back(indices);
         }
     }
 
@@ -336,27 +332,27 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
     }
 
     { // Splat BLAS & TLAS
-        auto pSplatIcosahedronVertexBuffer = getDevice()->createStructuredBuffer(
-            sizeof(float3) * Icosahedron::kVertexCount,
-            splatIcosahedronVertices.size(),
+        auto pSplatASPrimVertexBuffer = getDevice()->createStructuredBuffer(
+            sizeof(float3) * AccelStructPrim_T::kVertexCount,
+            splatASPrimVertices.size(),
             ResourceBindFlags::ShaderResource,
             MemoryType::DeviceLocal,
-            splatIcosahedronVertices.data()
+            splatASPrimVertices.data()
         );
-        auto pSplatIcosahedronIndexBuffer = getDevice()->createStructuredBuffer(
-            sizeof(uint3) * Icosahedron::kTriangleCount,
-            splatIcosahedronIndices.size(),
+        auto pSplatASPrimIndexBuffer = getDevice()->createStructuredBuffer(
+            sizeof(uint3) * AccelStructPrim_T::kTriangleCount,
+            splatASPrimIndices.size(),
             ResourceBindFlags::ShaderResource,
             MemoryType::DeviceLocal,
-            splatIcosahedronIndices.data()
+            splatASPrimIndices.data()
         );
 
         mpSplatBLASs = BLASBuilder::build(
             pRenderContext,
             [&]
             {
-                auto splatIcosahedronVertexBufferAddr = pSplatIcosahedronVertexBuffer->getGpuAddress();
-                auto splatIcosahedronIndexBufferAddr = pSplatIcosahedronIndexBuffer->getGpuAddress();
+                auto splatASPrimVertexBufferAddr = pSplatASPrimVertexBuffer->getGpuAddress();
+                auto splatASPrimIndexBufferAddr = pSplatASPrimIndexBuffer->getGpuAddress();
 
                 std::vector<BLASBuildDesc> blasBuildDescs(pStaticScene->getMeshCount());
                 for (uint32_t meshID = 0; meshID < pStaticScene->getMeshCount(); ++meshID)
@@ -375,16 +371,16 @@ void GS3DIndLight::onSceneChanged(RenderContext* pRenderContext, const ref<GStat
                                          .transform3x4 = 0,
                                          .indexFormat = ResourceFormat::R32Uint,
                                          .vertexFormat = ResourceFormat::RGB32Float,
-                                         .indexCount = meshSplatCount * Icosahedron::kTriangleCount * 3,
+                                         .indexCount = meshSplatCount * AccelStructPrim_T::kTriangleCount * 3,
                                          .vertexCount = 0, // Seems to work (at least on Vulkan)
-                                         .indexData = splatIcosahedronIndexBufferAddr,
-                                         .vertexData = splatIcosahedronVertexBufferAddr,
+                                         .indexData = splatASPrimIndexBufferAddr,
+                                         .vertexData = splatASPrimVertexBufferAddr,
                                          .vertexStride = sizeof(float3),
                                      }}
                         }
                     );
-                    splatIcosahedronIndexBufferAddr += meshSplatCount * Icosahedron::kTriangleCount * sizeof(uint3);
-                    splatIcosahedronVertexBufferAddr += meshSplatCount * Icosahedron::kVertexCount * sizeof(float3);
+                    splatASPrimIndexBufferAddr += meshSplatCount * AccelStructPrim_T::kTriangleCount * sizeof(uint3);
+                    splatASPrimVertexBufferAddr += meshSplatCount * AccelStructPrim_T::kVertexCount * sizeof(float3);
                 }
                 return blasBuildDescs;
             }()
@@ -426,7 +422,10 @@ void GS3DIndLight::updateImpl(bool isSceneChanged, RenderContext* pRenderContext
 {
     if (isSceneChanged)
     {
-        onSceneChanged(pRenderContext, pStaticScene);
+        enumVisit(
+            mConfig.accelStructPrimitiveType,
+            [&]<typename EnumInfo_T>(EnumInfo_T) { onSceneChanged<typename EnumInfo_T::Type>(pRenderContext, pStaticScene); }
+        );
         mRunShadowPass = true;
     }
 }
@@ -438,6 +437,15 @@ void GS3DIndLight::draw(
     const ref<Texture>& pIndirectTexture
 )
 {
+    if (mConfig.accelStructPrimitiveType != mPrevConfig.accelStructPrimitiveType)
+    {
+        // Re-build Accel Struct
+        enumVisit(
+            mConfig.accelStructPrimitiveType,
+            [&]<typename EnumInfo_T>(EnumInfo_T) { onSceneChanged<typename EnumInfo_T::Type>(pRenderContext, pStaticScene); }
+        );
+    }
+
     updateDrawResource(args, pIndirectTexture);
     std::swap(mDrawResource.pSrcSplatProbeBuffer, mDrawResource.pDstSplatProbeBuffer);
 
@@ -463,6 +471,7 @@ void GS3DIndLight::draw(
             mInstancedSplatBuffer.bindShaderData(var["gSplats"]);
             var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
             var["gSplatShadows"] = mDrawResource.pSplatShadowBuffer;
+            setGS3DAccelStructPrimitiveDefine(pass.pProgram, mConfig.accelStructPrimitiveType);
 
             pRenderContext->raytrace(pass.pProgram.get(), pass.pVars.get(), mInstancedSplatBuffer.splatCount, 1, 1);
         }
@@ -492,6 +501,7 @@ void GS3DIndLight::draw(
         var["gSplatAccel"].setAccelerationStructure(mpSplatTLAS);
         var["gTick"] = mDrawResource.probeTick;
         prog->addDefine("VNDF_SAMPLE", mConfig.vndfSample ? "1" : "0");
+        setGS3DAccelStructPrimitiveDefine(prog, mConfig.accelStructPrimitiveType);
 
         mDrawResource.pProbePass->execute(pRenderContext, mInstancedSplatBuffer.splatCount * kRaysPerProbe, 1, 1);
     }
@@ -617,6 +627,7 @@ void GS3DIndLight::drawMisc(RenderContext* pRenderContext, const ref<GStaticScen
             .pSplatTLAS = mpSplatTLAS,
             .pSplatShadowBuffer = mDrawResource.pSplatShadowBuffer,
             .pSplatProbeBuffer = mDrawResource.pDstSplatProbeBuffer,
+            .accelStructPrimitiveType = mConfig.accelStructPrimitiveType,
         }
     );
 }
@@ -625,6 +636,8 @@ void GS3DIndLight::renderUIImpl(Gui::Widgets& widget)
 {
     if (widget.button("Reset Probe Tick"))
         mDrawResource.probeTick = 0u;
+
+    enumDropdown(widget, "AccelStruct Primitive Type", mConfig.accelStructPrimitiveType);
 
     widget.checkbox("Use Traced Shadow", mConfig.useTracedShadow);
     widget.checkbox("Use Stencil", mConfig.useStencil);

@@ -1,7 +1,7 @@
 import GaussianGI.Scene.GStaticScene;
 import GaussianGI.Renderer.IndLight.GS3D.GS3DIndLightSplat;
 import GaussianGI.Algorithm.GS3D;
-#include "GaussianGI/Algorithm/Icosahedron.slangh"
+#include "GaussianGI/Renderer/IndLight/GS3D/GS3DAccelStructPrimitive.slangh"
 #include "Utils/Math/MathConstants.slangh"
 
 using namespace GS3DIndLight;
@@ -18,7 +18,7 @@ struct RayData
 [shader("anyhit")]
 void anyHit(inout RayData rayData, BuiltInTriangleIntersectionAttributes attribs)
 {
-    uint meshSplatOfst = PrimitiveIndex() / ICOSAHEDRON_TRIANGLE_COUNT;
+    uint meshSplatOfst = PrimitiveIndex() / AS_PRIM_TRIANGLE_COUNT;
     uint firstMeshSplatID = InstanceID();
     uint instanceID = InstanceIndex();
 
@@ -54,7 +54,7 @@ void rayGen()
     RayData rayData;
     rayData.t = 1.0;
 
-    TraceRay(gSplatAccel, RAY_FLAG_CULL_BACK_FACING_TRIANGLES | RAY_FLAG_FORCE_NON_OPAQUE, 0xFF, 0, 1, 0, ray.toRayDesc(), rayData);
+    TraceRay(gSplatAccel, AS_PRIM_CULL_FLAG | RAY_FLAG_FORCE_NON_OPAQUE, 0xFF, 0, 1, 0, ray.toRayDesc(), rayData);
 
     gSplatShadows[splatID] = rayData.t;
 }

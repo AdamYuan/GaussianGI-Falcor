@@ -33,7 +33,7 @@ target_sources(GaussianGI PRIVATE
         Algorithm/GS3DBound.hpp
         Algorithm/GS3DBound.slangh
         Algorithm/Icosahedron.hpp
-        Algorithm/Icosahedron.slangh
+        Algorithm/Octahedron.hpp
         Algorithm/ShadowMapTransform.hpp
         Algorithm/ShadowMapTransform.slang
         Algorithm/GaussianBlurKernel.hpp
@@ -143,6 +143,8 @@ target_sources(GaussianGI PRIVATE
         Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.slangh
         Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.slang
         Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.hpp
+        Renderer/IndLight/GS3D/GS3DAccelStructPrimitive.slangh
+        Renderer/IndLight/GS3D/GS3DAccelStructPrimitive.hpp
 )
 target_link_libraries(GaussianGI PRIVATE assimp tbb)
 target_copy_shaders(GaussianGI GaussianGI)

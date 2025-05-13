@@ -8,7 +8,6 @@ import GaussianGI.Algorithm.SGGX;
 import GaussianGI.Algorithm.GS3D;
 import GaussianGI.Algorithm.SphericalHarmonics;
 #include "Utils/Math/MathConstants.slangh"
-#include "GaussianGI/Algorithm/Icosahedron.slangh"
 #include "GaussianGI/Algorithm/GS3DBound.slangh"
 
 #include "GaussianGI/Renderer/IndLight/GS3D/GS3DIndLightSplatPrimitive.slangh"

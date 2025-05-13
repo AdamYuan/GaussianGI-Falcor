@@ -218,6 +218,7 @@ void GS3DMiscRenderer::drawTracedSplats(RenderContext* pRenderContext, const ref
             mConfig.colorType,
             [&]<typename EnumInfo_T>(EnumInfo_T) { mSplatTracePass.pProgram->addDefine("COLOR_VAR_NAME", EnumInfo_T::kProperty.varName); }
         );
+        setGS3DAccelStructPrimitiveDefine(mSplatTracePass.pProgram, args.accelStructPrimitiveType);
 
         pRenderContext->raytrace(mSplatTracePass.pProgram.get(), mSplatTracePass.pVars.get(), resolution.x, resolution.y, 1u);
     }

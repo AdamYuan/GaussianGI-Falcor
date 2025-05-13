@@ -11,6 +11,7 @@
 #include "../GIndLightArgs.hpp"
 #include "Misc/GS3DMiscRenderer.hpp"
 #include "GS3DIndLightAlgo.hpp"
+#include "GS3DAccelStructPrimitive.hpp"
 
 using namespace Falcor;
 
@@ -53,6 +54,7 @@ private:
         bool useStencil = true;
         bool useDepthGSPP = true;
         bool useZNormal = true;
+        GS3DAccelStructPrimitiveType accelStructPrimitiveType = GS3DAccelStructPrimitiveType::kIcosahedron;
         GS3DPrimitiveType primitiveType = GS3DPrimitiveType::kGSPP;
     } mConfig = {}, mPrevConfig = {};
 
@@ -62,6 +64,7 @@ private:
     void updateDrawResource(const GIndLightDrawArgs& args, const ref<Texture>& pIndirectTexture);
     static ref<DepthStencilState> getDepthStencilState(bool stencilTest, bool depthTest);
     static void preprocessMeshSplats(std::vector<GS3DIndLightSplat>& meshSplats);
+    template<typename AccelStructPrim_T>
     void onSceneChanged(RenderContext* pRenderContext, const ref<GStaticScene>& pStaticScene);
 
 public:

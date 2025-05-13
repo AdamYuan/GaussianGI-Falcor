@@ -12,6 +12,7 @@
 #include "../../../../Algorithm/DeviceSort/DeviceSorter.hpp"
 #include "../GS3DIndLightSplat.hpp"
 #include "../GS3DIndLightSplatPrimitive.hpp"
+#include "../GS3DAccelStructPrimitive.hpp"
 
 using namespace Falcor;
 
@@ -62,6 +63,7 @@ public:
         const ref<RtAccelerationStructure>& pSplatTLAS;
         const ref<Buffer>& pSplatShadowBuffer;
         const ref<Buffer>& pSplatProbeBuffer;
+        GS3DAccelStructPrimitiveType accelStructPrimitiveType;
     };
 
 private:
